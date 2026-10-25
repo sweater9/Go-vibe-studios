@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Play — Go Vibe Studios</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="nav">
+  <a class="brand" href="index.html">Go <span>Vibe</span> Studios</a>
+  <a class="link" href="index.html">Home</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link active" href="games.html">Play</a>
+  <a class="link soon">Create<span class="tag">soon</span></a>
+  <a class="link soon">DJ<span class="tag">soon</span></a>
+</nav>
+
+<main class="wrap">
+  <h1>Play <span class="grad">games</span></h1>
+  <p class="lead">Built-in games run right here. You can also add any HTML5 game that allows embedding.</p>
+
+  <div class="grid" id="list"></div>
+
+  <div class="panel">
+    <h2>Add an embedded game</h2>
+    <p class="status">Paste the embed URL of a game whose owner allows embedding (for example an itch.io "embed" link, or a portal's iframe URL). Check the game's license and terms first. It is saved in this browser only.</p>
+    <div class="row">
+      <input id="gname" type="text" placeholder="Game name" style="max-width:240px">
+      <input id="gurl" type="url" placeholder="https://… embed URL" style="flex:1; min-width:220px">
+      <button class="btn primary" id="gadd">Add</button>
+    </div>
+  </div>
+</main>
+
+<div class="modal hidden" id="modal">
+  <div class="box">
+    <div class="row" style="justify-content:space-between">
+      <h2 id="mtitle" style="margin:0"></h2>
+      <button class="btn" id="mclose">✕ Close</button>
+    </div>
+    <div id="mbody"></div>
+  </div>
+</div>
+<footer>Go Vibe Studios</footer>
+<script src="js/games.js"></script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audio Editor — Go Vibe Studios</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="nav">
+  <a class="brand" href="index.html">Go <span>Vibe</span> Studios</a>
+  <a class="link" href="index.html">Home</a>
+  <a class="link active" href="editor.html">Audio Editor</a>
+  <a class="link" href="games.html">Play</a>
+  <a class="link soon">Create<span class="tag">soon</span></a>
+  <a class="link soon">DJ<span class="tag">soon</span></a>
+</nav>
+
+<main class="wrap">
+  <h1>Audio <span class="grad">Editor</span></h1>
+  <p class="lead">Open an audio file, drag on the waveform to select a part, then edit. Everything stays on your device.</p>
+
+  <div id="drop" class="drop" tabindex="0">
+    Drop an audio file here, or click to choose one<br><small>MP3, WAV, OGG, M4A, FLAC (depends on your browser)</small>
+    <input id="file" type="file" accept="audio/*" hidden>
+  </div>
+
+  <section id="editor" class="hidden">
+    <div class="panel">
+      <canvas id="wave" class="wave"></canvas>
+      <div class="row" style="margin-top:10px; justify-content:space-between">
+        <span class="time" id="info">—</span>
+        <span class="time" id="sel">No selection</span>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button class="btn primary" id="play">▶ Play</button>
+        <button class="btn" id="stop">■ Stop</button>
+        <label class="row time"><input type="checkbox" id="loop"> Loop selection</label>
+        <span style="flex:1"></span>
+        <button class="btn" id="undo" disabled>↶ Undo</button>
+        <button class="btn" id="redo" disabled>↷ Redo</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Edit</h2>
+      <div class="row">
+        <button class="btn" data-op="trim">Trim to selection</button>
+        <button class="btn" data-op="cut">Cut selection</button>
+        <button class="btn" data-op="silence">Silence selection</button>
+        <button class="btn" data-op="fadein">Fade in</button>
+        <button class="btn" data-op="fadeout">Fade out</button>
+        <button class="btn" data-op="reverse">Reverse</button>
+        <button class="btn" data-op="normalize">Normalize</button>
+        <button class="btn" data-op="selectall">Select all</button>
+      </div>
+      <div class="row" style="margin-top:14px; align-items:flex-end">
+        <label class="ctl">Volume: <b id="gainv">100%</b>
+          <input type="range" id="gain" min="0" max="300" value="100">
+        </label>
+        <button class="btn" data-op="gain">Apply volume</button>
+        <label class="ctl">Speed (changes pitch): <b id="speedv">1.00×</b>
+          <input type="range" id="speed" min="25" max="300" value="100">
+        </label>
+        <button class="btn" data-op="speed">Apply speed</button>
+      </div>
+      <p class="status" id="status"></p>
+    </div>
+
+    <div class="panel">
+      <h2>Export</h2>
+      <div class="row">
+        <button class="btn primary" id="export">Download WAV</button>
+        <button class="btn" id="exportsel">Download selection only</button>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>Go Vibe Studios · all processing happens in your browser</footer>
+<script src="js/editor.js"></script>
+</body>
+</html>
