@@ -149,3 +149,11 @@ canvas.meter { width: 100%; height: 40px; display: block; background: #07070f; b
 canvas.dmeter { width: 100%; height: 8px; display: block; background: #07070f; border-radius: 4px; margin-bottom: 8px; }
 .keytbl { width: 100%; border-collapse: collapse; font-size: 14px; } .keytbl td { padding: 4px 8px; border-bottom: 1px solid var(--line); }
 kbd { background: var(--panel-2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; padding: 1px 7px; font: 13px ui-monospace, monospace; }
+
+/* tables and selects on tool pages (converter, BPM finder) */
+.tblwrap { overflow-x: auto; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tbl th { text-align: left; font-size: 12px; letter-spacing: .6px; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); }
+.tbl td { padding: 8px 10px; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; word-break: break-word; }
+.tbl td.bad { color: #fda4af; }
+select { background: var(--bg); border: 1px solid var(--line); color: var(--text); padding: 9px 12px; border-radius: 10px; font-size: 14px; }

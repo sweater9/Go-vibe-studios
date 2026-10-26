@@ -98,3 +98,7 @@ Each deck refines its BPM to 0.01 and finds where beat 1 falls (checked on synth
 - **Backup**: Library → Export backup (.zip with audio, or .json metadata only). Import restores both; tracks imported without audio show as "audio missing" and fill in when you add the file again (notes, ratings, tags and cues are kept).
 - **Tags**: five colours per track, with a filter.
 - **History tab**: tracks played 20 s or more are logged locally; export CSV or a text set list, or build a timecoded tracklist for your last recording. Start a new set to separate sessions (gaps over 3 h also separate automatically).
+
+## Audio converter and BPM and key finder
+- **Converter** (`convert.html`): decode, optionally resample or mix to mono, write WAV (16 bit) or MP3 (lamejs, LGPL, shipped unmodified in `js/vendor/` with `NOTICE.txt`; encoding runs in `js/convert-worker.js`). Batch conversion with a ZIP download. MP3 supports sample rates up to 48000 Hz.
+- **BPM and key finder** (`bpm.html`): uses `js/analyze.js`, the same detection code as the DJ console (tempo, beat grid refinement, key with Camelot code), with CSV export and tap tempo. Estimates only.

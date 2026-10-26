@@ -1,0 +1,3 @@
+lame.min.js is lamejs 1.2.1 (a JavaScript port of the LAME MP3 encoder), unmodified.
+Licence: GNU LGPL 3.0. Source: https://github.com/zhuker/lamejs
+It is loaded as a separate file by js/convert-worker.js, so you can replace it with your own build of lamejs.

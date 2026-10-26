@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audio converter — GoVibe Mix</title>
+<meta name="description" content="Convert audio to MP3 or WAV in your browser. No upload, batch support and a ZIP download.">
+<link rel="canonical" href="https://govibemix.com/convert.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Audio converter — GoVibe Mix">
+<meta property="og:description" content="Convert audio to MP3 or WAV in your browser. No upload, batch support and a ZIP download.">
+<meta property="og:url" content="https://govibemix.com/convert.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="index.html">Home</a>
+  <a class="link" href="create.html">Create</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>Audio converter</h1>
+  <p class="lead">Convert audio to MP3 or WAV in your browser. Your files are not uploaded, and you can convert several at once.</p>
+
+  <div id="drop" class="drop" tabindex="0" role="button">
+    Drop audio files here, or click to choose<br><small>MP3, WAV, OGG, M4A, FLAC and more (depends on your browser)</small>
+    <input id="file" type="file" accept="audio/*" multiple hidden aria-label="Audio files to convert">
+  </div>
+
+  <div class="panel">
+    <h2>Settings</h2>
+    <div class="row">
+      <label class="ctl">Format
+        <select id="fmt"><option value="mp3">MP3</option><option value="wav">WAV (lossless, 16 bit)</option></select>
+      </label>
+      <label class="ctl" id="kbpsw">MP3 quality
+        <select id="kbps"><option value="128">128 kbps (small)</option><option value="192" selected>192 kbps (good)</option><option value="256">256 kbps (high)</option><option value="320">320 kbps (maximum)</option></select>
+      </label>
+      <label class="ctl">Channels
+        <select id="chan"><option value="keep" selected>Keep as is</option><option value="mono">Mono</option></select>
+      </label>
+      <label class="ctl">Sample rate
+        <select id="rate"><option value="0" selected>Keep as is</option><option value="48000">48000 Hz</option><option value="44100">44100 Hz</option><option value="22050">22050 Hz</option></select>
+      </label>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn primary" id="go" disabled>Convert</button>
+      <button class="btn hidden" id="zip">Download all as ZIP</button>
+      <span class="status" id="status" role="status"></span>
+    </div>
+  </div>
+
+  <div id="list" class="panel hidden">
+    <h2>Files</h2>
+    <div class="tblwrap"><table class="tbl" aria-label="Files to convert"><thead><tr><th scope="col">File</th><th scope="col">Size</th><th scope="col">Status</th><th scope="col">Result</th><th scope="col">Actions</th></tr></thead><tbody id="rows"></tbody></table></div>
+  </div>
+
+  <div class="prose">
+    <h2>Good to know</h2>
+    <ul>
+      <li>MP3 is lossy and small. WAV is large and keeps every detail, so convert to WAV when you plan to edit further.</li>
+      <li>Converting from MP3 to MP3 again loses quality. Start from the original or a WAV when you can.</li>
+      <li>MP3 supports sample rates up to 48000 Hz, so higher rates are changed to 48000 Hz.</li>
+      <li>Files over 300 MB are skipped. Very long files take more memory, so convert them one at a time.</li>
+      <li>MP3 encoding uses <a href="https://github.com/zhuker/lamejs">lamejs</a> (LGPL), shipped unmodified in <code>js/vendor/</code>.</li>
+    </ul>
+    <p>Need to cut or fade first? Use the <a href="editor.html">Audio Editor</a>. Want the tempo and key? Try the <a href="bpm.html">BPM and key finder</a>.</p>
+  </div>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/zip.js"></script>
+<script src="js/convert.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>

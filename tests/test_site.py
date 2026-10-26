@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "editor", "video", "create", "dj", "lessons", "about", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "editor", "video", "create", "dj", "lessons", "convert", "bpm", "about", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -733,6 +733,71 @@ def test_backup_history(browser, base):
     ctx.close()
 
 
+def test_tools(browser, base):
+    print("audio converter, BPM and key finder")
+    import tempfile
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    tmp = tempfile.mkdtemp(); f1, f2 = tmp + "/Click 120.wav", tmp + "/Other 128.wav"
+    make_wav(f1, 120, secs=40); make_wav(f2, 128, secs=40, tone=330.0)
+    # BPM finder
+    pg.goto(base + "bpm.html?gvtest")
+    pg.set_input_files("#file", [f1, f2])
+    pg.wait_for_function("() => __bpm.rows.length === 2", timeout=60000)
+    rows = pg.evaluate("__bpm.rows.map((r) => [r.name, r.bpm, r.key])")
+    check("BPM finder reads tempo within 0.5 BPM", abs(rows[0][1] - 120) < 0.5 and abs(rows[1][1] - 128) < 0.5, str(rows))
+    check("BPM finder shows a Camelot key and its name", re.match(r"^\d+[AB]$", rows[0][2] or "") is not None and pg.locator("#rows tr").first.locator("td").nth(4).inner_text() != "—", str(rows))
+    check("BPM finder lists both tracks", pg.locator("#rows tr").count() == 2)
+    pg.evaluate("__bpm.tap(0); __bpm.tap(500); __bpm.tap(1000); __bpm.tap(1500)")
+    check("tap tempo: taps 500 ms apart read 120 BPM", pg.inner_text("#tapbpm").startswith("120.0"), pg.inner_text("#tapbpm"))
+    pg.locator("#rows tr").first.get_by_role("button", name=re.compile("^Remove")).click()
+    check("a result can be removed", pg.locator("#rows tr").count() == 1)
+    check("bpm page: no errors", not errs, str(errs))
+    # converter
+    pg.goto(base + "convert.html?gvtest")
+    pg.set_input_files("#file", [f1, f2])
+    check("converter lists chosen files", pg.locator("#rows tr").count() == 2 and not pg.locator("#go").is_disabled())
+    pg.select_option("#fmt", "wav"); pg.select_option("#chan", "mono"); pg.select_option("#rate", "22050")
+    pg.click("#go"); pg.wait_for_function("() => __conv.items.every((i) => i.blob)", timeout=60000)
+    w = pg.evaluate("""async () => { const b = __conv.items[0].blob, u = new Uint8Array(await b.arrayBuffer()), v = new DataView(u.buffer);
+      return { riff: String.fromCharCode(...u.slice(0, 4)), ch: v.getUint16(22, true), sr: v.getUint32(24, true), secs: v.getUint32(40, true) / 2 / v.getUint32(24, true), name: __conv.items[0].out }; }""")
+    check("WAV output: mono, 22050 Hz, about 40 s, named .wav", w["riff"] == "RIFF" and w["ch"] == 1 and w["sr"] == 22050 and 39 < w["secs"] < 41 and w["name"] == "Click 120.wav", str(w))
+    pg.select_option("#fmt", "mp3"); pg.select_option("#chan", "keep"); pg.select_option("#rate", "0"); pg.select_option("#kbps", "128")
+    pg.click("#go"); pg.wait_for_function("() => __conv.items.every((i) => i.blob && i.out.endsWith('.mp3'))", timeout=90000)
+    m = pg.evaluate("""async () => { const b = __conv.items[0].blob, u = new Uint8Array(await b.arrayBuffer()); let i = 0; if (u[0] === 0x49 && u[1] === 0x44 && u[2] === 0x33) i = 10 + ((u[6] << 21) | (u[7] << 14) | (u[8] << 7) | u[9]);
+      return { size: b.size, sync: u[i] === 0xff && (u[i + 1] & 0xe0) === 0xe0, type: b.type }; }""")
+    check("MP3 output has a valid frame header and a sensible size (128 kbps, 40 s is about 640 KB)", m["sync"] and 500000 < m["size"] < 800000 and m["type"] == "audio/mpeg", str(m))
+    mp3 = pg.evaluate("""async () => { const u = new Uint8Array(await __conv.items[0].blob.arrayBuffer()); let s = ''; for (let i = 0; i < u.length; i += 8192) s += String.fromCharCode(...u.subarray(i, i + 8192)); return btoa(s); }""")
+    import base64
+    open(tmp + "/out.mp3", "wb").write(base64.b64decode(mp3))
+    import subprocess
+    pr = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_name,sample_rate,channels:format=duration", "-of", "default=nw=1", tmp + "/out.mp3"], capture_output=True, text=True) if __import__("shutil").which("ffprobe") else None
+    if pr is not None:
+        check("ffprobe agrees: MP3, 44100 Hz or similar, duration 40 s", "codec_name=mp3" in pr.stdout and "duration=40" in pr.stdout, pr.stdout + pr.stderr)
+    check("ZIP button appears for several converted files", not pg.locator("#zip").is_hidden())
+    with pg.expect_download() as dl:
+        pg.click("#zip")
+    import zipfile
+    zf = zipfile.ZipFile(dl.value.path())
+    check("ZIP holds both MP3 files", sorted(zf.namelist()) == ["Click 120.mp3", "Other 128.mp3"] and zf.testzip() is None, str(zf.namelist()))
+    bad = tmp + "/bad.mp3"; open(bad, "wb").write(b"not audio at all" * 100)
+    pg.set_input_files("#file", bad); pg.click("#go"); pg.wait_for_function("() => __conv.items.at(-1).err === true", timeout=15000)
+    check("an unreadable file shows an error without breaking the others", "Could not read" in pg.locator("#rows tr").last.inner_text() and pg.locator("#rows tr").count() == 3)
+    check("converter page: no errors", not [e for e in errs if "Failed to load resource" not in e and "EncodingError" not in e], str(errs))
+    ctx.close()
+    # accessibility
+    axe = os.environ.get("AXE_PATH") or os.path.join(ROOT, "node_modules/axe-core/axe.min.js")
+    if os.path.exists(axe):
+        js = "axe.run(document,{runOnly:['wcag2a','wcag2aa','wcag21a','wcag21aa','best-practice']}).then(r=>r.violations.map(v=>v.id+' x'+v.nodes.length+' '+v.nodes[0].target.join(' ')))"
+        c2 = browser.new_context(bypass_csp=True); p2 = c2.new_page()
+        for name in ("convert", "bpm"):
+            p2.goto(base + name + ".html"); p2.add_script_tag(path=axe)
+            check(f"{name} (empty): no axe violations", not (v := p2.evaluate(js)), str(v))
+        p2.goto(base + "bpm.html?gvtest"); p2.set_input_files("#file", [f1]); p2.wait_for_function("() => __bpm.rows.length === 1", timeout=60000); p2.add_script_tag(path=axe)
+        check("bpm (with results): no axe violations", not (v := p2.evaluate(js)), str(v))
+        c2.close()
+
+
 def test_views(browser, base):
     print("performance view, light theme, ratings and notes")
     import tempfile
@@ -875,7 +940,7 @@ def main():
     test_static()
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_views, test_lessons, test_video, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_views, test_lessons, test_video, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

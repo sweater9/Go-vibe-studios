@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BPM and key finder — GoVibe Mix</title>
+<meta name="description" content="Find the BPM and musical key (Camelot) of your tracks in your browser, plus a tap tempo counter. Nothing is uploaded.">
+<link rel="canonical" href="https://govibemix.com/bpm.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="BPM and key finder — GoVibe Mix">
+<meta property="og:description" content="Find the BPM and musical key (Camelot) of your tracks in your browser, plus a tap tempo counter. Nothing is uploaded.">
+<meta property="og:url" content="https://govibemix.com/bpm.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="index.html">Home</a>
+  <a class="link" href="create.html">Create</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>BPM and key finder</h1>
+  <p class="lead">Drop your tracks to find their tempo and musical key (with the Camelot code DJs use). Everything runs in your browser, so nothing is uploaded.</p>
+
+  <div id="drop" class="drop" tabindex="0" role="button">
+    Drop audio files here, or click to choose<br><small>MP3, WAV, OGG, M4A, FLAC and more (depends on your browser)</small>
+    <input id="file" type="file" accept="audio/*" multiple hidden aria-label="Audio files to analyse">
+  </div>
+  <p class="status" id="status" role="status"></p>
+
+  <div id="list" class="panel hidden">
+    <h2>Results</h2>
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn" id="copy">Copy table</button>
+      <button class="btn" id="csv">Export CSV</button>
+      <button class="btn" id="clear">Clear</button>
+    </div>
+    <div class="tblwrap"><table class="tbl" aria-label="BPM and key results"><thead><tr><th scope="col">Track</th><th scope="col">Length</th><th scope="col">BPM</th><th scope="col">Camelot</th><th scope="col">Key</th><th scope="col">Remove</th></tr></thead><tbody id="rows"></tbody></table></div>
+  </div>
+
+  <div class="panel">
+    <h2>Tap tempo</h2>
+    <p class="status">Tap the button on the beat of a song you hear. After a few taps you get the BPM. Stop for more than two seconds to start again.</p>
+    <div class="row">
+      <button class="btn primary" id="tap" style="min-width:140px;height:56px;font-size:18px">Tap</button>
+      <button class="btn" id="tapreset">Reset</button>
+      <span style="font-size:28px;font-weight:700;min-width:150px" id="tapbpm" role="status">—</span>
+    </div>
+  </div>
+
+  <div class="prose">
+    <h2>How accurate is it?</h2>
+    <p>Tempo is usually right within a fraction of a BPM on clear, steady music. It can be off by half or double on slow or sparse tracks, so a reading of 64 may really be 128. Tracks with live drummers or tempo changes are harder. Key detection is less certain than tempo and works best on music with clear harmony. Treat both as a good first guess and check by ear.</p>
+    <p>What is the Camelot code? It is a simple name for each key, from 1A to 12B, that shows which tracks mix well together. <a href="blog-camelot.html">Read the guide</a>. To use the results, load the tracks in the <a href="dj.html">DJ Console</a>.</p>
+  </div>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/analyze.js"></script>
+<script src="js/bpm.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>
