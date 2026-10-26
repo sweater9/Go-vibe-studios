@@ -1,4 +1,4 @@
-/* Go Vibe Studios — two-deck DJ mixer (Web Audio API, no dependencies) */
+/* GoVibe Mix — two-deck DJ mixer (Web Audio API, no dependencies) */
 (() => {
   const $ = (id) => document.getElementById(id);
   const AC = window.AudioContext || window.webkitAudioContext;

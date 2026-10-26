@@ -1,4 +1,4 @@
-/* Go Vibe Studios — DJ console look: dark chassis, brushed panels, rotary knobs, faders, jog wheels */
+/* GoVibe Mix — DJ console look: dark chassis, brushed panels, rotary knobs, faders, jog wheels */
 .console { --a: #ff7a45; --b: #2bb7ff; --metal: #1a1c24; --metal-2: #12131a; --edge: #262933; --lab: #a4a9bd; max-width: 1480px; margin: 0 auto; padding: 14px 14px 60px; }
 .console h1 { font-size: 22px; margin: 0; letter-spacing: .5px; }
 .console .status { margin: 0; }

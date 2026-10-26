@@ -1,4 +1,4 @@
-/* Go Vibe Studios — DJ lessons: progress, beatmatching trainer, Camelot key helper */
+/* GoVibe Mix — DJ lessons: progress, beatmatching trainer, Camelot key helper */
 (() => {
   const $ = (id) => document.getElementById(id);
 

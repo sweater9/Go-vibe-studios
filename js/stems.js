@@ -1,4 +1,4 @@
-/* Go Vibe Studios — stem splitter UI (beta). Signal-processing based, not AI. See js/stems-worker.js. */
+/* GoVibe Mix — stem splitter UI (beta). Signal-processing based, not AI. See js/stems-worker.js. */
 (() => {
   const A = window.GVAudio; if (!A) return;
   const { ctx, decks } = A, MAX_SECS = 300;

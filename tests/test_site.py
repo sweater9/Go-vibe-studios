@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end checks for Go Vibe Studios.
+"""End-to-end checks for GoVibe Mix.
 
 Run:  pip install playwright && playwright install chromium && python tests/test_site.py
 Optional accessibility audit: npm install --no-save axe-core   (skipped if axe-core is not installed)
@@ -747,7 +747,7 @@ def test_backup_history(browser, base):
         c2.close()
     pg.set_viewport_size({"width": 390, "height": 800}); pg.wait_for_timeout(200)
     check("no horizontal overflow at 390px with the new tabs", pg.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1"))
-    check("backup/history: no errors", not [e for e in errs if "Failed to load resource" not in e and "not a Go Vibe" not in e], str(errs))
+    check("backup/history: no errors", not [e for e in errs if "Failed to load resource" not in e and "not a GoVibe Mix" not in e], str(errs))
     ctx.close()
 
 

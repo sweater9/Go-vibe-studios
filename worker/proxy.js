@@ -1,5 +1,5 @@
 /**
- * Go Vibe Studios — keyless CORS proxy for Replicate (Cloudflare Worker).
+ * GoVibe Mix — keyless CORS proxy for Replicate (Cloudflare Worker).
  *
  * - Forwards ONLY the paths the generator needs, to api.replicate.com.
  * - Passes the caller's Authorization header through. It never stores, logs or inspects it.

@@ -1,4 +1,4 @@
-/* Go Vibe Studios — game library: built-in games + user-added embeds */
+/* GoVibe Mix — game library: built-in games + user-added embeds */
 (() => {
   const $ = (id) => document.getElementById(id);
   const modal = $('modal'), body = $('mbody');

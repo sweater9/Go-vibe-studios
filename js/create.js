@@ -1,4 +1,4 @@
-/* Go Vibe Studios — AI music generator (bring-your-own Replicate key) */
+/* GoVibe Mix — AI music generator (bring-your-own Replicate key) */
 (() => {
   const $ = (id) => document.getElementById(id);
   const API = 'https://api.replicate.com';

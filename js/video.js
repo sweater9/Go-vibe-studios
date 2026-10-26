@@ -1,4 +1,4 @@
-/* Go Vibe Studios — basic in-browser video editor.
+/* GoVibe Mix — basic in-browser video editor.
  * Clips are played into a canvas; export records canvas + mixed audio in real time with MediaRecorder. */
 (() => {
   const $ = (id) => document.getElementById(id);

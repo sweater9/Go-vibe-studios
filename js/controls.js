@@ -1,4 +1,4 @@
-/* Go Vibe Studios — keyboard shortcuts, MIDI controllers and level meters for the DJ page */
+/* GoVibe Mix — keyboard shortcuts, MIDI controllers and level meters for the DJ page */
 (() => {
   const A = window.GVAudio; if (!A) return;
   const { decks } = A, $ = (id) => document.getElementById(id);

@@ -1,6 +1,6 @@
 {
-  "name": "Go Vibe Studios",
-  "short_name": "Go Vibe",
+  "name": "GoVibe Mix",
+  "short_name": "GoVibe Mix",
   "description": "Free browser tools for music makers, DJs and gamers.",
   "start_url": "index.html",
   "scope": "./",

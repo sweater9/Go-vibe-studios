@@ -1,4 +1,4 @@
-/* Go Vibe Studios — minimal accessible tabs (arrow keys, Home/End) */
+/* GoVibe Mix — minimal accessible tabs (arrow keys, Home/End) */
 (() => {
   document.querySelectorAll('[role=tablist]').forEach((list) => {
     const tabs = [...list.querySelectorAll('[role=tab]')];

@@ -1,4 +1,4 @@
-/* Go Vibe Studios — DJ library: tracks saved in this browser (IndexedDB) with BPM, key, beat grid and cue points */
+/* GoVibe Mix — DJ library: tracks saved in this browser (IndexedDB) with BPM, key, beat grid and cue points */
 (() => {
   const A = window.GVAudio; if (!A || !window.GVStore || !indexedDB) return;
   const { ctx, decks, detectBPM, detectGrid, detectKey, keysMatch } = A, $ = (id) => document.getElementById(id);
@@ -140,7 +140,7 @@
     let data, files = {};
     if (/\.json$/i.test(file.name) || file.type === 'application/json') data = JSON.parse(await file.text());
     else { for (const e of await GVZip.read(file)) files[e.name] = e; if (!files['library.json']) throw new Error('library.json is missing'); data = JSON.parse(await (await files['library.json'].blob()).text()); }
-    if (!data || data.app !== 'go-vibe-studios' || !Array.isArray(data.tracks)) throw new Error('This is not a Go Vibe Studios library backup');
+    if (!data || data.app !== 'go-vibe-studios' || !Array.isArray(data.tracks)) throw new Error('This is not a GoVibe Mix library backup');
     let withAudio = 0, metaOnly = 0, updated = 0;
     for (const t of data.tracks) {
       if (!t.id || !t.name) continue;

@@ -1,4 +1,4 @@
-/* Go Vibe Studios — rotary knobs built on top of real <input type=range> (keyboard + screen-reader friendly).
+/* GoVibe Mix — rotary knobs built on top of real <input type=range> (keyboard + screen-reader friendly).
    The input stays the source of truth; the knob is drawn from it and writes back to it. */
 window.GVKnobs = (() => {
   const all = [];

@@ -1,4 +1,4 @@
-/* Go Vibe Studios — beat maker: 16-step sequencer with synthesized drums, routed through the DJ master */
+/* GoVibe Mix — beat maker: 16-step sequencer with synthesized drums, routed through the DJ master */
 (() => {
   const A = window.GVAudio; if (!A) return;
   const { ctx, env } = A, $ = (id) => document.getElementById(id);
