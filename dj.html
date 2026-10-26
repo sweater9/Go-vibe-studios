@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DJ Mixer — Go Vibe Studios</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="nav">
+  <a class="brand" href="index.html">Go <span>Vibe</span> Studios</a>
+  <a class="link" href="index.html">Home</a>
+  <a class="link" href="create.html">Create</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link active" href="dj.html">DJ</a>
+  <a class="link" href="games.html">Play</a>
+</nav>
+
+<main class="wrap" style="max-width:1200px">
+  <h1>DJ <span class="grad">Mixer</span></h1>
+  <p class="lead">Load two tracks from your device, match their tempo, blend with the crossfader and record your mix.</p>
+
+  <div class="djgrid">
+    <section class="deck panel" id="deck0"></section>
+
+    <section class="mixer panel">
+      <h2>Mixer</h2>
+      <label class="ctl" style="min-width:0">Crossfader
+        <input type="range" id="xf" min="0" max="100" value="50">
+      </label>
+      <div class="row time" style="justify-content:space-between"><span>A</span><span>B</span></div>
+      <label class="ctl" style="min-width:0;margin-top:12px">Master volume
+        <input type="range" id="master" min="0" max="100" value="80">
+      </label>
+      <div class="row" style="margin-top:14px">
+        <button class="btn" id="syncA">Sync A → B</button>
+        <button class="btn" id="syncB">Sync B → A</button>
+      </div>
+      <h2 style="margin-top:18px">Pads</h2>
+      <div class="pads" id="pads"></div>
+      <h2 style="margin-top:18px">Record</h2>
+      <div class="row">
+        <button class="btn primary" id="rec">● Record mix</button>
+        <span class="time" id="rectime"></span>
+      </div>
+      <a class="btn hidden" id="recdl" style="margin-top:8px;display:inline-block">Download mix</a>
+      <p class="status" id="status"></p>
+    </section>
+
+    <section class="deck panel" id="deck1"></section>
+  </div>
+  <p class="status" style="margin-top:14px">Tip: tempo sync matches speed only. Line up the beats yourself by nudging the tempo slider or clicking the waveform. Load only music you have the right to use.</p>
+</main>
+<footer>Go Vibe Studios · all processing happens in your browser</footer>
+<script src="js/dj.js"></script>
+</body>
+</html>

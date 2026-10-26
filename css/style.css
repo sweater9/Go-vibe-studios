@@ -68,3 +68,19 @@ canvas.wave { width: 100%; height: 180px; display: block; background: #07070f; b
 .mem-card.up { background: #8b5cf633; }
 .mem-card.done { background: #34d39933; cursor: default; }
 footer { text-align: center; color: var(--muted); font-size: 12px; padding: 30px 0; }
+
+/* ---- DJ mixer ---- */
+.djgrid { display: grid; grid-template-columns: 1fr 260px 1fr; gap: 16px; align-items: start; margin-top: 8px; }
+@media (max-width: 900px) { .djgrid { grid-template-columns: 1fr; } .mixer { order: -1; } }
+.deck { margin-top: 0; }
+.deck h2 { display: flex; justify-content: space-between; align-items: center; }
+.deck .bpm { font-size: 13px; color: var(--accent-2); font-weight: 600; }
+.deck .tname { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 8px; }
+.deck canvas { height: 90px; }
+.deck .eq { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+.deck .eq label.ctl { min-width: 0; align-items: center; text-align: center; }
+.pads { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.pad { height: 54px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); cursor: pointer; font-size: 13px; font-family: inherit; }
+.pad:active { background: var(--accent); }
+.on { border-color: var(--good) !important; color: var(--good); }
+.rec-on { background: #be123c !important; }
