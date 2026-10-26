@@ -19,6 +19,12 @@ Free browser tools for music makers, DJs and gamers. No sign-up, no payments, no
 - **Learn to DJ** (`lessons.html`): five short lessons (BPM, beatmatching, phrasing, EQ blending, harmonic mixing) with progress saved in the browser, a beatmatching ear-trainer that scores how close your tempo match is, and a Camelot-wheel helper showing which keys mix well.
 - Not done: **stem separation**. It needs a hosted model and a way to upload a full-size song from the browser, and the Replicate model and upload details could not be verified, so it is left out rather than shipped untested.
 
+## Phase 4
+
+- **Video Editor** (`video.html`): add several clips, trim in/out points, reorder, add timed text overlays (position, size, colour), add one music track with volume and original-sound volume, pick 16:9, 9:16 or 1:1, preview, and export. No libraries.
+- How export works: the preview is recorded in real time with the browser's MediaRecorder, so a 1-minute video takes about a minute and the tab must stay open. The file is MP4 (H.264/AAC) only if the browser can record it, otherwise WebM (VP9/Opus). WebM files from MediaRecorder carry no duration in their header, so some players cannot seek in them; the site's own editors handle this.
+- Not included: transitions, multiple tracks, filters, fades, music offset, MP4 conversion for browsers that only record WebM. The MP4 path was not tested here (the test browser has no H.264); the WebM path was tested end to end.
+
 ## Run locally
 
 It is a static site with no build step. Open `index.html`, or serve the folder:
@@ -34,7 +40,7 @@ Push to GitHub, then connect the repo to Cloudflare Pages, GitHub Pages or Verce
 ## Roadmap
 
 - Later: stem separation (needs a verified model and file-upload route), key detection for tracks.
-- Phase 4: basic video editor, sharing.
+- Sharing and accounts (not started; not needed for the free tools).
 
 ## Notes
 
