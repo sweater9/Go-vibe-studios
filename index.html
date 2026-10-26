@@ -18,8 +18,11 @@
 <meta property="og:image" content="https://govibemix.com/icons/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/home.css">
+<link rel="preload" href="fonts/bricolage-grotesque.woff2" as="font" type="font/woff2" crossorigin>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><symbol id="i-studio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M8 4v16M13 13h5M13 16h3"/></symbol><symbol id="i-loop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11v-1a4 4 0 014-4h14M7 22l-4-4 4-4"/><path d="M21 13v1a4 4 0 01-4 4H3"/></symbol><symbol id="i-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v4M8 22h8"/></symbol><symbol id="i-spark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 17l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/></symbol><symbol id="i-keys" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 5v14M12 5v14M16 5v14"/><path d="M6.5 5v7M10.5 5v7M14.5 5v7M18.5 5v7" stroke-width="3"/></symbol><symbol id="i-wave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h2M7 7v10M11 4v16M15 8v8M19 10v4M21 12h0"/></symbol><symbol id="i-film" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></symbol><symbol id="i-convert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></symbol><symbol id="i-gauge" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18a8.5 8.5 0 1116 0"/><path d="M12 18l4-6"/><circle cx="12" cy="18" r="1.2"/></symbol><symbol id="i-dj" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v3M21 12h-3"/></symbol><symbol id="i-bpm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21l3-17h2l3 17z"/><path d="M12 15l5-8M9.5 21h5"/></symbol><symbol id="i-cap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-4.5"/></symbol><symbol id="i-note" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></symbol><symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol><symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4.5v15l13-7.5z" fill="currentColor"/></symbol><symbol id="i-stop" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></symbol></svg>
 <a class="skip" href="#main">Skip to content</a>
 <nav class="nav" aria-label="Main">
   <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
@@ -31,92 +34,68 @@
   <a class="link" href="lessons.html">Learn</a>
 </nav>
 
-<main id="main" tabindex="-1" class="wrap">
-  <h1>Free tools for <span class="grad">music makers, DJs and creators</span></h1>
-  <p class="lead">Everything runs in your browser. No signup, no payments, and your files never leave your device.</p>
+<main id="main" tabindex="-1" class="home">
+  <header class="hero">
+    <div>
+      <h1><span class="l"><span>Make, mix and master music.</span></span><span class="l l2"><span>Free, in your browser.</span></span></h1>
+      <p class="lead">Studio, DJ decks, audio and video editing, mastering and lessons. No signup, and your files never leave your device.</p>
+      <div class="ctas"><a class="cta" href="studio.html">Open the Studio</a><a class="cta ghost" href="dj.html">Start DJing</a></div>
+    </div>
+    <div class="deck" id="deck">
+      <div class="deckhead">
+        <button class="playbtn" id="dplay" aria-pressed="false" aria-label="Play the beat"><svg class="pp" aria-hidden="true"><use href="#i-play"/></svg><svg class="ps" aria-hidden="true"><use href="#i-stop"/></svg></button>
+        <h2>Try a beat. Tap the squares.</h2>
+        <label>Pattern <select id="dpat" aria-label="Pattern"><option>Boom bap</option><option>House</option><option>Trap</option><option>Empty</option></select></label>
+        <label>Tempo <input type="range" id="dbpm" min="70" max="160" value="92" aria-label="Tempo in beats per minute"><b id="dbpmv" style="min-width:3.2em;color:var(--text);font-variant-numeric:tabular-nums">92</b></label>
+      </div>
+      <div class="steps" id="steps" role="group" aria-label="Drum steps. Four rows: kick, snare, hat, clap."></div>
+      <p class="decknote"><span id="dstat" role="status">Press play, then tap squares to change the beat.</span><a href="studio.html" id="dopen">Keep going in the Studio</a></p>
+    </div>
+  </header>
 
-  <div class="grid">
-    <a class="card" href="editor.html">
-      <div class="emoji">🎚️</div>
-      <h2>Audio Editor</h2>
-      <p>Trim, cut, fade, change volume and speed, and export to WAV.</p>
-      <span class="badge">Live</span>
-    </a>
-    <a class="card" href="studio.html">
-      <div class="emoji">🎹</div>
-      <h2>Multitrack Studio</h2>
-      <p>Record, arrange and mix audio, keys and drum tracks on a timeline, then export.</p>
-      <span class="badge">New</span>
-    </a>
-    <a class="card" href="record.html">
-      <div class="emoji">🎙️</div>
-      <h2>Voice recorder</h2>
-      <p>Record your voice or an instrument, keep several takes, download WAV or MP3.</p>
-      <span class="badge">New</span>
-    </a>
-    <a class="card" href="master.html">
-      <div class="emoji">📈</div>
-      <h2>Mastering</h2>
-      <p>Measure LUFS and true peak, match streaming loudness, limit, compare and export.</p>
-      <span class="badge">New</span>
-    </a>
-    <a class="card" href="samples.html">
-      <div class="emoji">🔊</div>
-      <h2>Loop maker</h2>
-      <p>Make drum, bass, chord and melody loops in any key and tempo. WAV, MIDI or open in the Studio.</p>
-      <span class="badge">New</span>
-    </a>
-    <a class="card" href="keys.html">
-      <div class="emoji">🎼</div>
-      <h2>Key and scale helper</h2>
-      <p>Scales, chords in a key, DJ compatible keys and a scale finder, with a keyboard to play.</p>
-      <span class="badge">New</span>
-    </a>
-    <a class="card" href="bpm.html">
-      <div class="emoji">🥁</div>
-      <h2>BPM and key finder</h2>
-      <p>Find the tempo and Camelot key of your tracks, plus a tap tempo counter.</p>
-      <span class="badge">New</span>
-    </a>
-    <a class="card" href="convert.html">
-      <div class="emoji">🔁</div>
-      <h2>Audio converter</h2>
-      <p>Convert audio to MP3 or WAV, one file or many, then download a ZIP.</p>
-      <span class="badge">New</span>
-    </a>
-    <a class="card" href="create.html">
-      <div class="emoji">✨</div>
-      <h2>AI Music Generator</h2>
-      <p>Describe a song and generate it with your own Replicate key.</p>
-      <span class="badge">Live</span>
-    </a>
-    <a class="card" href="dj.html">
-      <div class="emoji">🎧</div>
-      <h2>DJ Mixer</h2>
-      <p>Two decks, EQ, crossfader, BPM detection, pads and mix recording.</p>
-      <span class="badge">Live</span>
-    </a>
-    <a class="card" href="lessons.html">
-      <div class="emoji">🎓</div>
-      <h2>Learn to DJ</h2>
-      <p>Short lessons, a beatmatching trainer and a key-mixing helper.</p>
-      <span class="badge">Live</span>
-    </a>
-    <a class="card" href="learn-music.html">
-      <div class="emoji">📚</div>
-      <h2>Learn music</h2>
-      <p>Rhythm, scales, chords, mixing and mastering lessons, with an ear trainer and quizzes.</p>
-      <span class="badge">New</span>
-    </a>
-    <a class="card" href="video.html">
-      <div class="emoji">🎬</div>
-      <h2>Video Editor</h2>
-      <p>Join and trim clips, add fades, transitions, text and music, then export.</p>
-      <span class="badge">Live</span>
-    </a>
+  <div class="facts">
+    <p><b>Free, no signup</b>Open a tool and start. There are no accounts or payments.</p>
+    <p><b>Private by design</b>Audio and video are processed on your device and never uploaded.</p>
+    <p><b>Works offline</b>Install it as an app on your computer or phone and use it without a connection.</p>
   </div>
+
+  <section class="grp g-make" aria-labelledby="h-g-make">
+    <div class="gh"><h2 id="h-g-make">Make</h2><p>Start from silence or from a loop. Record, program, play and arrange.</p></div>
+    <div class="tools">
+      <a class="card tool feature-link" href="studio.html"><span class="ico"><svg aria-hidden="true"><use href="#i-studio"/></svg></span><span><h3>Multitrack Studio <span class="new">New</span></h3><p>Record, arrange and mix audio, keys and drum tracks on a timeline. Piano roll, loops, mixer, WAV and MP3 export.</p></span><span class="go"><svg aria-hidden="true"><use href="#i-arrow"/></svg></span></a>
+      <a class="card tool" href="samples.html"><span class="ico"><svg aria-hidden="true"><use href="#i-loop"/></svg></span><span><h3>Loop maker <span class="new">New</span></h3><p>Drum, bass, chord and melody loops in your key and tempo. WAV, MIDI, or open in the Studio.</p></span><span class="go"><svg aria-hidden="true"><use href="#i-arrow"/></svg></span></a>
+      <a class="card tool" href="record.html"><span class="ico"><svg aria-hidden="true"><use href="#i-mic"/></svg></span><span><h3>Voice recorder <span class="new">New</span></h3><p>Record your voice or an instrument, keep several takes, download WAV or MP3.</p></span><span class="go"><svg aria-hidden="true"><use href="#i-arrow"/></svg></span></a>
+      <a class="card tool" href="create.html"><span class="ico"><svg aria-hidden="true"><use href="#i-spark"/></svg></span><span><h3>AI Music Generator</h3><p>Describe a song and generate it with your own Replicate key.</p></span><span class="go"><svg aria-hidden="true"><use href="#i-arrow"/></svg></span></a>
+      <a class="card tool" href="keys.html"><span class="ico"><svg aria-hidden="true"><use href="#i-keys"/></svg></span><span><h3>Key and scale helper <span class="new">New</span></h3><p>Scales, chords in a key, DJ compatible keys and a scale finder on a playable keyboard.</p></span><span class="go"><svg aria-hidden="true"><use href="#i-arrow"/></svg></span></a>
+    </div>
+  </section>
+  <section class="grp g-edit" aria-labelledby="h-g-edit">
+    <div class="gh"><h2 id="h-g-edit">Edit and finish</h2><p>Clean up, cut, convert and bring your tracks to release level.</p></div>
+    <div class="tools">
+      <a class="card tool" href="editor.html"><span class="ico"><svg aria-hidden="true"><use href="#i-wave"/></svg></span><span><h3>Audio Editor</h3><p>Trim, cut, fade, change speed and pitch, EQ and noise gate. Export WAV or MP3.</p></span><span class="go"><svg aria-hidden="true"><use href="#i-arrow"/></svg></span></a>
+      <a class="card tool" href="video.html"><span class="ico"><svg aria-hidden="true"><use href="#i-film"/></svg></span><span><h3>Video Editor</h3><p>Join and trim clips, add fades, transitions, text and music, then export.</p></span><span class="go"><svg aria-hidden="true"><use href="#i-arrow"/></svg></span></a>
+      <a class="card tool" href="master.html"><span class="ico"><svg aria-hidden="true"><use href="#i-gauge"/></svg></span><span><h3>Mastering <span class="new">New</span></h3><p>Measure LUFS and true peak, match streaming loudness, limit, compare and export.</p></span><span class="go"><svg aria-hidden="true"><use href="#i-arrow"/></svg></span></a>
+      <a class="card tool" href="convert.html"><span class="ico"><svg aria-hidden="true"><use href="#i-convert"/></svg></span><span><h3>Audio converter <span class="new">New</span></h3><p>Convert audio to MP3 or WAV, one file or many, then download a ZIP.</p></span><span class="go"><svg aria-hidden="true"><use href="#i-arrow"/></svg></span></a>
+    </div>
+  </section>
+  <section class="grp g-dj" aria-labelledby="h-g-dj">
+    <div class="gh"><h2 id="h-g-dj">DJ</h2><p>Mix live, and know your music before you play it.</p></div>
+    <div class="tools">
+      <a class="card tool" href="dj.html"><span class="ico"><svg aria-hidden="true"><use href="#i-dj"/></svg></span><span><h3>DJ Mixer</h3><p>Two decks, EQ, crossfader, BPM detection, pads, Automix and mix recording.</p></span><span class="go"><svg aria-hidden="true"><use href="#i-arrow"/></svg></span></a>
+      <a class="card tool" href="bpm.html"><span class="ico"><svg aria-hidden="true"><use href="#i-bpm"/></svg></span><span><h3>BPM and key finder <span class="new">New</span></h3><p>Find the tempo and Camelot key of your tracks, plus a tap tempo counter.</p></span><span class="go"><svg aria-hidden="true"><use href="#i-arrow"/></svg></span></a>
+    </div>
+  </section>
+  <section class="grp g-learn" aria-labelledby="h-g-learn">
+    <div class="gh"><h2 id="h-g-learn">Learn</h2><p>Short lessons you can try straight away in the tools.</p></div>
+    <div class="tools">
+      <a class="card tool" href="lessons.html"><span class="ico"><svg aria-hidden="true"><use href="#i-cap"/></svg></span><span><h3>Learn to DJ</h3><p>Ten short lessons, a beatmatching trainer, phrase and key trainers.</p></span><span class="go"><svg aria-hidden="true"><use href="#i-arrow"/></svg></span></a>
+      <a class="card tool" href="learn-music.html"><span class="ico"><svg aria-hidden="true"><use href="#i-note"/></svg></span><span><h3>Learn music and production <span class="new">New</span></h3><p>Rhythm, scales, chords, mixing and mastering with an ear trainer and quizzes.</p></span><span class="go"><svg aria-hidden="true"><use href="#i-arrow"/></svg></span></a>
+    </div>
+  </section>
 </main>
 <footer>GoVibe Mix · free and open source · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/synth.js"></script>
+<script src="js/home.js"></script>
 <script src="js/pwa.js"></script>
 </body>
 </html>

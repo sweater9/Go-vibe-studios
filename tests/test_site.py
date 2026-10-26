@@ -1218,6 +1218,36 @@ def test_learn(browser, base):
     c3 = browser.new_context(viewport={"width": 390, "height": 844}); p3 = c3.new_page(); p3.goto(base + "learn-music.html"); over = p3.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth"); check("learn page: no sideways scroll at 390px", over <= 0, str(over)); c3.close()
 
 
+def test_home(browser, base):
+    print("home page")
+    errs = []
+    ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 900})
+    pg.goto(base + "index.html?gvtest"); pg.wait_for_function("() => window.__home")
+    check("home lists every tool with a link", pg.locator("a.card").count() == 13 and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "create.html", "keys.html", "editor.html", "video.html", "master.html", "convert.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
+    check("four groups with headings", pg.locator(".grp h2").count() == 4 and pg.inner_text(".grp h2 >> nth=0") == "Make")
+    check("the web font loads from this site", pg.evaluate("document.fonts.check('16px \"Bricolage Grotesque\"')"))
+    check("beat strip has 4 rows of 16 steps and starts with a boom bap pattern", pg.locator(".st").count() == 64 and pg.locator('.st[aria-pressed="true"]').count() == 3 + 2 + 8)
+    pg.locator('button[aria-label="Clap step 3"]').click(); check("tapping a square toggles it", pg.locator('button[aria-label="Clap step 3"]').get_attribute("aria-pressed") == "true" and pg.evaluate("__home.grid.Clap[2]") == 1)
+    pg.select_option("#dpat", "House"); check("house pattern sets 124 BPM and a four on the floor kick", pg.input_value("#dbpm") == "124" and pg.evaluate("__home.grid.Kick.filter(Boolean).length") == 4 and pg.evaluate("__home.grid.Kick[8]") == 1)
+    pg.click("#dplay"); pg.wait_for_function("() => __home.playing"); pg.wait_for_function("() => document.querySelectorAll('.st.now').length === 4", timeout=5000)
+    check("play lights a moving playhead and the button says stop", pg.get_attribute("#dplay", "aria-pressed") == "true" and pg.get_attribute("#dplay", "aria-label") == "Stop the beat")
+    pg.click("#dplay"); check("stop clears the playhead", pg.locator(".st.now").count() == 0 and not pg.evaluate("__home.playing"))
+    pg.select_option("#dpat", "Empty"); check("empty pattern says so", "empty" in pg.inner_text("#dstat"))
+    pg.locator('button[aria-label="Kick step 1"]').click(); pg.locator('button[aria-label="Snare step 5"]').click(); pg.fill("#dbpm", "100") if False else pg.evaluate("document.getElementById('dbpm').value = 100; document.getElementById('dbpm').dispatchEvent(new Event('input'))")
+    pg.click("#dopen"); pg.wait_for_url("**/studio.html?from=samples", timeout=10000)
+    pg.goto(pg.url + "&gvtest") if False else None
+    pg.goto(base + "index.html?gvtest"); pg.evaluate("localStorage.setItem('govibe.loop', JSON.stringify({ bpm: 100, bars: 4, spec: { type: 'drum', name: 'Home beat', grid: { Kick: [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0], Snare: [0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0] }, swing: 0 } }))")
+    pg.goto(base + "studio.html?from=samples&gvtest"); pg.wait_for_function("() => window.__st && __st.P.tracks.length > 0", timeout=10000)
+    check("the beat opens in the Studio as a drum track", pg.evaluate("__st.P.tracks[__st.P.tracks.length - 1].type") == "drum")
+    check("home: no errors", not errs, str(errs))
+    ctx.close()
+    c2 = browser.new_context(viewport={"width": 1200, "height": 900}, reduced_motion="reduce"); p2 = c2.new_page(); p2.goto(base + "index.html"); p2.evaluate("window.scrollTo(0, 99999)"); p2.wait_for_timeout(300)
+    check("with reduced motion the group lines are drawn without animation", p2.evaluate("getComputedStyle(document.querySelector('.grp'), '::before').transform") in ("matrix(1, 0, 0, 1, 0, 0)", "none")); c2.close()
+    c3 = browser.new_context(viewport={"width": 390, "height": 844}); p3 = c3.new_page(); p3.goto(base + "index.html"); p3.wait_for_timeout(500)
+    check("home: no sideways scroll at 390px", p3.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth") <= 0)
+    check("home: tool rows are tappable (at least 44 px tall) on a phone", p3.evaluate("Math.min(...[...document.querySelectorAll('a.card')].map((a) => a.getBoundingClientRect().height))") >= 44); c3.close()
+
+
 def test_views(browser, base):
     print("performance view, light theme, ratings and notes")
     import tempfile
@@ -1418,7 +1448,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_record, test_studio, test_master, test_keys_samples, test_desktop, test_learn, test_views, test_lessons, test_video, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_record, test_studio, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

@@ -1,3 +1,7 @@
+@font-face { font-family: "Bricolage Grotesque"; src: url("../fonts/bricolage-grotesque.woff2") format("woff2"); font-weight: 200 800; font-style: normal; font-display: swap; }
+@view-transition { navigation: auto; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .28s; }
+@media (prefers-reduced-motion: reduce) { @view-transition { navigation: none; } }
 :root {
   --bg: #0b0b14;
   --panel: #14142a;
@@ -12,7 +16,7 @@
   --radius: 14px;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font-family: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 body { min-height: 100vh; background: radial-gradient(1200px 600px at 80% -10%, #2b1b5a55, transparent), radial-gradient(900px 500px at -10% 10%, #0e4a6a44, transparent), var(--bg); }
 a { color: var(--accent-2); text-decoration: none; }
 
@@ -177,3 +181,16 @@ select { background: var(--bg); border: 1px solid var(--line); color: var(--text
 .loopgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 12px; }
 .loopcard { background: var(--panel, #14151f); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; } .loopcard h3 { margin: 0 0 4px; font-size: 16px; } .loopcard p { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
 .loopcard .row { gap: 6px; flex-wrap: wrap; }
+
+/* ---- premium polish shared by every page ---- */
+.nav { padding: 10px 24px; background: rgba(8, 8, 15, .72); backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%); border-bottom: 1px solid rgba(255, 255, 255, .07); }
+.brand { display: inline-flex; align-items: center; gap: 0; font-weight: 700; letter-spacing: -.01em; font-size: 19px; }
+.nav a.link { transition: color .2s, background-color .2s; font-weight: 500; }
+.nav a.link.active { background: rgba(139, 92, 246, .16); border-color: rgba(139, 92, 246, .45); }
+:focus-visible { outline: 3px solid #fbbf24; outline-offset: 2px; border-radius: 6px; }
+.btn { transition: border-color .2s, background-color .2s, transform .15s; } .btn:active:not(:disabled) { transform: translateY(1px); }
+.panel, .card { box-shadow: 0 1px 0 rgba(255, 255, 255, .04) inset; }
+h1, h2 { letter-spacing: -.02em; }
+footer { border-top: 1px solid rgba(255, 255, 255, .06); margin-top: 20px; padding: 34px 20px; }
+.brand img { margin-right: 9px; }
+.brand span { margin-right: .26em; }
