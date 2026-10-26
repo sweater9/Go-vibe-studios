@@ -7,7 +7,11 @@ res = []
 def check(name, ok, info=''): res.append(bool(ok)); print(('  ok    ' if ok else '  FAIL  ') + name + ('' if ok else ' ' + str(info)))
 proc = subprocess.Popen([exe, D, '--no-sandbox', '--remote-debugging-port=9334', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 try:
-    time.sleep(5)
+    import urllib.request
+    for _ in range(60):
+        try: urllib.request.urlopen('http://127.0.0.1:9334/json/version', timeout=1); break
+        except Exception: time.sleep(0.5)
+    time.sleep(1)
     with sync_playwright() as p:
         b = p.chromium.connect_over_cdp('http://127.0.0.1:9334'); pg = b.contexts[0].pages[0]; errs = []; pg.on('pageerror', lambda e: errs.append(str(e))); pg.wait_for_load_state()
         check('the app opens the home page from the bundled files', pg.url == 'govibe://app/index.html' and 'GoVibe Mix' in pg.title(), pg.url)

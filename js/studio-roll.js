@@ -5,7 +5,7 @@ window.GVRoll = (() => {
   const NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'], BLACK = new Set([1, 3, 6, 8, 10]);
   const SCALES = { Chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], Major: [0, 2, 4, 5, 7, 9, 11], 'Natural minor': [0, 2, 3, 5, 7, 8, 10], 'Major pentatonic': [0, 2, 4, 7, 9], 'Minor pentatonic': [0, 3, 5, 7, 10], Blues: [0, 3, 5, 6, 7, 10] };
   const CHORDS = { 'Single note': [0], 'Major chord': [0, 4, 7], 'Minor chord': [0, 3, 7], 'Seventh chord': [0, 4, 7, 10], 'Minor seventh': [0, 3, 7, 10] };
-  let cur = null, selNote = null, timer = 0, drag = null, lastLen = 1;
+  let redrawFn = null, selfEdit = false, fromRoll = false, cur = null, selNote = null, timer = 0, drag = null, lastLen = 1;
   let opts = { grid: 0.25, root: 0, scale: 'Chromatic', chord: 'Single note' };
   const el = (tag, cls, props) => Object.assign(Object.assign(document.createElement(tag), { className: cls || '' }), props || {});
   const find = () => (cur ? S().clipOf(cur.clip) || null : null);
@@ -14,13 +14,14 @@ window.GVRoll = (() => {
   function close() { cur = null; selNote = null; clearInterval(timer); const p = pane(); if (p) p.innerHTML = ''; }
   function refresh() {
     if (!cur) return; const x = find(); if (!x) return close();
+    if (selfEdit && redrawFn && pane().querySelector('#rollcv')) { redrawFn(); return; }
     const sc = pane().querySelector('.rollscroll'), top = sc ? sc.scrollTop : 0, left = sc ? sc.scrollLeft : 0, focus = document.activeElement && document.activeElement.id === 'rollcv';
     build(); const n = pane().querySelector('.rollscroll'); if (n) { n.scrollTop = top; n.scrollLeft = left; } if (focus) { const cv = pane().querySelector('#rollcv'); if (cv) { cv.focus(); setTimeout(() => { const c2 = pane().querySelector('#rollcv'); if (c2 && cur) c2.focus(); }, 0); } }
   }
   function open(track, clip) { cur = { track, clip }; selNote = null; build(); pane().scrollIntoView({ block: 'nearest' }); }
 
   function build() {
-    const x = find(); if (!x) return close(); const { t, c } = x, p = pane(); p.innerHTML = ''; clearInterval(timer);
+    const x = find(); if (!x) return close(); const { t, c } = x, p = pane(); p.innerHTML = ''; clearInterval(timer); redrawFn = null;
     const panel = el('div', 'panel'); p.appendChild(panel);
     const head = el('div', 'row'); head.style.justifyContent = 'space-between';
     const h = el('h2', '', { textContent: (t.type === 'midi' ? 'Piano roll' : 'Drum pattern') + ' · ' + t.name }); h.id = 'rollh'; const cb = el('button', 'btn', { textContent: 'Close editor' }); cb.onclick = close; head.append(h, cb); panel.appendChild(head);
@@ -29,7 +30,7 @@ window.GVRoll = (() => {
   }
   const labelled = (txt, ctl) => { const l = el('label', 'ctl'); l.append(document.createTextNode(txt), ctl); return l; };
   const sel = (items, val, fn, aria) => { const s = el('select'); items.forEach((it) => { const o = el('option', '', { textContent: Array.isArray(it) ? it[1] : it, value: Array.isArray(it) ? it[0] : it }); s.appendChild(o); }); s.value = String(val); s.onchange = () => fn(s.value); if (aria) s.setAttribute('aria-label', aria); return s; };
-  const apply = (label, fn) => S().edit(label, fn);
+  const apply = (label, fn) => { selfEdit = true; try { S().edit(label, fn); } finally { selfEdit = false; } };
 
   /* ---------- piano roll ---------- */
   function buildRoll(panel, t, c) {
@@ -58,6 +59,7 @@ window.GVRoll = (() => {
     wrap.appendChild(cv); panel.appendChild(wrap);
     const g = cv.getContext('2d'), rows = HIGH - LOW + 1, yOf = (p) => (HIGH - p) * ROWH, pOf = (y) => HIGH - Math.floor(y / ROWH), bx = (b) => KEYW + b * PXB, bOf = (x) => (x - KEYW) / PXB;
     const size = () => { const w = Math.max(600, Math.ceil(KEYW + (bars() + 2) * PXB)), h = rows * ROWH; if (cv.width !== w) cv.width = w; if (cv.height !== h) cv.height = h; };
+    redrawFn = () => draw();
     function draw() {
       size(); const W = cv.width, H = cv.height, B = bars(); g.clearRect(0, 0, W, H);
       for (let p = LOW; p <= HIGH; p++) { const y = yOf(p), pc = p % 12, ins = inScale(p); g.fillStyle = BLACK.has(pc) ? (ins ? '#1a1b28' : '#12131c') : (ins ? '#22243a' : '#181a28'); if (opts.scale !== 'Chromatic' && ins && pc === opts.root) g.fillStyle = '#2e2a52'; g.fillRect(KEYW, y, W - KEYW, ROWH); g.fillStyle = '#0d0e16'; g.fillRect(KEYW, y + ROWH - 1, W - KEYW, 1); }
@@ -69,7 +71,7 @@ window.GVRoll = (() => {
     }
     const hitNote = (x, y) => { const b = bOf(x), p = pOf(y); for (let i = c.notes.length - 1; i >= 0; i--) { const n = c.notes[i]; if (n.p === p && b >= n.t && b <= n.t + n.d) return { n, edge: x > bx(n.t + n.d) - 7 }; } return null; };
     const preview = (p) => { api.ensureCtx(); const ctx = api.bus().context, tr = api.trackOf(cur.track); ctx.resume(); GVSynth.note(ctx, api.bus(), (tr && tr.inst) || 'Piano', p, 0.8, ctx.currentTime + 0.01, 0.4); };
-    cv.addEventListener('pointerdown', (e) => { cv.focus();
+    cv.addEventListener('pointerdown', (e) => { cv.focus(); fromRoll = true;
       cv.focus(); const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) * (cv.width / r.width), y = (e.clientY - r.top) * (cv.height / r.height); cv.setPointerCapture(e.pointerId);
       if (x < KEYW) { preview(pOf(y)); return; }
       const h = hitNote(x, y), before = api.snapshotJSON();
@@ -131,5 +133,6 @@ window.GVRoll = (() => {
     });
     timer = setInterval(() => { const x = find(); if (!x) return; const sd = api.spb() / 4, ph = api.playhead - c.start; grid.querySelectorAll('.now').forEach((b) => b.classList.remove('now')); if (api.P && ph >= 0 && ph < c.dur) { const idx = Math.floor(ph / sd) % c.steps; grid.querySelectorAll('[data-i="' + idx + '"]').forEach((b) => b.classList.add('now')); } }, 80);
   }
+  window.addEventListener('pointerup', () => { if (!fromRoll) return; fromRoll = false; setTimeout(() => { const c = pane() && pane().querySelector('#rollcv'); if (c && cur) c.focus(); }, 0); }, true);
   return { open, close, refresh };
 })();

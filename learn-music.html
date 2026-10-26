@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Learn music and production — GoVibe Mix</title>
+<meta name="description" content="Free short lessons on rhythm, scales, chords, mixing, recording and mastering, with ear training and quizzes. Practise with the tools on this site.">
+<link rel="canonical" href="https://govibemix.com/learn-music.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Learn music and production — GoVibe Mix">
+<meta property="og:description" content="Free short lessons on rhythm, scales, chords, mixing, recording and mastering, with ear training and quizzes.">
+<meta property="og:url" content="https://govibemix.com/learn-music.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .lesson h2 { display:flex; gap:10px; align-items:center; }
+  .lesson ul { color: var(--muted); line-height: 1.6; padding-left: 20px; margin: 8px 0; }
+  .lesson p { color: var(--muted); line-height: 1.55; margin: 8px 0; }
+  .lesson b { color: var(--text); }
+  .done-row { margin-top: 10px; }
+  .keys { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-top: 10px; max-width: 520px; }
+  .key { padding: 10px 0; text-align: center; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); cursor: pointer; font-family: inherit; font-size: 13px; }
+  .key.sel { background: #6d4de0; border-color: transparent; font-weight: 700; }
+  .key.ok { border-color: var(--good); color: var(--good); }
+  .stars { font-size: 26px; letter-spacing: 4px; }
+  .progress { height: 8px; border-radius: 99px; background: var(--panel-2); overflow: hidden; max-width: 360px; margin-top: 10px; }
+  .progress i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .3s; }
+</style>
+<style>
+  .lesson p a, .lesson li a, .lead a { text-decoration: underline; }
+  .quiz { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; } .quiz fieldset { border: 0; padding: 0; margin: 0 0 12px; } .quiz legend { font-weight: 600; margin-bottom: 6px; }
+  .quiz label { display: flex; gap: 8px; align-items: center; padding: 4px 0; } .qfb { font-size: 13px; margin-top: 4px; } .qfb.ok { color: var(--good); } .qfb.no { color: #fbbf24; }
+  .tools { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; } .ear { display: grid; gap: 10px; } .answers { display: flex; flex-wrap: wrap; gap: 8px; }
+  .answers .btn[data-ok="1"] { border-color: var(--good); color: var(--good); } .answers .btn[data-ok="0"] { border-color: #fb7185; color: #fb7185; }
+  .scorebox { display: flex; gap: 18px; flex-wrap: wrap; font-variant-numeric: tabular-nums; } dl.gloss dt { font-weight: 700; margin-top: 8px; } dl.gloss dd { margin: 2px 0 0; color: var(--muted); }
+  .tabs2 { display: flex; gap: 8px; margin: 6px 0 14px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="index.html">Home</a>
+  <a class="link" href="create.html">Create</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap" style="max-width:860px">
+  <h1>Learn <span class="grad">music and production</span></h1>
+  <p class="lead">Eight short lessons from rhythm to mastering, a daily ear trainer, and a quiz for each lesson. Every lesson links to a tool on this site so you can try the idea straight away. Looking for DJ skills? See <a href="lessons.html">Learn to DJ</a>.</p>
+  <div class="progress"><i id="bar"></i></div>
+  <p class="status" id="ptext" role="status"></p>
+
+  <section class="panel lesson" data-lesson="rhythm">
+    <h2>1. Rhythm and tempo</h2>
+    <p>Music is organised in time. The <b>beat</b> is the steady pulse you tap your foot to. Beats are grouped into <b>bars</b>, and most pop, hip hop and dance music has <b>four beats per bar</b> (called 4/4 time).</p>
+    <p>Each beat can be split. Two notes per beat are <b>eighth notes</b>, four per beat are <b>sixteenth notes</b>. A drum pattern is just a list of which sixteenths get a kick, a snare or a hat. A basic rock or pop beat puts the kick on beats 1 and 3 and the snare on 2 and 4. House puts the kick on every beat.</p>
+    <p><b>Swing</b> delays every second sixteenth a little, which gives hip hop and lofi their relaxed feel.</p>
+    <div class="tools"><a class="btn" href="samples.html">Hear drum styles in the Loop maker</a><a class="btn" href="studio.html">Program drums in the Studio</a></div>
+    <div class="quiz" data-quiz="rhythm"></div>
+    <div class="done-row"><label class="row time"><input type="checkbox" data-done="rhythm"> Mark as done</label></div>
+  </section>
+
+  <section class="panel lesson" data-lesson="scales">
+    <h2>2. Notes, scales and keys</h2>
+    <p>The distance between two notes is an <b>interval</b>, counted in semitones (the smallest step on a piano, one key to the next). A <b>scale</b> is a set of notes that sound good together. The <b>major scale</b> follows the step pattern whole, whole, half, whole, whole, whole, half. From C that gives C D E F G A B, all white keys.</p>
+    <p>The <b>natural minor scale</b> (whole, half, whole, whole, half, whole, whole) sounds darker. From A it is also all white keys, so C major and A minor share the same notes. They are <b>relative</b> keys. A song's <b>key</b> is the scale whose notes it mostly uses, with one note, the <b>root</b>, feeling like home.</p>
+    <p><b>Pentatonic</b> scales keep just five notes and are very hard to play wrong, which makes them the best start for melodies.</p>
+    <div class="tools"><a class="btn" href="keys.html">Explore scales on the Key helper</a><a class="btn" href="bpm.html">Find the key of a track</a></div>
+    <div class="quiz" data-quiz="scales"></div>
+    <div class="done-row"><label class="row time"><input type="checkbox" data-done="scales"> Mark as done</label></div>
+  </section>
+
+  <section class="panel lesson" data-lesson="chords">
+    <h2>3. Chords and progressions</h2>
+    <p>A <b>chord</b> is three or more notes played together. A <b>triad</b> stacks two thirds on a root: major (bright) has a major third then a minor third, minor (sad) is the reverse, diminished (tense) is two minor thirds.</p>
+    <p>Building a triad on each note of a major scale gives seven chords: <b>I ii iii IV V vi vii°</b> (capitals are major, lower case minor). Songs are built from chords moving in a <b>progression</b>. The most used in pop is <b>I V vi IV</b>, which in C is C, G, Am, F. In a minor key, <b>i VI III VII</b> is a favourite.</p>
+    <p>Chords <b>I, IV and V</b> are the main pillars. V pulls strongly back to I, which is why a song feels finished when it lands there.</p>
+    <div class="tools"><a class="btn" href="keys.html">See chords in any key</a><a class="btn" href="samples.html">Hear progressions as loops</a></div>
+    <div class="quiz" data-quiz="chords"></div>
+    <div class="done-row"><label class="row time"><input type="checkbox" data-done="chords"> Mark as done</label></div>
+  </section>
+
+  <section class="panel lesson" data-lesson="ear">
+    <h2>4. Ear training</h2>
+    <p>Hearing intervals and chord types by ear is the fastest way to find melodies and chords without a keyboard. Practise for five minutes a day. Start with the easy set, and move on when you reach about 80 percent. Answer 20 questions with at least 80 percent right and this lesson is marked done for you. Tip: link each interval to a song you know, like the first two notes of "Happy Birthday" for the major second.</p>
+    <div class="ear" id="ear">
+      <div class="row" style="align-items:flex-end">
+        <label class="ctl">Exercise<select id="emode"><option value="int-easy">Intervals, easy (3rd, 5th, octave)</option><option value="int-all">Intervals, all</option><option value="chord">Chord type (major, minor, diminished, augmented)</option><option value="scale">Scale (major, minor, dorian, pentatonic)</option></select></label>
+        <button class="btn primary" id="enext">Play a new one</button><button class="btn" id="eagain" disabled>Hear it again</button>
+      </div>
+      <div class="answers" id="eans" role="group" aria-label="Your answer"></div>
+      <p class="status" id="efb" role="status">Press "Play a new one", listen, then pick your answer.</p>
+      <div class="scorebox"><span>Correct: <b id="ecorrect">0</b> of <b id="etotal">0</b></span><span>Streak: <b id="estreak">0</b></span><span>Best streak: <b id="ebest">0</b></span></div>
+    </div>
+    <div class="done-row"><label class="row time"><input type="checkbox" data-done="ear"> Mark as done</label></div>
+  </section>
+
+  <section class="panel lesson" data-lesson="mixing">
+    <h2>5. Mixing basics</h2>
+    <p>Mixing is balancing the tracks so each is clear. A reliable order of work:</p>
+    <ul>
+      <li><b>Levels first.</b> Set each track's volume so the loudest moment of the whole mix stays below 0 dB, with the kick and bass near the middle and the main vocal or lead on top. Keep the master from clipping.</li>
+      <li><b>Pan.</b> Keep kick, bass, snare and lead vocal in the centre. Spread other sounds left and right to give each its own space.</li>
+      <li><b>EQ to make room.</b> Two sounds fighting for the same frequencies sound muddy. Cut the lows from everything that is not bass or kick, and cut a little where a busier sound masks another.</li>
+      <li><b>Compression</b> evens out loud and quiet parts. Go gently: if you can clearly hear it working, back off.</li>
+      <li><b>Reverb and delay</b> add space. A little goes a long way, and too much pushes a sound far back.</li>
+      <li><b>Take breaks.</b> Ears tire. Check the mix quietly, on headphones and on speakers.</li>
+    </ul>
+    <div class="tools"><a class="btn" href="studio.html">Mix in the Studio</a><a class="btn" href="editor.html">Shape sounds with the EQ in the Audio Editor</a></div>
+    <div class="quiz" data-quiz="mixing"></div>
+    <div class="done-row"><label class="row time"><input type="checkbox" data-done="mixing"> Mark as done</label></div>
+  </section>
+
+  <section class="panel lesson" data-lesson="recording">
+    <h2>6. Recording well</h2>
+    <p>A clean recording saves hours of fixing. Pick a quiet, soft room (a bedroom with curtains and a bed beats a bathroom). Put the microphone about a hand span from your mouth, slightly off to the side to soften plosive sounds like "p". Use a pop filter if you have one.</p>
+    <p>Set the input level so the <b>loudest parts peak around −12 to −6 dB</b> and never touch 0. Recording too quiet adds noise when you turn it up. Recording too loud clips and cannot be repaired. Wear headphones so the backing track does not leak into the microphone, and record a few seconds of silence first so noise can be removed later.</p>
+    <div class="tools"><a class="btn" href="record.html">Try the Voice recorder</a><a class="btn" href="editor.html">Clean it up in the Audio Editor</a></div>
+    <div class="quiz" data-quiz="recording"></div>
+    <div class="done-row"><label class="row time"><input type="checkbox" data-done="recording"> Mark as done</label></div>
+  </section>
+
+  <section class="panel lesson" data-lesson="mastering">
+    <h2>7. Loudness and mastering</h2>
+    <p>Mastering is the final polish: a consistent tone and the right loudness for where the music will play. <b>LUFS</b> measures how loud music seems over time. Streaming services play everything at a similar loudness, around −14 LUFS, and turn louder tracks down. So making a track extremely loud no longer makes it play louder. It only squashes the dynamics.</p>
+    <p><b>Peak level</b> is the highest instant of the waveform. <b>True peak</b> estimates the peaks between samples, which can go over 0 and distort after MP3 or AAC conversion. Keep it under about −1 dBTP. A <b>limiter</b> is a very fast compressor that holds peaks under a ceiling so you can raise the overall level.</p>
+    <p>Always compare your master to the unmastered mix at the same loudness. If the master only sounds better because it is louder, it is not better.</p>
+    <div class="tools"><a class="btn" href="master.html">Measure and master a track</a></div>
+    <div class="quiz" data-quiz="mastering"></div>
+    <div class="done-row"><label class="row time"><input type="checkbox" data-done="mastering"> Mark as done</label></div>
+  </section>
+
+  <section class="panel lesson" data-lesson="firstbeat">
+    <h2>8. Make your first beat in ten minutes</h2>
+    <p>Put it all together with a short project in the <a href="studio.html">Studio</a>:</p>
+    <ol>
+      <li>Open the <a href="samples.html">Loop maker</a>, set 90 BPM and A minor, and press "Open in Studio" on the <b>Boom bap</b> drums.</li>
+      <li>Go back, choose "Bass: Syncopated" and open it in the Studio. It lands on a new track already in time.</li>
+      <li>Do the same for "Chords: Offbeat stabs", then lower its volume so the bass leads.</li>
+      <li>Double click an empty Keys lane, open the piano roll and add a short melody on the A minor pentatonic notes.</li>
+      <li>Set a loop over four bars (hold Shift and drag on the ruler) and listen. Mute things one at a time to hear what each adds.</li>
+      <li>Export the mix, then open it on the <a href="master.html">Mastering</a> page and bring it to −14 LUFS.</li>
+    </ol>
+    <div class="tools"><a class="btn primary" href="samples.html">Start with the Loop maker</a></div>
+    <div class="done-row"><label class="row time"><input type="checkbox" data-done="firstbeat"> Mark as done</label></div>
+  </section>
+
+  <section class="panel">
+    <h2>Glossary</h2>
+    <dl class="gloss">
+      <dt>BPM</dt><dd>Beats per minute, the speed of the music.</dd>
+      <dt>Bar</dt><dd>A group of beats, usually four.</dd>
+      <dt>Semitone</dt><dd>The smallest step in Western music, one piano key to the next.</dd>
+      <dt>Root</dt><dd>The note a scale or chord is built on and the one that feels like home.</dd>
+      <dt>Octave</dt><dd>Twelve semitones, the same note higher or lower.</dd>
+      <dt>Gain staging</dt><dd>Keeping the level healthy at every step so nothing clips and nothing is too quiet.</dd>
+      <dt>EQ</dt><dd>Boosting or cutting parts of the frequency range, such as bass or treble.</dd>
+      <dt>Compressor</dt><dd>A tool that turns down loud parts to even out the volume.</dd>
+      <dt>Limiter</dt><dd>A very fast compressor that stops peaks going above a ceiling.</dd>
+      <dt>Clipping</dt><dd>Distortion that happens when the signal is louder than the system can hold.</dd>
+      <dt>LUFS</dt><dd>A unit for how loud audio seems, used by streaming services.</dd>
+      <dt>True peak</dt><dd>The highest level including the peaks between samples.</dd>
+      <dt>MIDI</dt><dd>A file of note instructions (which note, when, how hard) rather than recorded sound.</dd>
+    </dl>
+  </section>
+</main>
+
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/synth.js"></script>
+<script src="js/theory.js"></script>
+<script src="js/learn.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>

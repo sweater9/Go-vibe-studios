@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "editor", "video", "create", "dj", "lessons", "convert", "bpm", "record", "studio", "master", "keys", "samples", "about", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "editor", "video", "create", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "about", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -974,7 +974,7 @@ def test_studio(browser, base):
         box_r = pg.locator("#rollcv").bounding_box(); pg.mouse.click(box_r["x"] + 58 + beat * 52 + 6, box_r["y"] + (96 - pitch) * 16 + 8)
     notes = st("__st.P.tracks[2].clips[0].notes")
     check("clicking the roll adds notes at the clicked pitch and time", len(notes) == 3 and [n["p"] for n in notes] == [69, 72, 76] and [round(n["t"], 2) for n in notes] == [0, 1, 2], str(notes))
-    pg.keyboard.press("ArrowUp"); check("arrow up moves the selected note up one semitone", st("__st.P.tracks[2].clips[0].notes[2].p") == 77)
+    pg.keyboard.press("ArrowUp"); check("arrow up moves the selected note up one semitone", st("__st.P.tracks[2].clips[0].notes[2].p") == 77, str(pg.evaluate("[document.activeElement.id, document.activeElement.tagName, JSON.stringify(__st.P.tracks[2].clips[0].notes)]")))
     pg.keyboard.press("Delete"); check("Delete removes the selected note", st("__st.P.tracks[2].clips[0].notes.length") == 2)
     pg.get_by_role("button", name="Quantize", exact=True).click()
     # render keys alone: A4 sine at 440 Hz for the first note
@@ -1181,6 +1181,43 @@ def test_desktop(browser, base):
     check("desktop test exited cleanly", r.returncode == 0, r.stderr[-300:])
 
 
+def test_learn(browser, base):
+    print("music and production lessons")
+    errs = []
+    ctx, pg = new_page(browser, errs, viewport={"width": 1200, "height": 1000})
+    pg.goto(base + "learn-music.html?gvtest"); pg.wait_for_function("() => window.__lm")
+    check("eight lessons and a progress line", pg.locator("[data-lesson]").count() == 8 and pg.inner_text("#ptext").startswith("0 of 8"))
+    # quiz: wrong answers do not complete, right ones do
+    q = pg.locator('[data-quiz="rhythm"]'); q.locator("input").nth(0).check(); q.get_by_role("button", name="Check answers").click()
+    check("quiz asks for every answer", "Answer all 3" in q.inner_text())
+    for i in range(3): pg.locator(f'input[name="q-rhythm-{i}"]').nth(0).check()
+    q.get_by_role("button", name="Check answers").click(); check("wrong answers are explained and the lesson is not marked done", "Not quite" in q.inner_text() and not pg.is_checked('[data-done="rhythm"]'))
+    ans = pg.evaluate("__lm.QUIZ.rhythm.map((x) => x.a)")
+    for i, a in enumerate(ans): pg.locator(f'input[name="q-rhythm-{i}"]').nth(a).check()
+    q.get_by_role("button", name="Check answers").click(); check("all correct marks the lesson done", pg.is_checked('[data-done="rhythm"]') and "1 of 8" in pg.inner_text("#ptext"))
+    for k, qs in pg.evaluate("Object.entries(__lm.QUIZ)"):
+        check(f"quiz {k}: every question has a valid answer", all(0 <= x["a"] < len(x["o"]) and x["w"] for x in qs) and len(qs) == 3)
+    # ear trainer
+    pg.click("#enext"); c = pg.evaluate("__lm.cur"); check("a question is playing and answers are offered", c is not None and pg.locator("#eans button").count() == 4)
+    pg.evaluate("__lm.answerWith(__lm.cur.item.id)"); check("correct answer counts and starts a streak", pg.inner_text("#ecorrect") == "1" and pg.inner_text("#estreak") == "1" and "Correct" in pg.inner_text("#efb"))
+    pg.evaluate("__lm.answerWith(__lm.cur.item.id)"); check("a second answer to the same question is ignored", pg.inner_text("#etotal") == "1")
+    pg.click("#enext"); wrong = pg.evaluate("[...document.querySelectorAll('#eans button')].map((b) => b.dataset.id).find((i) => i !== __lm.cur.item.id)")
+    pg.evaluate("(id) => __lm.answerWith(id)", wrong); check("wrong answer resets the streak, keeps the best and shows the right one", pg.inner_text("#estreak") == "0" and pg.inner_text("#ebest") == "1" and "Not quite" in pg.inner_text("#efb") and pg.locator('#eans [data-ok="1"]').count() == 1)
+    pg.select_option("#emode", "chord"); check("chord mode offers four chord types", pg.locator("#eans button").count() == 4 and pg.inner_text("#eans").startswith("Major"))
+    pg.select_option("#emode", "int-all"); check("all intervals mode offers twelve choices", pg.locator("#eans button").count() == 12)
+    # 20 right answers complete the ear lesson
+    pg.evaluate("() => { for (let i = 0; i < 25; i++) { __lm.next(); __lm.answerWith(__lm.cur.item.id); } }")
+    check("twenty answers at 80 percent complete the ear training lesson", pg.is_checked('[data-done="ear"]'))
+    pg.reload(); check("progress and ear scores survive a reload", pg.is_checked('[data-done="rhythm"]') and pg.is_checked('[data-done="ear"]') and int(pg.inner_text("#etotal")) >= 27)
+    check("learn: no errors", not errs, str(errs))
+    ctx.close()
+    axe = os.environ.get("AXE_PATH") or os.path.join(ROOT, "node_modules/axe-core/axe.min.js")
+    if os.path.exists(axe):
+        c2 = browser.new_context(bypass_csp=True, viewport={"width": 1200, "height": 900}); p2 = c2.new_page(); p2.goto(base + "learn-music.html?gvtest"); p2.wait_for_function("() => window.__lm"); p2.click("#enext"); p2.add_script_tag(path=axe)
+        v = p2.evaluate("axe.run(document,{runOnly:['wcag2a','wcag2aa','wcag21a','wcag21aa','best-practice']}).then(r=>r.violations.map(v=>v.id+' x'+v.nodes.length+' '+v.nodes[0].target.join(' ')))"); check("learn page: no axe violations", not v, str(v)); c2.close()
+    c3 = browser.new_context(viewport={"width": 390, "height": 844}); p3 = c3.new_page(); p3.goto(base + "learn-music.html"); over = p3.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth"); check("learn page: no sideways scroll at 390px", over <= 0, str(over)); c3.close()
+
+
 def test_views(browser, base):
     print("performance view, light theme, ratings and notes")
     import tempfile
@@ -1358,7 +1395,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_record, test_studio, test_master, test_keys_samples, test_desktop, test_views, test_lessons, test_video, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_record, test_studio, test_master, test_keys_samples, test_desktop, test_learn, test_views, test_lessons, test_video, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip
