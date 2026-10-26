@@ -83,9 +83,41 @@
     </div>
 
     <div class="panel">
+      <h2>Tone and clean up</h2>
+      <p class="status">These apply to the selection, or to the whole track when nothing is selected. Undo is always available.</p>
+      <div class="row" style="margin-top:10px; align-items:flex-end">
+        <label class="ctl">Pitch, keeps the length: <b id="pitchv">0 semitones</b>
+          <input type="range" id="pitch" min="-12" max="12" step="1" value="0">
+        </label>
+        <button class="btn" data-op="pitch">Apply pitch</button>
+      </div>
+      <div class="row" style="margin-top:14px; align-items:flex-end">
+        <label class="ctl">Bass (120 Hz): <b id="eqlov">0 dB</b>
+          <input type="range" id="eqlo" min="-15" max="15" step="1" value="0">
+        </label>
+        <label class="ctl">Mid (1 kHz): <b id="eqmidv">0 dB</b>
+          <input type="range" id="eqmid" min="-15" max="15" step="1" value="0">
+        </label>
+        <label class="ctl">Treble (8 kHz): <b id="eqhiv">0 dB</b>
+          <input type="range" id="eqhi" min="-15" max="15" step="1" value="0">
+        </label>
+        <button class="btn" data-op="eq">Apply EQ</button>
+      </div>
+      <div class="row" style="margin-top:14px; align-items:flex-end">
+        <label class="ctl">Noise gate threshold: <b id="gatev">-50 dB</b>
+          <input type="range" id="gate" min="-80" max="-20" step="1" value="-50">
+        </label>
+        <button class="btn" data-op="gate">Apply noise gate</button>
+        <button class="btn" data-op="rumble">Remove low rumble</button>
+      </div>
+      <p class="status">The noise gate quietens the parts below the threshold, such as hiss between words. It does not remove noise that is mixed with the sound. Low rumble removal cuts everything under about 80 Hz, which helps voice recordings.</p>
+    </div>
+
+    <div class="panel">
       <h2>Export</h2>
       <div class="row">
         <button class="btn primary" id="export">Download WAV</button>
+        <button class="btn" id="exportmp3">Download MP3 (192 kbps)</button>
         <button class="btn" id="exportsel">Download selection only</button>
       </div>
     </div>

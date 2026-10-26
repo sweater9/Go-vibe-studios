@@ -172,6 +172,71 @@
   const speedEl = $('speed'), gainEl = $('gain');
   speedEl.oninput = () => { $('speedv').textContent = (speedEl.value / 100).toFixed(2) + '×'; };
   gainEl.oninput = () => { $('gainv').textContent = gainEl.value + '%'; };
+  const lab = (id, out, f) => { $(id).oninput = () => { $(out).textContent = f($(id).value); }; };
+  lab('pitch', 'pitchv', (v) => (v > 0 ? '+' : '') + v + ' semitones'); lab('eqlo', 'eqlov', (v) => (v > 0 ? '+' : '') + v + ' dB'); lab('eqmid', 'eqmidv', (v) => (v > 0 ? '+' : '') + v + ' dB');
+  lab('eqhi', 'eqhiv', (v) => (v > 0 ? '+' : '') + v + ' dB'); lab('gate', 'gatev', (v) => v + ' dB');
+
+
+  /* ---------- DSP helpers: biquad filters, time stretch (WSOLA), pitch shift, noise gate ---------- */
+  function biquad(type, f0, gainDb, Q) {                    // RBJ audio EQ cookbook coefficients, normalised
+    const A = Math.pow(10, gainDb / 40), w = 2 * Math.PI * f0 / sr, cs = Math.cos(w), sn = Math.sin(w), al = sn / (2 * Q), sq = 2 * Math.sqrt(A) * al;
+    let b0, b1, b2, a0, a1, a2;
+    if (type === 'lowshelf') { b0 = A * ((A + 1) - (A - 1) * cs + sq); b1 = 2 * A * ((A - 1) - (A + 1) * cs); b2 = A * ((A + 1) - (A - 1) * cs - sq); a0 = (A + 1) + (A - 1) * cs + sq; a1 = -2 * ((A - 1) + (A + 1) * cs); a2 = (A + 1) + (A - 1) * cs - sq; }
+    else if (type === 'highshelf') { b0 = A * ((A + 1) + (A - 1) * cs + sq); b1 = -2 * A * ((A - 1) + (A + 1) * cs); b2 = A * ((A + 1) + (A - 1) * cs - sq); a0 = (A + 1) - (A - 1) * cs + sq; a1 = 2 * ((A - 1) - (A + 1) * cs); a2 = (A + 1) - (A - 1) * cs - sq; }
+    else if (type === 'peaking') { b0 = 1 + al * A; b1 = -2 * cs; b2 = 1 - al * A; a0 = 1 + al / A; a1 = -2 * cs; a2 = 1 - al / A; }
+    else { b0 = (1 + cs) / 2; b1 = -(1 + cs); b2 = (1 + cs) / 2; a0 = 1 + al; a1 = -2 * cs; a2 = 1 - al; }   // highpass
+    return [b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0];
+  }
+  function runBiquad(x, a, b, co) {
+    let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+    for (let i = a; i < b; i++) { const v = x[i], y = co[0] * v + co[1] * x1 + co[2] * x2 - co[3] * y1 - co[4] * y2; x2 = x1; x1 = v; y2 = y1; y1 = y; x[i] = y; }
+  }
+  function stretchChans(arrs, ratio) {                       // WSOLA: change duration by ratio (out/in) without changing pitch
+    const inLen = arrs[0].length, outLen = Math.max(1, Math.round(inLen * ratio)), N = 2048, Hs = N / 2, Ha = Hs / ratio, D = 384;
+    if (inLen < N * 2) return arrs.map((c) => { const o = new Float32Array(outLen); for (let i = 0; i < outLen; i++) o[i] = c[Math.min(inLen - 1, Math.floor(i / ratio))]; return o; });
+    const win = new Float32Array(N); for (let i = 0; i < N; i++) win[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / N);
+    const out = arrs.map(() => new Float32Array(outLen + N)), norm = new Float32Array(outLen + N);
+    const m = new Float32Array(inLen); for (let i = 0; i < inLen; i++) { let v = 0; for (let c = 0; c < arrs.length; c++) v += arrs[c][i]; m[i] = v / arrs.length; }
+    let prev = 0;                                             // input position of the previous chosen frame
+    for (let k = 0, o = 0; o < outLen; k++, o += Hs) {
+      let pos = Math.round(k * Ha);
+      if (k > 0) {
+        const want = prev + Hs; let best = -Infinity, bp = pos;
+        for (let d = -D; d <= D; d += 2) {
+          const p = pos + d; if (p < 0 || p + N > inLen || want + N > inLen) continue;
+          let sc = 0; for (let i = 0; i < N; i += 8) sc += m[p + i] * m[want + i];
+          if (sc > best) { best = sc; bp = p; }
+        }
+        pos = bp;
+      }
+      pos = Math.max(0, Math.min(inLen - N, pos)); prev = pos;
+      for (let c = 0; c < arrs.length; c++) { const src = arrs[c], dst = out[c]; for (let i = 0; i < N; i++) dst[o + i] += src[pos + i] * win[i]; }
+      for (let i = 0; i < N; i++) norm[o + i] += win[i];
+    }
+    return out.map((dst) => { const r = new Float32Array(outLen); for (let i = 0; i < outLen; i++) r[i] = norm[i] > 1e-3 ? dst[i] / norm[i] : 0; return r; });
+  }
+  function resampleTo(x, outLen, k) {                         // read x at step k with linear interpolation
+    const r = new Float32Array(outLen), n = x.length;
+    for (let i = 0; i < outLen; i++) { const p = i * k, i0 = Math.floor(p), f = p - i0; r[i] = (x[Math.min(i0, n - 1)] || 0) * (1 - f) + (x[Math.min(i0 + 1, n - 1)] || 0) * f; }
+    return r;
+  }
+  function pitchShift(arrs, semis) {
+    const p = Math.pow(2, semis / 12), inLen = arrs[0].length, st = stretchChans(arrs, p);
+    return st.map((c) => resampleTo(c, inLen, p));
+  }
+  function gate(x, a, b, thrDb) {
+    const thr = Math.pow(10, thrDb / 20), win = Math.max(1, Math.round(sr * 0.01)), floor = 0.03;
+    const atk = 1 - Math.exp(-1 / (sr * 0.005)), rel = 1 - Math.exp(-1 / (sr * 0.08)), hold = Math.round(sr * 0.05);
+    let e = 0, g = floor, h = 0;
+    const k = 1 - Math.exp(-1 / win);
+    for (let i = a; i < b; i++) {
+      e += k * (x[i] * x[i] - e);
+      if (Math.sqrt(e) > thr) h = hold; else if (h > 0) h--;
+      const target = h > 0 ? 1 : floor;
+      g += (target - g) * (target > g ? atk : rel);
+      x[i] *= g;
+    }
+  }
 
   const ops = {
     trim() { const [a, b] = range(); chans = chans.map((c) => c.slice(a, b)); selStart = selEnd = 0; },
@@ -210,6 +275,20 @@
       });
       selStart = selEnd = 0;
     },
+    pitch() {
+      const st = +$('pitch').value; if (!st) return say('Move the pitch slider first.');
+      const [a, b] = range(), seg = pitchShift(chans.map((c) => c.slice(a, b)), st);
+      chans = chans.map((c, ci) => { const o = c.slice(); o.set(seg[ci], a); return o; });
+    },
+    eq() {
+      const lo = +$('eqlo').value, mid = +$('eqmid').value, hi = +$('eqhi').value; if (!lo && !mid && !hi) return say('Move an EQ slider first.');
+      const [a, b] = range(), cos = [];
+      if (lo) cos.push(biquad('lowshelf', 120, lo, 0.707)); if (mid) cos.push(biquad('peaking', 1000, mid, 0.9)); if (hi) cos.push(biquad('highshelf', 8000, hi, 0.707));
+      chans.forEach((c) => cos.forEach((co) => runBiquad(c, a, b, co)));
+      chans.forEach((c) => { for (let i = a; i < b; i++) c[i] = Math.max(-1, Math.min(1, c[i])); });
+    },
+    gate() { const [a, b] = range(); chans.forEach((c) => gate(c, a, b, +$('gate').value)); },
+    rumble() { const [a, b] = range(), co = biquad('highpass', 80, 0, 0.707); chans.forEach((c) => { runBiquad(c, a, b, co); runBiquad(c, a, b, co); }); },
     selectall() { selStart = 0; selEnd = len(); return 'nosnap'; }
   };
   document.querySelectorAll('[data-op]').forEach((btn) => {
@@ -248,6 +327,16 @@
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   $('export').onclick = () => chans && download(wavBlob(chans), 'govibe-edit.wav');
+  $('exportmp3').onclick = () => {
+    if (!chans) return;
+    if (![48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000].includes(sr)) return say('MP3 does not support ' + sr + ' Hz. Use the Audio converter, which resamples for you.');
+    say('Encoding MP3…'); $('exportmp3').disabled = true;
+    const w = new Worker('js/convert-worker.js'), i16 = chans.map((c) => { const o = new Int16Array(c.length); for (let i = 0; i < c.length; i++) { const v = Math.max(-1, Math.min(1, c[i])); o[i] = v < 0 ? v * 32768 : v * 32767; } return o; });
+    const done = () => { w.terminate(); $('exportmp3').disabled = false; };
+    w.onmessage = (e) => { if (e.data.done) { download(e.data.done, 'govibe-edit.mp3'); say('MP3 downloaded.'); done(); } else if (e.data.error) { say('MP3 failed: ' + e.data.error); done(); } };
+    w.onerror = () => { say('The MP3 encoder could not start.'); done(); };
+    w.postMessage({ ch: i16.slice(0, 2), rate: sr, kbps: 192 }, i16.map((a) => a.buffer));
+  };
   $('exportsel').onclick = () => {
     if (!chans) return;
     if (!(selEnd > selStart)) return say('Select a part first.');

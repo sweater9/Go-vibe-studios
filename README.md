@@ -102,3 +102,6 @@ Each deck refines its BPM to 0.01 and finds where beat 1 falls (checked on synth
 ## Audio converter and BPM and key finder
 - **Converter** (`convert.html`): decode, optionally resample or mix to mono, write WAV (16 bit) or MP3 (lamejs, LGPL, shipped unmodified in `js/vendor/` with `NOTICE.txt`; encoding runs in `js/convert-worker.js`). Batch conversion with a ZIP download. MP3 supports sample rates up to 48000 Hz.
 - **BPM and key finder** (`bpm.html`): uses `js/analyze.js`, the same detection code as the DJ console (tempo, beat grid refinement, key with Camelot code), with CSV export and tap tempo. Estimates only.
+
+## Audio Editor upgrades
+Pitch shift that keeps the length (WSOLA time stretch plus resampling; good for small shifts, artefacts grow past a few semitones), 3 band EQ (RBJ shelves and peak at 120 Hz, 1 kHz, 8 kHz), noise gate (quietens parts under a threshold; it is not noise removal), low rumble removal (80 Hz high pass) and MP3 export through `js/convert-worker.js`. A 3 minute stereo pitch shift takes about 3.5 s and freezes the page meanwhile.

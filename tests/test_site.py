@@ -798,6 +798,62 @@ def test_tools(browser, base):
         c2.close()
 
 
+def test_editor_dsp(browser, base):
+    print("audio editor: pitch, EQ, noise gate, rumble, MP3 export")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "editor.html?gvtest")
+    helpers = """
+      const sr = 22050, tone = (f, secs, amp = 0.5) => new Float32Array(sr * secs).map((_, i) => amp * Math.sin(2 * Math.PI * f * i / sr));
+      const rms = (a, from = 0, to = a.length) => { from = Math.round(from); to = Math.round(to); let s = 0; for (let i = from; i < to; i++) s += a[i] * a[i]; return Math.sqrt(s / (to - from)); };
+      const freq = (a, from, to) => { let z = 0; for (let i = from + 1; i < to; i++) if (a[i - 1] < 0 && a[i] >= 0) z++; return z / ((to - from) / sr); };
+      const set = (id, v) => { document.getElementById(id).value = v; };
+    """
+    r = pg.evaluate("() => {" + helpers + """
+      const o = {};
+      __gv.loadBuffers([tone(440, 3)], sr); set('pitch', 12); __gv.ops.pitch(); o.upLen = __gv.chans[0].length; o.upF = freq(__gv.chans[0], sr / 2, sr * 2.5);
+      __gv.loadBuffers([tone(440, 3)], sr); set('pitch', -12); __gv.ops.pitch(); o.dnLen = __gv.chans[0].length; o.dnF = freq(__gv.chans[0], sr / 2, sr * 2.5); o.dnRms = rms(__gv.chans[0], sr / 2, sr * 2.5);
+      __gv.loadBuffers([tone(440, 3), tone(440, 3)], sr); set('pitch', 5); __gv.ops.pitch(); o.stereo = __gv.chans.length === 2 && Math.abs(__gv.chans[0][20000] - __gv.chans[1][20000]) < 1e-6;
+      __gv.loadBuffers([tone(40, 1, 0.1)], sr); set('eqlo', 12); __gv.ops.eq(); o.bass = rms(__gv.chans[0], 5000, 20000) / rms(tone(40, 1, 0.1), 5000, 20000);
+      __gv.loadBuffers([tone(4000, 1)], sr); set('eqlo', 12); __gv.ops.eq(); o.hiKept = rms(__gv.chans[0], 5000, 20000) / rms(tone(4000, 1), 5000, 20000);
+      __gv.loadBuffers([tone(10000, 1)], sr); set('eqlo', 0); set('eqhi', -12); __gv.ops.eq(); o.hiCut = rms(__gv.chans[0], 5000, 20000) / rms(tone(10000, 1), 5000, 20000);
+      __gv.loadBuffers([tone(30, 1), tone(30, 1)].slice(0, 1), sr); __gv.ops.rumble(); o.rumble30 = rms(__gv.chans[0], 8000, 20000) / rms(tone(30, 1), 8000, 20000);
+      __gv.loadBuffers([tone(1000, 1)], sr); __gv.ops.rumble(); o.rumble1k = rms(__gv.chans[0], 8000, 20000) / rms(tone(1000, 1), 8000, 20000);
+      const n = new Float32Array(sr * 2); for (let i = 0; i < n.length; i++) n[i] = 0.003 * (Math.random() * 2 - 1);      // hiss
+      for (let i = sr * 0.5; i < sr * 1.0; i++) n[i] += 0.4 * Math.sin(2 * Math.PI * 300 * i / sr);                        // a burst of sound
+      const before = rms(n, sr * 1.3, sr * 1.9); __gv.loadBuffers([n], sr); set('gate', -40); __gv.ops.gate();
+      o.hiss = rms(__gv.chans[0], sr * 1.3, sr * 1.9) / before; o.burst = rms(__gv.chans[0], sr * 0.55, sr * 0.95) / 0.2828;
+      return o; }""")
+    check("pitch +12 semitones doubles the frequency and keeps the length", abs(r["upF"] - 880) < 25 and abs(r["upLen"] - 66150) < 700, str(r))
+    check("pitch -12 semitones halves the frequency, keeps length and level", abs(r["dnF"] - 220) < 15 and abs(r["dnLen"] - 66150) < 700 and 0.25 < r["dnRms"] < 0.5, str(r))
+    check("pitch keeps both stereo channels identical for identical input", r["stereo"], str(r))
+    check("EQ: bass +12 dB raises a 40 Hz tone about 4 times", 3.0 < r["bass"] < 5.0, str(r["bass"]))
+    check("EQ: bass boost leaves 4 kHz alone", 0.9 < r["hiKept"] < 1.1, str(r["hiKept"]))
+    check("EQ: treble -12 dB cuts a 10 kHz tone to about a quarter", 0.15 < r["hiCut"] < 0.4, str(r["hiCut"]))
+    check("rumble removal cuts 30 Hz by more than 10 dB", r["rumble30"] < 0.3, str(r["rumble30"]))
+    check("rumble removal keeps 1 kHz", 0.95 < r["rumble1k"] < 1.05, str(r["rumble1k"]))
+    check("noise gate cuts the hiss by more than 20 dB and keeps the sound", r["hiss"] < 0.1 and r["burst"] > 0.9, str((r["hiss"], r["burst"])))
+    # undo and no-op messages
+    pg.evaluate("() => { document.getElementById('pitch').value = 0; __gv.loadBuffers([new Float32Array(22050).fill(0.1)], 22050); }")
+    pg.click("[data-op=pitch]"); check("pitch with the slider at 0 asks to move it and changes nothing", "slider" in pg.inner_text("#status") and pg.locator("#undo").is_disabled())
+    # MP3 export
+    pg.evaluate("() => { const sr = 22050; __gv.loadBuffers([new Float32Array(sr * 10).map((_, i) => 0.4 * Math.sin(2 * Math.PI * 440 * i / sr))], sr); }")
+    with pg.expect_download() as dl:
+        pg.click("#exportmp3")
+    path = dl.value.path(); data = open(path, "rb").read()
+    i = 0
+    if data[:3] == b"ID3": i = 10 + ((data[6] << 21) | (data[7] << 14) | (data[8] << 7) | data[9])
+    check("MP3 export downloads a valid MP3 (192 kbps, 10 s is about 240 KB)", data[i] == 0xFF and (data[i + 1] & 0xE0) == 0xE0 and 150000 < len(data) < 330000 and dl.value.suggested_filename == "govibe-edit.mp3", str(len(data)))
+    check("editor dsp: no errors", not errs, str(errs))
+    ctx.close()
+    axe = os.environ.get("AXE_PATH") or os.path.join(ROOT, "node_modules/axe-core/axe.min.js")
+    if os.path.exists(axe):
+        js = "axe.run(document,{runOnly:['wcag2a','wcag2aa','wcag21a','wcag21aa','best-practice']}).then(r=>r.violations.map(v=>v.id+' x'+v.nodes.length+' '+v.nodes[0].target.join(' ')))"
+        c2 = browser.new_context(bypass_csp=True); p2 = c2.new_page(); p2.goto(base + "editor.html?gvtest"); p2.add_script_tag(path=axe)
+        p2.evaluate("() => __gv.loadBuffers([new Float32Array(22050).fill(0.1)], 22050)")
+        check("editor with the new panels: no axe violations", not (v := p2.evaluate(js)), str(v)); c2.close()
+
+
 def test_views(browser, base):
     print("performance view, light theme, ratings and notes")
     import tempfile
@@ -940,7 +996,7 @@ def main():
     test_static()
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_views, test_lessons, test_video, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_views, test_lessons, test_video, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip
