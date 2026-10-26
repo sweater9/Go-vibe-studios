@@ -1,7 +1,7 @@
 {
   "name": "GoVibe Mix",
   "short_name": "GoVibe Mix",
-  "description": "Free browser tools for music makers, DJs and gamers.",
+  "description": "Free browser tools for music makers and DJs.",
   "start_url": "index.html",
   "scope": "./",
   "display": "standalone",

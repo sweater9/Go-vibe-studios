@@ -1,11 +1,10 @@
 # GoVibe Mix
 
-Free browser tools for music makers, DJs and gamers. No sign-up, no payments, no server: everything runs in the user's browser.
+Free browser tools for music makers and DJs. No sign-up, no payments, no server: everything runs in the user's browser.
 
 ## Phase 1 (this version)
 
 - **Audio Editor** (`editor.html`): open a file, select on the waveform, trim, cut, silence, fade in/out, reverse, normalize, volume, speed, undo/redo, export WAV.
-- **Play** (`games.html`): built-in Snake, Memory Match and Breakout, plus user-added embedded HTML5 games (https only, sandboxed iframe, saved in the browser).
 
 ## Phase 2
 
@@ -50,7 +49,6 @@ Push to GitHub, then connect the repo to Cloudflare Pages, GitHub Pages or Verce
 
 ## Notes
 
-- Only add embedded games whose owners allow embedding, and check their terms.
 - The music generator keeps users' API keys in their browser only; the optional proxy does not store or log them.
 
 ## Beat maker
@@ -63,7 +61,7 @@ The DJ page has a 16-step, 6-track beat maker (kick, snare, clap, hats, bass) wi
 - **Installable and offline**: `manifest.webmanifest`, `sw.js` (network-first with cache fallback, cache name `govibe-v1`; bump it when you change the precache list) and `js/pwa.js`. The service worker registers only on https or localhost.
 - **Legal**: `privacy.html` and `terms.html` are plain-language drafts, not legal advice. Have them reviewed before relying on them. Contact is the GitHub Issues page.
 - **Accessibility and phones**: skip link, landmarks, visible focus, reduced-motion support, labelled dialogs and canvases, AA contrast, no sideways scroll at 390 px.
-- **Tests**: `python tests/test_site.py` (needs `pip install playwright && playwright install chromium`; optionally `npm install --no-save axe-core` for the accessibility audit). It serves the site with the real `_headers`, so CSP violations fail the run, mocks Replicate, and covers pages, editor, games, Create modes, DJ, lessons, video export, offline mode and phone layout. GitHub Actions runs it on every push (`.github/workflows/test.yml`).
+- **Tests**: `python tests/test_site.py` (needs `pip install playwright && playwright install chromium`; optionally `npm install --no-save axe-core` for the accessibility audit). It serves the site with the real `_headers`, so CSP violations fail the run, mocks Replicate, and covers pages, editor, Create modes, DJ, lessons, video export, offline mode and phone layout. GitHub Actions runs it on every push (`.github/workflows/test.yml`).
 
 ## DJ extras
 

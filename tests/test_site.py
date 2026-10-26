@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "editor", "video", "games", "create", "dj", "lessons", "privacy", "terms"]
+PAGES = ["index", "editor", "video", "create", "dj", "lessons", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -117,7 +117,7 @@ def test_pages(browser, base):
         check(f"{name}: no console or script errors", not errs, str(errs))
         check(f"{name}: skip link and main landmark", pg.locator("a.skip").count() == 1 and pg.locator("main#main").count() == 1)
         check(f"{name}: exactly one h1", pg.locator("h1").count() == 1)
-        check(f"{name}: nav has 7 links", pg.locator("nav[aria-label=Main] a.link").count() == 7)
+        check(f"{name}: nav has 6 links", pg.locator("nav[aria-label=Main] a.link").count() == 6)
         ctx.close()
     for name, hook in [("editor", "__gv"), ("dj", "__dj"), ("video", "__ve"), ("lessons", "__lessons")]:
         ctx, pg = new_page(browser, [])
@@ -156,9 +156,9 @@ def test_a11y(browser, base):
     ctx.close()
 
 
-# ---------------------------------------------------------------- audio editor + games
-def test_editor_games(browser, base):
-    print("audio editor and games")
+# ---------------------------------------------------------------- audio editor
+def test_editor(browser, base):
+    print("audio editor")
     errs = []
     ctx, pg = new_page(browser, errs)
     pg.goto(base + "editor.html?gvtest")
@@ -177,24 +177,6 @@ def test_editor_games(browser, base):
     check("editor 2x speed halves the length", r["speed"] == 1500)
     check("editor WAV export size is header + samples", r["wav"] == 44 + 1500 * 2)
     check("editor: no errors", not errs, str(errs))
-    ctx.close()
-
-    errs = []
-    ctx, pg = new_page(browser, errs)
-    pg.goto(base + "games.html")
-    for g in ["Snake", "Memory Match", "Breakout"]:
-        pg.locator(".card", has_text=g).get_by_text("Play").click()
-        pg.wait_for_timeout(350)
-        check(f"game {g} opens", not pg.locator("#modal").evaluate("e => e.classList.contains('hidden')"))
-        pg.keyboard.press("Escape")
-        check(f"game {g} closes with Escape", pg.locator("#modal").evaluate("e => e.classList.contains('hidden')"))
-    pg.fill("#gname", "Test")
-    pg.fill("#gurl", "https://example.com/")
-    pg.click("#gadd")
-    check("embedded game can be added", pg.locator(".card").count() == 4)
-    pg.reload()
-    check("embedded game survives reload", pg.locator(".card").count() == 4)
-    check("games: no errors", not errs, str(errs))
     ctx.close()
 
 
@@ -893,7 +875,7 @@ def main():
     test_static()
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor_games, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_views, test_lessons, test_video, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_views, test_lessons, test_video, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip
