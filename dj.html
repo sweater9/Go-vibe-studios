@@ -76,11 +76,28 @@
       <button class="btn" id="bclear">Clear</button>
     </div>
     <div class="row" id="bpresets" style="margin-bottom:10px"><span class="time">Presets:</span></div>
+    <div class="row" style="align-items:flex-end;margin:0 0 10px">
+      <label class="ctl">Name <input type="text" id="bname" maxlength="40" placeholder="My beat" style="width:140px"></label>
+      <button class="btn" id="bsave">Save</button>
+      <label class="ctl">Saved beats <select id="bsaved" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"></select></label>
+      <button class="btn" id="bload">Load</button>
+      <button class="btn danger" id="bdel">Delete</button>
+    </div>
     <div id="bgrid" class="bgrid" role="group" aria-label="Step sequencer"></div>
+    <div class="row" style="align-items:flex-end;margin-top:12px">
+      <label class="ctl">Export length
+        <select id="bbars" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="1">1 bar</option><option value="2">2 bars</option><option value="4" selected>4 bars</option><option value="8">8 bars</option><option value="16">16 bars</option></select>
+      </label>
+      <button class="btn primary" id="bexport">Export beat (WAV)</button>
+      <a class="btn hidden" id="bdl">Download beat</a>
+      <button class="btn hidden" id="btoedit">Open in Audio Editor</button>
+    </div>
+    <p class="status" id="bstatus" role="status"></p>
   </section>
   <p class="status" style="margin-top:14px">Tip: tempo sync matches speed only. Line up the beats yourself by nudging the tempo slider or clicking the waveform. Load only music you have the right to use.</p>
 </main>
 <footer>Go Vibe Studios · all processing happens in your browser · <nav aria-label="Footer" class="fnav"><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/store.js"></script>
 <script src="js/dj.js"></script>
 <script src="js/beat.js"></script>
 <script src="js/pwa.js"></script>

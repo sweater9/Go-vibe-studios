@@ -55,7 +55,7 @@ Push to GitHub, then connect the repo to Cloudflare Pages, GitHub Pages or Verce
 
 ## Beat maker
 
-The DJ page has a 16-step, 6-track beat maker (kick, snare, clap, hats, bass) with presets, BPM, swing and volume. Sounds are synthesized in the browser and routed through the mixer, so they are included in mix recordings.
+The DJ page has a 16-step, 6-track beat maker (kick, snare, clap, hats, bass) with presets, BPM, swing and volume. Beats can be saved by name (kept in this browser only), loaded, deleted, and exported as a WAV (1–16 bars, rendered offline) or sent to the Audio Editor. Sounds are synthesized in the browser and routed through the mixer, so they are included in mix recordings.
 
 ## Polish: branding, offline app, legal pages, accessibility, tests
 
