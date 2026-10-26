@@ -1,4 +1,8 @@
 worker
+tests
+.github
+.gitignore
 README.md
 .assetsignore
 .git
+node_modules

@@ -52,3 +52,11 @@ Push to GitHub, then connect the repo to Cloudflare Pages, GitHub Pages or Verce
 
 - Only add embedded games whose owners allow embedding, and check their terms.
 - The music generator keeps users' API keys in their browser only; the optional proxy does not store or log them.
+
+## Polish: branding, offline app, legal pages, accessibility, tests
+
+- **Branding**: favicon, touch icons and a 1200×630 share image in `icons/`; every page has description, Open Graph and Twitter meta. The meta URLs use `https://go-vibe-studios.sweater-9arc.workers.dev/`. **If you add a custom domain, replace that base URL in every `*.html`, and in `manifest.webmanifest` if needed.**
+- **Installable and offline**: `manifest.webmanifest`, `sw.js` (network-first with cache fallback, cache name `govibe-v1`; bump it when you change the precache list) and `js/pwa.js`. The service worker registers only on https or localhost.
+- **Legal**: `privacy.html` and `terms.html` are plain-language drafts, not legal advice. Have them reviewed before relying on them. Contact is the GitHub Issues page.
+- **Accessibility and phones**: skip link, landmarks, visible focus, reduced-motion support, labelled dialogs and canvases, AA contrast, no sideways scroll at 390 px.
+- **Tests**: `python tests/test_site.py` (needs `pip install playwright && playwright install chromium`; optionally `npm install --no-save axe-core` for the accessibility audit). It serves the site with the real `_headers`, so CSP violations fail the run, mocks Replicate, and covers pages, editor, games, Create modes, DJ, lessons, video export, offline mode and phone layout. GitHub Actions runs it on every push (`.github/workflows/test.yml`).

@@ -4,21 +4,34 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Play — Go Vibe Studios</title>
+<meta name="description" content="Play free built-in browser games, or add your own embeddable HTML5 games.">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Go Vibe Studios">
+<meta property="og:title" content="Play — Go Vibe Studios">
+<meta property="og:description" content="Play free built-in browser games, or add your own embeddable HTML5 games.">
+<meta property="og:url" content="https://go-vibe-studios.sweater-9arc.workers.dev/games.html">
+<meta property="og:image" content="https://go-vibe-studios.sweater-9arc.workers.dev/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<nav class="nav">
-  <a class="brand" href="index.html">Go <span>Vibe</span> Studios</a>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go <span>Vibe</span> Studios</a>
   <a class="link" href="index.html">Home</a>
   <a class="link" href="editor.html">Audio Editor</a>
   <a class="link" href="video.html">Video</a>
-  <a class="link active" href="games.html">Play</a>
+  <a class="link active" aria-current="page" href="games.html">Play</a>
   <a class="link" href="create.html">Create</a>
   <a class="link" href="dj.html">DJ</a>
   <a class="link" href="lessons.html">Learn</a>
 </nav>
 
-<main class="wrap">
+<main id="main" tabindex="-1" class="wrap">
   <h1>Play <span class="grad">games</span></h1>
   <p class="lead">Built-in games run right here. You can also add any HTML5 game that allows embedding.</p>
 
@@ -35,7 +48,7 @@
   </div>
 </main>
 
-<div class="modal hidden" id="modal">
+<div class="modal hidden" id="modal" role="dialog" aria-modal="true" aria-labelledby="mtitle">
   <div class="box">
     <div class="row" style="justify-content:space-between">
       <h2 id="mtitle" style="margin:0"></h2>
@@ -44,7 +57,8 @@
     <div id="mbody"></div>
   </div>
 </div>
-<footer>Go Vibe Studios</footer>
+<footer>Go Vibe Studios · <nav aria-label="Footer" class="fnav"><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
 <script src="js/games.js"></script>
+<script src="js/pwa.js"></script>
 </body>
 </html>

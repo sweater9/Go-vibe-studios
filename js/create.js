@@ -19,6 +19,7 @@
   function closeKey() { modal.classList.add('hidden'); $('key').value = ''; }
   $('keybtn').onclick = openKey; $('keyclose').onclick = closeKey;
   modal.addEventListener('click', (e) => { if (e.target === modal) closeKey(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeKey(); });
   $('keysave').onclick = () => {
     const k = $('key').value.trim(), px = $('proxy').value.trim();
     if (!k) return alert('Paste your API token first.');

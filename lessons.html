@@ -4,6 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Learn to DJ — Go Vibe Studios</title>
+<meta name="description" content="Learn to DJ with short lessons, a beatmatching ear trainer and a Camelot key-mixing helper.">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Go Vibe Studios">
+<meta property="og:title" content="Learn to DJ — Go Vibe Studios">
+<meta property="og:description" content="Learn to DJ with short lessons, a beatmatching ear trainer and a Camelot key-mixing helper.">
+<meta property="og:url" content="https://go-vibe-studios.sweater-9arc.workers.dev/lessons.html">
+<meta property="og:image" content="https://go-vibe-studios.sweater-9arc.workers.dev/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="css/style.css">
 <style>
   .lesson h2 { display:flex; gap:10px; align-items:center; }
@@ -13,7 +25,7 @@
   .done-row { margin-top: 10px; }
   .keys { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-top: 10px; max-width: 520px; }
   .key { padding: 10px 0; text-align: center; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); cursor: pointer; font-family: inherit; font-size: 13px; }
-  .key.sel { background: var(--accent); border-color: transparent; font-weight: 700; }
+  .key.sel { background: #6d4de0; border-color: transparent; font-weight: 700; }
   .key.ok { border-color: var(--good); color: var(--good); }
   .stars { font-size: 26px; letter-spacing: 4px; }
   .progress { height: 8px; border-radius: 99px; background: var(--panel-2); overflow: hidden; max-width: 360px; margin-top: 10px; }
@@ -21,22 +33,23 @@
 </style>
 </head>
 <body>
-<nav class="nav">
-  <a class="brand" href="index.html">Go <span>Vibe</span> Studios</a>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go <span>Vibe</span> Studios</a>
   <a class="link" href="index.html">Home</a>
   <a class="link" href="create.html">Create</a>
   <a class="link" href="editor.html">Audio Editor</a>
   <a class="link" href="video.html">Video</a>
   <a class="link" href="dj.html">DJ</a>
-  <a class="link active" href="lessons.html">Learn</a>
+  <a class="link active" aria-current="page" href="lessons.html">Learn</a>
   <a class="link" href="games.html">Play</a>
 </nav>
 
-<main class="wrap" style="max-width:860px">
+<main id="main" tabindex="-1" class="wrap" style="max-width:860px">
   <h1>Learn to <span class="grad">DJ</span></h1>
   <p class="lead">Five short lessons plus two practice tools. Practise on the <a href="dj.html">DJ Mixer</a> with your own music, or with tracks you make on the <a href="create.html">Create</a> page.</p>
   <div class="progress"><i id="bar"></i></div>
-  <p class="status" id="ptext"></p>
+  <p class="status" id="ptext" role="status"></p>
 
   <section class="panel lesson" data-lesson="bpm">
     <h2>1. What BPM means</h2>
@@ -58,7 +71,7 @@
       <input type="range" id="padj" min="-10" max="10" step="0.1" value="0" disabled>
     </label>
     <p class="stars" id="stars"></p>
-    <p class="status" id="tmsg">Press "Start round". Headphones help: the low click is in your left ear, the high click in your right.</p>
+    <p class="status" id="tmsg" role="status">Press "Start round". Headphones help: the low click is in your left ear, the high click in your right.</p>
     <div class="done-row"><label class="row time"><input type="checkbox" data-done="beatmatch"> Mark as done</label></div>
   </section>
 
@@ -90,11 +103,12 @@
     <p>Tracks in related musical keys sound smoother together. DJs label keys on the <b>Camelot wheel</b>: a number (1–12) and a letter (A = minor, B = major). Tap a key to see what mixes well with it.</p>
     <p class="status">Safe moves: the same key, one number up or down with the same letter, or the same number with the other letter. Your tracks' keys come from a key-detection tool, which this site does not have yet.</p>
     <div class="keys" id="keys"></div>
-    <p class="status" id="kmsg"></p>
+    <p class="status" id="kmsg" role="status"></p>
     <div class="done-row"><label class="row time"><input type="checkbox" data-done="keys"> Mark as done</label></div>
   </section>
 </main>
-<footer>Go Vibe Studios</footer>
+<footer>Go Vibe Studios · <nav aria-label="Footer" class="fnav"><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
 <script src="js/lessons.js"></script>
+<script src="js/pwa.js"></script>
 </body>
 </html>

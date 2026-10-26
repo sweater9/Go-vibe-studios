@@ -4,6 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Video Editor — Go Vibe Studios</title>
+<meta name="description" content="Free online video editor. Join and trim clips, add text and music, and export. Runs in your browser; your files stay on your device.">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Go Vibe Studios">
+<meta property="og:title" content="Video Editor — Go Vibe Studios">
+<meta property="og:description" content="Free online video editor. Join and trim clips, add text and music, and export. Runs in your browser; your files stay on your device.">
+<meta property="og:url" content="https://go-vibe-studios.sweater-9arc.workers.dev/video.html">
+<meta property="og:image" content="https://go-vibe-studios.sweater-9arc.workers.dev/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="css/style.css">
 <style>
   .vgrid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 16px; align-items: start; }
@@ -19,26 +31,27 @@
 </style>
 </head>
 <body>
-<nav class="nav">
-  <a class="brand" href="index.html">Go <span>Vibe</span> Studios</a>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go <span>Vibe</span> Studios</a>
   <a class="link" href="index.html">Home</a>
   <a class="link" href="create.html">Create</a>
   <a class="link" href="editor.html">Audio Editor</a>
-  <a class="link active" href="video.html">Video</a>
+  <a class="link active" aria-current="page" href="video.html">Video</a>
   <a class="link" href="dj.html">DJ</a>
   <a class="link" href="lessons.html">Learn</a>
   <a class="link" href="games.html">Play</a>
 </nav>
 
-<main class="wrap" style="max-width:1200px">
+<main id="main" tabindex="-1" class="wrap" style="max-width:1200px">
   <h1>Video <span class="grad">Editor</span></h1>
   <p class="lead">Join clips, trim them, add text and a music track, then export. Everything runs on your device.</p>
 
   <div class="vgrid">
     <section>
       <div class="panel" style="margin-top:0">
-        <canvas id="cv" width="1280" height="720"></canvas>
-        <input type="range" id="scrub" min="0" max="1000" value="0" style="margin-top:10px" disabled>
+        <canvas id="cv" width="1280" height="720" role="img" aria-label="Video preview"></canvas>
+        <input type="range" id="scrub" aria-label="Seek position" min="0" max="1000" value="0" style="margin-top:10px" disabled>
         <div class="row" style="margin-top:6px; justify-content:space-between">
           <div class="row">
             <button class="btn primary" id="play" disabled>▶ Play</button>
@@ -46,7 +59,7 @@
           </div>
           <span class="time" id="clock">0:00.0 / 0:00.0</span>
           <label class="ctl" style="min-width:0">
-            <select id="aspect" class="sel">
+            <select id="aspect" class="sel" aria-label="Aspect ratio">
               <option value="16:9">16:9 (landscape)</option>
               <option value="9:16">9:16 (vertical)</option>
               <option value="1:1">1:1 (square)</option>
@@ -62,7 +75,7 @@
           <button class="btn hidden" id="cancel">Cancel</button>
           <a class="btn hidden" id="dl">Download</a>
         </div>
-        <p class="status" id="status">Add at least one video clip to begin.</p>
+        <p class="status" id="status" role="status">Add at least one video clip to begin.</p>
         <p class="status">Export plays the whole video in real time, so a 1-minute video takes about a minute. Keep this tab open and visible while it runs. The file is MP4 if your browser can record it, otherwise WebM.</p>
       </div>
     </section>
@@ -112,7 +125,8 @@
   </div>
 </main>
 <div id="vids" style="position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none;overflow:hidden"></div>
-<footer>Go Vibe Studios · all processing happens in your browser</footer>
+<footer>Go Vibe Studios · all processing happens in your browser · <nav aria-label="Footer" class="fnav"><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
 <script src="js/video.js"></script>
+<script src="js/pwa.js"></script>
 </body>
 </html>

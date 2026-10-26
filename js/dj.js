@@ -57,7 +57,7 @@
       this.root.innerHTML = `
         <h2>Deck ${n} <span class="bpm" data-r="bpm">— BPM</span></h2>
         <div class="tname" data-r="name">No track loaded</div>
-        <canvas class="wave" data-r="wave"></canvas>
+        <canvas class="wave" data-r="wave" role="img" aria-label="Deck ${n} waveform. Click to move the playhead."></canvas>
         <div class="row time" style="justify-content:space-between;margin-top:6px"><span data-r="pos">0:00.0</span><span data-r="dur">0:00.0</span></div>
         <div class="row" style="margin-top:8px">
           <button class="btn primary" data-r="play">▶ Play</button>

@@ -4,13 +4,26 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Audio Editor — Go Vibe Studios</title>
+<meta name="description" content="Free online audio editor. Trim, cut, fade, change volume and speed, and export WAV. Runs in your browser; your files stay on your device.">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Go Vibe Studios">
+<meta property="og:title" content="Audio Editor — Go Vibe Studios">
+<meta property="og:description" content="Free online audio editor. Trim, cut, fade, change volume and speed, and export WAV. Runs in your browser; your files stay on your device.">
+<meta property="og:url" content="https://go-vibe-studios.sweater-9arc.workers.dev/editor.html">
+<meta property="og:image" content="https://go-vibe-studios.sweater-9arc.workers.dev/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<nav class="nav">
-  <a class="brand" href="index.html">Go <span>Vibe</span> Studios</a>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go <span>Vibe</span> Studios</a>
   <a class="link" href="index.html">Home</a>
-  <a class="link active" href="editor.html">Audio Editor</a>
+  <a class="link active" aria-current="page" href="editor.html">Audio Editor</a>
   <a class="link" href="video.html">Video</a>
   <a class="link" href="games.html">Play</a>
   <a class="link" href="create.html">Create</a>
@@ -18,7 +31,7 @@
   <a class="link" href="lessons.html">Learn</a>
 </nav>
 
-<main class="wrap">
+<main id="main" tabindex="-1" class="wrap">
   <h1>Audio <span class="grad">Editor</span></h1>
   <p class="lead">Open an audio file, drag on the waveform to select a part, then edit. Everything stays on your device.</p>
 
@@ -29,7 +42,7 @@
 
   <section id="editor" class="hidden">
     <div class="panel">
-      <canvas id="wave" class="wave"></canvas>
+      <canvas id="wave" class="wave" role="img" aria-label="Audio waveform. Drag across it to select a part, click to move the playhead."></canvas>
       <div class="row" style="margin-top:10px; justify-content:space-between">
         <span class="time" id="info">—</span>
         <span class="time" id="sel">No selection</span>
@@ -66,7 +79,7 @@
         </label>
         <button class="btn" data-op="speed">Apply speed</button>
       </div>
-      <p class="status" id="status"></p>
+      <p class="status" id="status" role="status"></p>
     </div>
 
     <div class="panel">
@@ -78,8 +91,9 @@
     </div>
   </section>
 </main>
-<footer>Go Vibe Studios · all processing happens in your browser</footer>
+<footer>Go Vibe Studios · all processing happens in your browser · <nav aria-label="Footer" class="fnav"><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
 <script src="js/store.js"></script>
 <script src="js/editor.js"></script>
+<script src="js/pwa.js"></script>
 </body>
 </html>

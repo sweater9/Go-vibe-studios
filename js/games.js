@@ -6,7 +6,7 @@
 
   /* ---------------- Snake ---------------- */
   function snake(root) {
-    const N = 20, S = 20, c = document.createElement('canvas');
+    const N = 20, S = 20, c = document.createElement('canvas'); c.setAttribute('role', 'img'); c.setAttribute('aria-label', 'Snake game board');
     c.width = c.height = N * S; root.appendChild(c);
     const g = c.getContext('2d');
     let snk, dir, nxt, food, score, over, timer;
@@ -74,7 +74,7 @@
 
   /* ---------------- Breakout ---------------- */
   function breakout(root) {
-    const W = 480, H = 360, c = document.createElement('canvas'); c.width = W; c.height = H; root.appendChild(c);
+    const W = 480, H = 360, c = document.createElement('canvas'); c.setAttribute('role', 'img'); c.setAttribute('aria-label', 'Breakout game board'); c.width = W; c.height = H; root.appendChild(c);
     const g = c.getContext('2d');
     let px = W / 2, ball, bricks, lives, score, vx, vy, raf, running = true, msg = 'Move the mouse / finger, click to launch';
     const rows = 5, cols = 10, bw = W / cols, bh = 18;
@@ -133,7 +133,7 @@
   function card(emoji, name, desc, onPlay, onRemove) {
     const d = document.createElement('div'); d.className = 'card';
     const e = document.createElement('div'); e.className = 'emoji'; e.textContent = emoji;
-    const h = document.createElement('h3'); h.textContent = name;
+    const h = document.createElement('h2'); h.textContent = name;
     const p = document.createElement('p'); p.textContent = desc;
     const r = document.createElement('div'); r.className = 'row';
     const b = document.createElement('button'); b.className = 'btn primary'; b.textContent = '▶ Play'; b.onclick = onPlay; r.appendChild(b);

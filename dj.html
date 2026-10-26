@@ -4,21 +4,34 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DJ Mixer — Go Vibe Studios</title>
+<meta name="description" content="Free browser DJ mixer: two decks, EQ, crossfader, BPM detection, sampler pads and mix recording.">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Go Vibe Studios">
+<meta property="og:title" content="DJ Mixer — Go Vibe Studios">
+<meta property="og:description" content="Free browser DJ mixer: two decks, EQ, crossfader, BPM detection, sampler pads and mix recording.">
+<meta property="og:url" content="https://go-vibe-studios.sweater-9arc.workers.dev/dj.html">
+<meta property="og:image" content="https://go-vibe-studios.sweater-9arc.workers.dev/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<nav class="nav">
-  <a class="brand" href="index.html">Go <span>Vibe</span> Studios</a>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go <span>Vibe</span> Studios</a>
   <a class="link" href="index.html">Home</a>
   <a class="link" href="create.html">Create</a>
   <a class="link" href="editor.html">Audio Editor</a>
   <a class="link" href="video.html">Video</a>
-  <a class="link active" href="dj.html">DJ</a>
+  <a class="link active" aria-current="page" href="dj.html">DJ</a>
   <a class="link" href="lessons.html">Learn</a>
   <a class="link" href="games.html">Play</a>
 </nav>
 
-<main class="wrap" style="max-width:1200px">
+<main id="main" tabindex="-1" class="wrap" style="max-width:1200px">
   <h1>DJ <span class="grad">Mixer</span></h1>
   <p class="lead">Load two tracks from your device, match their tempo, blend with the crossfader and record your mix.</p>
 
@@ -46,14 +59,15 @@
         <span class="time" id="rectime"></span>
       </div>
       <a class="btn hidden" id="recdl" style="margin-top:8px;display:inline-block">Download mix</a>
-      <p class="status" id="status"></p>
+      <p class="status" id="status" role="status"></p>
     </section>
 
     <section class="deck panel" id="deck1"></section>
   </div>
   <p class="status" style="margin-top:14px">Tip: tempo sync matches speed only. Line up the beats yourself by nudging the tempo slider or clicking the waveform. Load only music you have the right to use.</p>
 </main>
-<footer>Go Vibe Studios · all processing happens in your browser</footer>
+<footer>Go Vibe Studios · all processing happens in your browser · <nav aria-label="Footer" class="fnav"><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
 <script src="js/dj.js"></script>
+<script src="js/pwa.js"></script>
 </body>
 </html>
