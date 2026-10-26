@@ -79,5 +79,5 @@
     $('tmsg').textContent = 'Your track started ' + Math.abs(round.offPct).toFixed(1) + '% ' + dir + ', so the perfect move was ' + (round.offPct > 0 ? '−' : '+') + (Math.abs(round.offPct) / (1 + round.offPct / 100)).toFixed(1) + '%. You are off by ' + err.toFixed(2) + ' BPM. ' + ['Keep practising: listen for which click moves ahead.', 'Close. A few more small nudges.', 'Good ear.', 'Locked in!'][s];
   };
 
-  window.__lessons = { compatible, scoreFor };
+  if (/[?&]gvtest\b/.test(location.search)) window.__lessons = { compatible, scoreFor };
 })();

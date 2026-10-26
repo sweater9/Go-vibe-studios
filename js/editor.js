@@ -261,6 +261,6 @@
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
   });
 
-  // test hook (used by the headless check, harmless in production)
-  window.__gv = { loadBuffers: (c, rate) => { chans = c; sr = rate; history = []; future = []; selStart = selEnd = 0; editor.classList.remove('hidden'); drop.classList.add('hidden'); refresh(); }, ops, get chans() { return chans; }, set sel(v) { selStart = v[0]; selEnd = v[1]; }, wavBlob };
+  // test hook: only exposed when the page URL contains ?gvtest
+  if (/[?&]gvtest\b/.test(location.search)) window.__gv = { loadBuffers: (c, rate) => { chans = c; sr = rate; history = []; future = []; selStart = selEnd = 0; editor.classList.remove('hidden'); drop.classList.add('hidden'); refresh(); }, ops, get chans() { return chans; }, set sel(v) { selStart = v[0]; selEnd = v[1]; }, wavBlob };
 })();

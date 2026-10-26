@@ -228,5 +228,5 @@
     recTimer = setInterval(() => ($('rectime').textContent = fmt((Date.now() - recT0) / 1000)), 250);
   };
 
-  window.__dj = { decks, detectBPM, ctx, sync, applyXf };   // handy for tests/debugging
+  if (/[?&]gvtest\b/.test(location.search)) window.__dj = { decks, detectBPM, ctx, sync, applyXf };   // test hook: only exposed with ?gvtest
 })();

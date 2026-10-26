@@ -202,5 +202,5 @@
   $('export').onclick = exportVideo;
   $('cancel').onclick = () => { exportCancelled = true; finish(); };
 
-  window.__ve = { addFile, loadMusic, exportVideo, seek, play, pause, ctx, get state() { return { clips: clips.map((c) => ({ dur: c.dur, in: c.in, out: c.out })), texts: texts.length, tl, total: total(), playing }; } };
+  if (/[?&]gvtest\b/.test(location.search)) window.__ve = { addFile, loadMusic, exportVideo, seek, play, pause, ctx, get state() { return { clips: clips.map((c) => ({ dur: c.dur, in: c.in, out: c.out })), texts: texts.length, tl, total: total(), playing }; } };
 })();

@@ -37,6 +37,12 @@ python3 -m http.server 8000
 
 Push to GitHub, then connect the repo to Cloudflare Pages, GitHub Pages or Vercel. No build command; the output directory is the repo root.
 
+## Security and deployment files
+
+- `_headers`: security headers applied by Cloudflare (Content-Security-Policy, nosniff, no referrer, camera/microphone/location disabled, no framing of the site). All scripts are same-origin with no inline scripts. Two deliberate looseness points: `style-src 'unsafe-inline'` (a few inline styles) and `connect-src https:` (visitors can enter their own proxy URL on the Create page).
+- `.assetsignore`: keeps `worker/` and this README out of the published site.
+- Test hooks (`window.__dj`, `__ve`, `__gv`, `__lessons`) exist only when the page URL contains `?gvtest`.
+
 ## Roadmap
 
 - Later: stem separation (needs a verified model and file-upload route), key detection for tracks.
@@ -45,4 +51,4 @@ Push to GitHub, then connect the repo to Cloudflare Pages, GitHub Pages or Verce
 ## Notes
 
 - Only add embedded games whose owners allow embedding, and check their terms.
-- The music generator will keep users' API keys in their browser only and never store or log them.
+- The music generator keeps users' API keys in their browser only; the optional proxy does not store or log them.
