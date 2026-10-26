@@ -295,6 +295,7 @@ def test_dj(browser, base):
     check("play, seek, loop of 4 beats, pause", r["playing"] and 10 <= r["seek"] < 11 and abs(r["loopLen"] - 2) < 0.05 and r["inLoop"] and r["paused"], str(r))
     # beat maker
     pg.goto(base + "dj.html?gvtest")
+    pg.click("#tab-beat")
     check("beat grid has 6 rows x 16 steps", pg.locator(".bstep").count() == 96)
     pg.click("#bclear")
     pg.locator(".brow").nth(0).locator(".bstep").nth(2).click()
@@ -312,6 +313,7 @@ def test_dj(browser, base):
     pg.locator(".brow").nth(1).locator(".bstep").nth(4).click()
     pg.fill("#bname", "Test beat"); pg.click("#bsave")
     pg.reload()
+    pg.click("#tab-beat")
     pg.select_option("#bsaved", "Test beat"); pg.click("#bload")
     check("saved beat survives reload and loads", pg.evaluate("__beat.pat[1][4]") is True and pg.evaluate("__beat.pat[0].some(Boolean)") is False and pg.input_value("#bname") == "Test beat")
     pg.click("#bdel")
@@ -326,6 +328,7 @@ def test_dj(browser, base):
     pg.click("#btoedit"); pg.wait_for_url("**/editor.html?from=create"); pg.wait_for_selector("#editor:not(.hidden)", timeout=10000)
     check("exported beat opens in the editor", "0:05" in pg.inner_text("#info") or "0:04" in pg.inner_text("#info"), pg.inner_text("#info"))
     pg.goto(base + "dj.html?gvtest")
+    pg.click("#tab-beat")
     pg.click("#rec")
     pg.click("#bplay")
     pg.click(".pad >> nth=0")
@@ -373,6 +376,7 @@ def test_dj_extras(browser, base):
 
     # automix: two short tracks at 120 and 124 BPM, 4 s transition
     pg.goto(base + "dj.html?gvtest")
+    pg.click("#tab-am")
     pg.select_option("#amlen", "4")
     pg.evaluate("""async () => { const { ctx } = __dj;
       const mk = (bpm, secs, sr = 22050) => { const b = ctx.createBuffer(1, sr * secs, sr), d = b.getChannelData(0), beat = Math.round(sr * 60 / bpm);
@@ -499,6 +503,7 @@ def test_controls(browser, base):
     check("] moves the crossfader towards B", pg.input_value("#xf") == "60")
     pg.keyboard.press("\\")
     check("backslash centres the crossfader", pg.input_value("#xf") == "50")
+    pg.click("#tab-beat")
     pg.fill("#bname", "qpe")
     check("typing in a text box does not trigger shortcuts", pg.evaluate("!__dj.decks[0].playing && !__dj.decks[1].playing") and pg.input_value("#bname") == "qpe")
     pg.keyboard.press("?")

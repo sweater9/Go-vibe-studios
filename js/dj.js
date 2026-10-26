@@ -104,8 +104,8 @@
 
   /* ---------- deck ---------- */
   class Deck {
-    constructor(i, root) {
-      this.i = i; this.root = root; this.name = i ? 'B' : 'A';
+    constructor(i, roots) {
+      this.i = i; this.roots = roots; this.root = roots.deck; this.name = i ? 'B' : 'A';
       this.buf = null; this.peaks = null; this.bands = null; this.grid = null; this.src = null;
       this.playing = false; this.startCtx = 0; this.startPos = 0; this.rate = 1;
       this.cue = 0; this.loop = null; this.bpm = null;
@@ -129,61 +129,74 @@
       this.build();
     }
     build() {
-      const n = this.name;
-      this.root.innerHTML = `
-        <h2>Deck ${n} <span class="bpm" data-r="bpm">— BPM</span> <span class="bpm" data-r="key" title="Musical key (Camelot)"></span></h2>
-        <div class="tname" data-r="name">No track loaded</div>
-        <canvas class="dmeter" data-r="meter" aria-hidden="true"></canvas>
-        <canvas class="wave" data-r="wave" role="img" aria-label="Deck ${n} waveform. Click to move the playhead."></canvas>
-        <canvas class="zoom" data-r="zoom" role="img" aria-label="Deck ${n} zoomed waveform with beat grid. Click to jump."></canvas>
-        <div class="row" style="margin-top:6px;align-items:center" role="group" aria-label="Beat jump and zoom">
-          <span class="time">Jump</span>
-          <button class="btn" data-r="jm4" aria-label="Back 4 beats">−4</button><button class="btn" data-r="jm1" aria-label="Back 1 beat">−1</button>
-          <button class="btn" data-r="jp1" aria-label="Forward 1 beat">+1</button><button class="btn" data-r="jp4" aria-label="Forward 4 beats">+4</button>
-          <select data-r="zspan" aria-label="Zoom window" class="mini"><option value="4">4 s</option><option value="8" selected>8 s</option><option value="16">16 s</option></select>
-          <label class="row time" style="gap:4px"><input type="checkbox" data-r="snap" checked> Snap</label>
+      const n = this.name, ln = n.toLowerCase();
+      const knob = (k, label, min, max, val, extra = '') => `<label class="kn"><input type="range" data-knob ${extra} min="${min}" max="${max}" value="${val}" data-r="${k}" aria-label="Deck ${n} ${label.toLowerCase()}"><span class="klabel">${label}</span></label>`;
+      this.roots.wave.innerHTML = `
+        <div class="wbadge" aria-hidden="true">${n}</div>
+        <div class="wcol">
+          <canvas class="zoom" data-r="zoom" role="img" aria-label="Deck ${n} zoomed waveform with beat grid. Click to jump."></canvas>
+          <canvas class="wave" data-r="wave" role="img" aria-label="Deck ${n} full-track overview. Click to move the playhead."></canvas>
+        </div>
+        <select data-r="zspan" aria-label="Deck ${n} zoom window" class="mini zsel"><option value="4">4 s</option><option value="8" selected>8 s</option><option value="16">16 s</option></select>`;
+      this.roots.deck.innerHTML = `
+        <div class="dhead">
+          <span class="dbadge" aria-hidden="true">${n}</span>
+          <div class="dtitle"><div class="tname" data-r="name">No track loaded</div>
+            <div class="dmeta"><span class="bpm" data-r="bpm">— BPM</span><span class="keychip" data-r="key" title="Musical key (Camelot)"></span><span class="ginfo" data-r="ginfo" role="status"></span></div></div>
+          <button class="btn" data-r="load">Load…</button>
+          <input type="file" accept="audio/*" hidden data-r="file" aria-label="Load a track into deck ${n}">
+        </div>
+        <div class="jogrow">
+          <div class="jog" data-r="jog" role="group" aria-label="Deck ${n} jog wheel. Drag to scratch.">
+            <div class="platter" data-r="platter"><i class="pmark"></i><i class="pdot"></i></div>
+            <div class="jogcenter"><span class="jpos" data-r="pos">0:00.0</span><span class="jdur" data-r="dur">0:00.0</span></div>
+          </div>
+          <div class="pitch">
+            <span class="klabel">TEMPO</span>
+            <input type="range" class="fader pfader" orient="vertical" min="-16" max="16" step="0.1" value="0" data-r="tempo" aria-label="Deck ${n} tempo">
+            <b class="tv" data-r="tv">0.0%</b>
+            <button class="btn mini" data-r="reset">Reset</button>
+          </div>
+        </div>
+        <div class="transport">
+          <button class="tbtn cue" data-r="cue">CUE</button>
+          <button class="tbtn play" data-r="play">▶ Play</button>
+          <button class="tbtn sync" id="sync${n}">SYNC</button>
+          <button class="tbtn loop" data-r="loop">LOOP</button>
+          <select data-r="lbeats" aria-label="Deck ${n} loop length in beats" class="mini"><option value="1">1</option><option value="2">2</option><option value="4" selected>4</option><option value="8">8</option><option value="16">16</option></select>
+        </div>
+        <div class="nudgerow" role="group" aria-label="Deck ${n} beat jump and pitch bend">
+          <button class="btn mini" data-r="nudgem" aria-label="Pitch bend down (hold)">◀ Bend</button>
+          <button class="btn mini" data-r="jm4" aria-label="Back 4 beats">−4</button><button class="btn mini" data-r="jm1" aria-label="Back 1 beat">−1</button>
+          <button class="btn mini" data-r="jp1" aria-label="Forward 1 beat">+1</button><button class="btn mini" data-r="jp4" aria-label="Forward 4 beats">+4</button>
+          <button class="btn mini" data-r="nudgep" aria-label="Pitch bend up (hold)">Bend ▶</button>
+          <label class="snap"><input type="checkbox" data-r="snap" checked> Snap</label>
+        </div>
+        <div class="hotrow" role="group" aria-label="Deck ${n} hot cues">
+          ${[1, 2, 3, 4].map((k) => `<button class="hotpad h${k}" data-r="hot${k}" aria-label="Hot cue ${k}">${k}</button>`).join('')}
+          <button class="btn mini" data-r="hotclr" title="Clear all hot cues">Clear</button>
+        </div>
+        <div class="fxrow" role="group" aria-label="Deck ${n} effects">
+          ${knob('filt', 'FILTER', -100, 100, 0, 'data-bipolar')}${knob('echo', 'ECHO', 0, 100, 0)}${knob('rev', 'REVERB', 0, 100, 0)}
         </div>
         <details class="gridtools"><summary>Beat grid</summary>
           <div class="row" style="margin-top:6px;align-items:center">
-            <button class="btn" data-r="gm">−10 ms</button><button class="btn" data-r="gp">+10 ms</button>
-            <button class="btn" data-r="gh" title="Make the playhead position beat 1">Beat 1 here</button>
-            <span class="status" data-r="ginfo" role="status"></span>
+            <button class="btn mini" data-r="gm">−10 ms</button><button class="btn mini" data-r="gp">+10 ms</button>
+            <button class="btn mini" data-r="gh" title="Make the playhead position beat 1">Beat 1 here</button>
           </div>
         </details>
-        <div class="row time" style="justify-content:space-between;margin-top:6px"><span data-r="pos">0:00.0</span><span data-r="dur">0:00.0</span></div>
-        <div class="row" style="margin-top:8px">
-          <button class="btn primary" data-r="play">▶ Play</button>
-          <button class="btn" data-r="cue">Cue</button>
-          <button class="btn" data-r="loop">Loop</button>
-          <select data-r="lbeats" aria-label="Loop length in beats" class="mini"><option value="1">1 beat</option><option value="2">2</option><option value="4" selected>4</option><option value="8">8</option><option value="16">16</option></select>
-          <button class="btn" data-r="load">Load…</button>
-          <input type="file" accept="audio/*" hidden data-r="file">
-        </div>
-        <div class="row" style="margin-top:10px;align-items:flex-end">
-          <label class="ctl" style="flex:1">Tempo: <b data-r="tv">0.0%</b>
-            <input type="range" min="-16" max="16" step="0.1" value="0" data-r="tempo">
-          </label>
-          <button class="btn" data-r="reset">Reset</button>
-        </div>
-        <div class="stembox" data-r="stembox"></div>
-        <div class="row" style="margin-top:10px" role="group" aria-label="Hot cues">
-          <span class="time">Hot cues</span>
-          ${[1, 2, 3, 4].map((k) => `<button class="btn hot" data-r="hot${k}" aria-label="Hot cue ${k}">${k}</button>`).join('')}
-          <button class="btn" data-r="hotclr" title="Clear all hot cues">Clear</button>
-        </div>
-        <div class="eq" style="grid-template-columns:repeat(3,1fr)">
-          <label class="ctl">Filter<input type="range" min="-100" max="100" value="0" data-r="filt"></label>
-          <label class="ctl">Echo<input type="range" min="0" max="100" value="0" data-r="echo"></label>
-          <label class="ctl">Reverb<input type="range" min="0" max="100" value="0" data-r="rev"></label>
-        </div>
-        <div class="eq">
-          <label class="ctl">Low<input type="range" min="-26" max="6" value="0" data-r="low"></label>
-          <label class="ctl">Mid<input type="range" min="-26" max="6" value="0" data-r="mid"></label>
-          <label class="ctl">High<input type="range" min="-26" max="6" value="0" data-r="high"></label>
-          <label class="ctl">Vol<input type="range" min="0" max="100" value="90" data-r="vol"></label>
+        <div class="stembox" data-r="stembox"></div>`;
+      this.roots.strip.innerHTML = `
+        <div class="sname" aria-hidden="true">CH ${n}</div>
+        ${knob('high', 'HIGH', -26, 6, 0)}${knob('mid', 'MID', -26, 6, 0)}${knob('low', 'LOW', -26, 6, 0)}
+        <div class="faderrow">
+          <canvas class="vmeter" data-r="meter" aria-hidden="true"></canvas>
+          <input type="range" class="fader" orient="vertical" min="0" max="100" value="90" data-r="vol" aria-label="Deck ${n} channel volume">
         </div>`;
-      const q = (k) => this.root.querySelector('[data-r="' + k + '"]');
-      this.el = {}; ['bpm', 'key', 'meter', 'zoom', 'jm4', 'jm1', 'jp1', 'jp4', 'zspan', 'snap', 'gm', 'gp', 'gh', 'ginfo', 'lbeats', 'hot1', 'hot2', 'hot3', 'hot4', 'hotclr', 'filt', 'echo', 'rev', 'name', 'wave', 'pos', 'dur', 'play', 'cue', 'loop', 'load', 'file', 'tv', 'tempo', 'reset', 'low', 'mid', 'high', 'vol'].forEach((k) => (this.el[k] = q(k)));
+      const q = (k) => [this.roots.deck, this.roots.wave, this.roots.strip].map((r) => r.querySelector('[data-r="' + k + '"]')).find(Boolean) || null;
+      this.q = q;
+      if (window.GVKnobs) [this.roots.deck, this.roots.strip].forEach((r) => GVKnobs.upgradeAll(r));
+      this.el = {}; ['bpm', 'key', 'meter', 'zoom', 'jog', 'platter', 'nudgem', 'nudgep', 'jm4', 'jm1', 'jp1', 'jp4', 'zspan', 'snap', 'gm', 'gp', 'gh', 'ginfo', 'lbeats', 'hot1', 'hot2', 'hot3', 'hot4', 'hotclr', 'filt', 'echo', 'rev', 'name', 'wave', 'pos', 'dur', 'play', 'cue', 'loop', 'load', 'file', 'tv', 'tempo', 'reset', 'low', 'mid', 'high', 'vol'].forEach((k) => (this.el[k] = q(k)));
       this.g = this.el.wave.getContext('2d'); this.gz = this.el.zoom.getContext('2d');
       const e = this.el;
       e.load.onclick = () => e.file.click();
@@ -223,7 +236,7 @@
     }
     setBuffer(buf, name, pre) {
       this.stopSrc(); this.playing = false; this.buf = buf; this.stems = null; Object.values(this.sg).forEach((g) => (g.gain.value = 1)); this.startPos = 0; this.cue = 0; this.loop = null; this.hot = [null, null, null, null]; this.paintHot();
-      this.el.loop.classList.remove('on'); this.el.play.textContent = '▶ Play';
+      this.el.loop.classList.remove('on'); this.el.play.textContent = '▶ Play'; this.el.play.classList.remove('on');
       this.el.name.textContent = name; this.el.dur.textContent = fmt(buf.duration);
       this.computePeaks(); this.computeBands();
       this.bpm = pre && 'bpm' in pre ? pre.bpm : detectBPM(buf);
@@ -319,12 +332,12 @@
         return s;
       });
       const s = srcs[0];
-      s.onended = () => { if (this.src === s) { this.stopSrc(); this.playing = false; this.startPos = 0; this.el.play.textContent = '▶ Play'; } };
+      s.onended = () => { if (this.src === s) { this.stopSrc(); this.playing = false; this.startPos = 0; this.el.play.textContent = '▶ Play'; this.el.play.classList.remove('on'); } };
       srcs.forEach((x) => x.start(t0, this.startPos));
       this.src = s; this.extra = srcs.slice(1); this.startCtx = t0; this.playing = true;
-      this.el.play.textContent = '❚❚ Pause';
+      this.el.play.textContent = '❚❚ Pause'; this.el.play.classList.add('on');
     }
-    pause() { this.startPos = this.position(); this.stopSrc(); this.playing = false; this.el.play.textContent = '▶ Play'; }
+    pause() { this.startPos = this.position(); this.stopSrc(); this.playing = false; this.el.play.textContent = '▶ Play'; this.el.play.classList.remove('on'); }
     seek(t) { const was = this.playing; this.startPos = t; if (was) this.play(); }
     cueBtn() {
       if (!this.buf) return;
@@ -349,22 +362,23 @@
       if (c.width !== Math.round(r.width * d)) { c.width = Math.round(r.width * d); c.height = Math.round(r.height * d); }
       const W = c.width, H = c.height, g = this.g; g.clearRect(0, 0, W, H);
       if (!this.buf) return;
-      g.fillStyle = this.i ? '#22d3ee' : '#8b5cf6';
+      g.fillStyle = this.i ? '#2bb7ff' : '#ff7a45';
       for (let x = 0; x < W; x++) { const h = this.peaks[Math.floor(x / W * this.peaks.length)] * H * 0.95; g.fillRect(x, (H - h) / 2, 1, Math.max(1, h)); }
       if (this.loop) { g.fillStyle = 'rgba(52,211,153,.25)'; g.fillRect(this.loop.start / this.buf.duration * W, 0, (this.loop.end - this.loop.start) / this.buf.duration * W, H); }
       g.fillStyle = '#fbbf24'; g.fillRect(this.position() / this.buf.duration * W, 0, 2, H);
       g.fillStyle = '#fb7185'; g.fillRect(this.cue / this.buf.duration * W, 0, 2, H);
       this.el.pos.textContent = fmt(this.position());
+      if (!this.scratching) this.el.platter.style.transform = 'rotate(' + ((this.position() * 200) % 360).toFixed(1) + 'deg)';
     }
   }
 
-  const decks = [new Deck(0, $('deck0')), new Deck(1, $('deck1'))];
+  const decks = [0, 1].map((i) => new Deck(i, { deck: $('deck' + i), wave: $('wave' + i), strip: $('strip' + i) }));
   function refreshMatch() {
     const m = keysMatch(decks[0].key, decks[1].key), el = $('keymatch'); if (!el) return;
     el.textContent = m ? (m === 'clash' ? 'Keys clash (' + decks[0].key + ' / ' + decks[1].key + ')' : 'Keys ' + (m === 'same key' ? 'match' : 'work together') + ' (' + decks[0].key + ' / ' + decks[1].key + ')') : '';
     el.className = 'status km ' + (m || '');
   }
-  (function frame() { decks.forEach((d) => { d.draw(); d.drawZoom(); }); requestAnimationFrame(frame); })();
+  (function frame() { if (window.GVKnobs) GVKnobs.refresh(); decks.forEach((d) => { d.draw(); d.drawZoom(); }); requestAnimationFrame(frame); })();
 
   /* ---------- mixer ---------- */
   function applyXf() {

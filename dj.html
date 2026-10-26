@@ -3,20 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DJ Mixer — Go Vibe Studios</title>
-<meta name="description" content="Free browser DJ mixer: two decks, EQ, crossfader, BPM detection, sampler pads and mix recording.">
+<title>DJ Console — Go Vibe Studios</title>
+<meta name="description" content="Free browser DJ console: two decks with jog wheels, EQ, effects, beat grid, stems, automix, library, MIDI and WAV recording.">
 <meta name="theme-color" content="#0b0b14">
 <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Go Vibe Studios">
-<meta property="og:title" content="DJ Mixer — Go Vibe Studios">
-<meta property="og:description" content="Free browser DJ mixer: two decks, EQ, crossfader, BPM detection, sampler pads and mix recording.">
+<meta property="og:title" content="DJ Console — Go Vibe Studios">
+<meta property="og:description" content="Free browser DJ console: two decks with jog wheels, EQ, effects, beat grid, stems, automix, library, MIDI and WAV recording.">
 <meta property="og:url" content="https://go-vibe-studios.sweater-9arc.workers.dev/dj.html">
 <meta property="og:image" content="https://go-vibe-studios.sweater-9arc.workers.dev/icons/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/console.css">
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -31,52 +32,73 @@
   <a class="link" href="games.html">Play</a>
 </nav>
 
-<main id="main" tabindex="-1" class="wrap" style="max-width:1200px">
-  <h1>DJ <span class="grad">Mixer</span></h1>
-  <p class="lead">Load two tracks from your device, match their tempo, blend with the crossfader, use effects and Automix, add your own beat and record your mix.</p>
-
-  <div class="djgrid">
-    <section class="deck panel" id="deck0"></section>
-
-    <section class="mixer panel">
-      <h2>Mixer</h2>
-      <label class="ctl" style="min-width:0">Crossfader
-        <input type="range" id="xf" min="0" max="100" value="50">
-      </label>
-      <div class="row time" style="justify-content:space-between"><span>A</span><span>B</span></div>
-      <p class="status km" id="keymatch" role="status"></p>
-      <canvas id="mmeter" class="meter" role="img" aria-label="Master level meter, left and right" width="240" height="40"></canvas>
-      <div class="row time" style="justify-content:space-between;margin-top:4px"><label class="row" style="gap:6px"><input type="checkbox" id="lim" checked> Limiter</label><span id="limred"></span></div>
-      <label class="ctl" style="min-width:0;margin-top:12px">Master volume
-        <input type="range" id="master" min="0" max="100" value="80">
-      </label>
-      <div class="row" style="margin-top:14px">
-        <button class="btn" id="syncA">Sync A → B</button>
-        <button class="btn" id="syncB">Sync B → A</button>
-      </div>
-      <h2 style="margin-top:18px">Pads</h2>
-      <div class="pads" id="pads"></div>
-      <h2 style="margin-top:18px">Controller</h2>
-      <div class="row"><button class="btn" id="midibtn">Connect MIDI</button><button class="btn" id="helpbtn">⌨ Shortcuts</button></div>
-      <p class="status" id="midistatus" role="status"></p>
-      <details class="gridtools" id="midilearn"><summary>MIDI mapping</summary>
-        <label class="ctl" style="min-width:0;margin-top:6px">Control<select id="mact" class="mini"></select></label>
-        <div class="row" style="margin-top:6px"><button class="btn" id="mlearn">Learn</button><button class="btn" id="mclear">Clear</button><button class="btn danger" id="mreset">Clear all</button></div>
-        <p class="status" id="mlist"></p>
-      </details>
-      <h2 style="margin-top:18px">Record</h2>
-      <div class="row">
-        <button class="btn primary" id="rec">● Record mix</button>
+<main id="main" tabindex="-1" class="console">
+  <div class="ctop">
+    <h1>DJ <span class="grad">Console</span></h1>
+    <p class="status" id="status" role="status"></p>
+    <div class="ctools">
+      <div class="recbox">
+        <button class="btn recbtn" id="rec">● Record mix</button>
+        <select id="recfmt" class="mini" aria-label="Recording format"><option value="wav">WAV (lossless)</option><option value="webm">Compressed</option></select>
         <span class="time" id="rectime"></span>
+        <a class="btn hidden" id="recdl">Download mix</a>
       </div>
-      <a class="btn hidden" id="recdl" style="margin-top:8px;display:inline-block">Download mix</a>
-      <p class="status" id="status" role="status"></p>
+      <button class="btn" id="midibtn">Connect MIDI</button>
+      <button class="btn" id="helpbtn">⌨ Shortcuts</button>
+    </div>
+  </div>
+  <div class="cmidi">
+    <p class="status" id="midistatus" role="status"></p>
+    <details class="gridtools" id="midilearn"><summary>MIDI mapping</summary>
+      <div class="row" style="margin-top:6px;align-items:flex-end">
+        <label class="ctl" style="min-width:0">Control<select id="mact" class="mini"></select></label>
+        <button class="btn" id="mlearn">Learn</button><button class="btn" id="mclear">Clear</button><button class="btn danger" id="mreset">Clear all</button>
+      </div>
+      <p class="status" id="mlist"></p>
+    </details>
+  </div>
+
+  <section class="waves" aria-label="Waveforms">
+    <div class="wstrip a" id="wave0"></div>
+    <div class="wstrip b" id="wave1"></div>
+  </section>
+
+  <div class="cgrid">
+    <section class="dpane a" id="deck0" aria-label="Deck A"></section>
+
+    <section class="mixer" aria-label="Mixer">
+      <div class="mx-top">
+        <canvas id="mmeter" class="meter" role="img" aria-label="Master level meter, left and right" width="240" height="40"></canvas>
+        <div class="row time" style="justify-content:space-between;margin-top:4px"><label class="row" style="gap:6px"><input type="checkbox" id="lim" checked> Limiter</label><span id="limred"></span></div>
+      </div>
+      <div class="mx-ch"><div class="strip a" id="strip0"></div><div class="strip b" id="strip1"></div></div>
+      <div class="xfwrap">
+        <span class="xl">A</span>
+        <input type="range" id="xf" class="xfader" min="0" max="100" value="50" aria-label="Crossfader">
+        <span class="xl">B</span>
+      </div>
+      <p class="status km" id="keymatch" role="status"></p>
+      <div class="mx-master">
+        <label class="kn"><input type="range" id="master" data-knob min="0" max="100" value="80" aria-label="Master volume"><span class="klabel">MASTER</span></label>
+      </div>
+      <div class="pads" id="pads"></div>
     </section>
 
-    <section class="deck panel" id="deck1"></section>
+    <section class="dpane b" id="deck1" aria-label="Deck B"></section>
   </div>
-  <section class="panel" id="automix" style="margin-top:16px" aria-labelledby="amtitle">
-    <h2 id="amtitle">Queue &amp; Automix</h2>
+
+  <section class="tools" aria-label="Tools">
+    <div role="tablist" aria-label="Tools" class="tabbar">
+      <button role="tab" class="tab" id="tab-lib" aria-selected="true" aria-controls="pane-lib">Library</button>
+      <button role="tab" class="tab" id="tab-am" aria-selected="false" aria-controls="pane-am" tabindex="-1">Automix</button>
+      <button role="tab" class="tab" id="tab-beat" aria-selected="false" aria-controls="pane-beat" tabindex="-1">Beat maker</button>
+    </div>
+    <div role="tabpanel" id="pane-lib" aria-labelledby="tab-lib" class="tabpane">
+      <h2>Library</h2>
+      <p class="status">Your tracks, saved in this browser with their BPM, key and cue points.</p>
+    </div>
+    <div role="tabpanel" id="pane-am" aria-labelledby="tab-am" class="tabpane" hidden>
+      <h2 id="amtitle">Queue &amp; Automix</h2>
     <p class="status">Add several tracks and let the mixer play them one after another. It matches tempo, swaps the bass and crossfades for you.</p>
     <div class="row" style="align-items:flex-end;margin:10px 0">
       <button class="btn" id="amadd">Add tracks…</button>
@@ -90,9 +112,9 @@
     </div>
     <ol id="amlist" class="amlist" aria-label="Track queue"></ol>
     <p class="status" id="amstatus" role="status"></p>
-  </section>
-  <section class="panel" id="beat" style="margin-top:16px" aria-labelledby="beattitle">
-    <h2 id="beattitle">Beat maker</h2>
+    </div>
+    <div role="tabpanel" id="pane-beat" aria-labelledby="tab-beat" class="tabpane" hidden>
+      <h2 id="beattitle">Beat maker</h2>
     <p class="status">Click the squares to build a 16-step pattern. It plays through the mixer, so it is included in your recording.</p>
     <div class="row" style="align-items:flex-end;margin:10px 0">
       <button class="btn primary" id="bplay">▶ Play beat</button>
@@ -120,15 +142,18 @@
       <button class="btn hidden" id="btoedit">Open in Audio Editor</button>
     </div>
     <p class="status" id="bstatus" role="status"></p>
+    </div>
   </section>
-  <p class="status" style="margin-top:14px">Tip: tempo sync matches speed only. Line up the beats yourself by nudging the tempo slider or clicking the waveform. Load only music you have the right to use.</p>
+  <p class="status" style="margin-top:14px">Tip: Sync matches tempo and, with both decks playing, lines up the beats. Drag the jog wheel to scratch. Load only music you have the right to use.</p>
 </main>
 <footer>Go Vibe Studios · all processing happens in your browser · <nav aria-label="Footer" class="fnav"><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
 <script src="js/store.js"></script>
+<script src="js/knobs.js"></script>
 <script src="js/dj.js"></script>
 <script src="js/stems.js"></script>
 <script src="js/automix.js"></script>
 <script src="js/controls.js"></script>
+<script src="js/tabs.js"></script>
 <script src="js/beat.js"></script>
 <script src="js/pwa.js"></script>
 </body>

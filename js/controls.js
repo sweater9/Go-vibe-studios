@@ -95,23 +95,25 @@
   const frac = (p) => Math.max(0, Math.min(1, (20 * Math.log10(p + 1e-6) + 60) / 60));
   const col = (p) => (p > 0.89 ? '#fb7185' : p > 0.25 ? '#fbbf24' : '#34d399');
   const hold = [0, 0], holdT = [0, 0], shown = [0, 0], dshown = [0, 0];
-  const mm = $('mmeter'), g = mm.getContext('2d');
+  const mm = $('mmeter'), g = mm.getContext('2d'), SEG = 30;
+  const segCol = (f, lit) => (f > 0.9 ? (lit ? '#ff4d6d' : '#3a1a22') : f > 0.72 ? (lit ? '#fbbf24' : '#3a3118') : (lit ? '#34d399' : '#14301f'));
   (function frame() {
     const now = performance.now(), pk = [peak(A.anL), peak(A.anR)];
+    if (mm.width !== mm.clientWidth && mm.clientWidth) { mm.width = mm.clientWidth; mm.height = mm.clientHeight || 46; }
     const W = mm.width, H = mm.height; g.clearRect(0, 0, W, H);
+    const bw = W - 34, sw = bw / SEG;
     pk.forEach((p, i) => {
       shown[i] = Math.max(p, shown[i] * 0.9); if (p >= hold[i] || now - holdT[i] > 1200) { hold[i] = p; holdT[i] = now; }
-      const y = 4 + i * 17, w = frac(shown[i]) * (W - 40);
-      g.fillStyle = '#16162a'; g.fillRect(4, y, W - 40, 12);
-      g.fillStyle = col(shown[i]); g.fillRect(4, y, w, 12);
-      g.fillStyle = '#e8e8f5'; g.fillRect(4 + frac(hold[i]) * (W - 40) - 1, y, 2, 12);
-      g.fillStyle = pk[i] >= 0.985 ? '#fb7185' : '#2a2a44'; g.fillRect(W - 30, y, 26, 12);
+      const y = 5 + i * (H / 2 - 2), h = H / 2 - 7, fv = frac(shown[i]), fh = frac(hold[i]);
+      for (let k = 0; k < SEG; k++) { const f = (k + 1) / SEG; g.fillStyle = segCol(f, f <= fv + 0.001 || (Math.abs(f - fh) < 0.5 / SEG)); g.fillRect(2 + k * sw, y, Math.max(1, sw - 1.5), h); }
+      g.fillStyle = pk[i] >= 0.985 ? '#ff4d6d' : '#2a2d38'; g.fillRect(W - 28, y, 24, h);
     });
     const red = A.comp.reduction; $('limred').textContent = lim.checked && red < -1 ? 'limiting ' + red.toFixed(0) + ' dB' : '';
     decks.forEach((d, i) => {
-      const c = d.el.meter; if (c.width !== c.clientWidth) { c.width = c.clientWidth || 200; c.height = 8; }
-      const p = d.level(); dshown[i] = Math.max(p, dshown[i] * 0.9); const x = c.getContext('2d');
-      x.clearRect(0, 0, c.width, 8); x.fillStyle = col(dshown[i]); x.fillRect(0, 0, frac(dshown[i]) * c.width, 8);
+      const c = d.el.meter; if (c.height !== c.clientHeight || c.width !== c.clientWidth) { c.width = c.clientWidth || 12; c.height = c.clientHeight || 170; }
+      const p = d.level(); dshown[i] = Math.max(p, dshown[i] * 0.9); const x = c.getContext('2d'), n = 18, sh = c.height / n, fv = frac(dshown[i]);
+      x.clearRect(0, 0, c.width, c.height);
+      for (let k = 0; k < n; k++) { const f = (k + 1) / n; x.fillStyle = segCol(f, f <= fv + 0.001); x.fillRect(1, c.height - (k + 1) * sh + 1, c.width - 2, Math.max(1, sh - 2)); }
     });
     requestAnimationFrame(frame);
   })();
