@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Key and scale helper — GoVibe Mix</title>
+<meta name="description" content="See the notes of any scale, the chords that fit a key, compatible DJ keys and a scale finder. Play everything on a keyboard. Nothing is uploaded.">
+<link rel="canonical" href="https://govibemix.com/keys.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Key and scale helper — GoVibe Mix">
+<meta property="og:description" content="See the notes of any scale, the chords that fit a key, compatible DJ keys and a scale finder. Play everything on a keyboard. Nothing is uploaded.">
+<meta property="og:url" content="https://govibemix.com/keys.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="index.html">Home</a>
+  <a class="link" href="create.html">Create</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>Key and scale helper</h1>
+  <p class="lead">Pick a key and see its notes, the chords that belong to it, the keys that mix well with it for DJ sets, and a keyboard you can play. Or tick the notes you have and find the scales that fit.</p>
+
+  <div class="panel">
+    <h2>Key</h2>
+    <div class="row" style="align-items:flex-end">
+      <label class="ctl">Root note<select id="root"></select></label>
+      <label class="ctl">Scale<select id="scale"></select></label>
+      <label class="ctl">Sound<select id="inst"><option>Piano</option><option>Electric piano</option><option>Synth lead</option><option>Pad</option></select></label>
+    </div>
+    <p class="status" id="summary" role="status"></p>
+    <div id="kb" class="kb" role="group" aria-label="Keyboard. Notes in the scale are highlighted."></div>
+    <p class="status">Press a key to hear it. Highlighted keys belong to the scale and the root is marked.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Chords in this key</h2>
+    <label class="row time"><input type="checkbox" id="sev"> Show four note (seventh) chords</label>
+    <div class="tblwrap"><table class="tbl" id="chords"><thead><tr><th scope="col">Degree</th><th scope="col">Chord</th><th scope="col">Notes</th><th scope="col">Hear it</th></tr></thead><tbody></tbody></table></div>
+    <p class="status" id="nochords"></p>
+  </div>
+
+  <div class="panel">
+    <h2>Chord progressions</h2>
+    <div class="row" style="align-items:flex-end">
+      <label class="ctl">Progression<select id="prog"></select></label>
+      <label class="ctl">Tempo (BPM)<input type="number" id="pbpm" min="50" max="180" value="90"></label>
+      <button class="btn primary" id="pplay">Play progression</button>
+    </div>
+    <p class="status" id="pshow"></p>
+  </div>
+
+  <div class="panel">
+    <h2>Keys that mix well (for DJs)</h2>
+    <div class="tblwrap"><table class="tbl" id="compat"><thead><tr><th scope="col">Camelot</th><th scope="col">Key</th><th scope="col">Why</th></tr></thead><tbody></tbody></table></div>
+    <p class="status" id="ncompat"></p>
+  </div>
+
+  <div class="panel">
+    <h2>Scale finder</h2>
+    <p class="status">Tick the notes you are using. Scales that contain all of them are listed, closest fit first.</p>
+    <div class="row" id="pcs" role="group" aria-label="Notes you are using"></div>
+    <ul id="found" class="found"></ul>
+  </div>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/synth.js"></script>
+<script src="js/theory.js"></script>
+<script src="js/keys.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>

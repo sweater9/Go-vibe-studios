@@ -105,6 +105,9 @@ Each deck refines its BPM to 0.01 and finds where beat 1 falls (checked on synth
 - **Multitrack Studio** (`studio.html`): `js/studio-core.js` (project model, scheduling, offline render, WAV and MP3 writers), `js/synth.js` (built in instruments and drums), `js/studio.js` (timeline, mixer, transport, projects), `js/studio-roll.js` (piano roll and step grid), `js/studio-io.js` (autosave to IndexedDB and ZIP backup). 4/4 time only. Projects are stored in the browser; use the backup ZIP to move them.
 - **Mastering** (`master.html`, `js/master-dsp.js`, `js/master-worker.js`): ITU BS.1770 K weighted loudness with gating, 4 times oversampled true peak, shelves, glue compressor, stereo width and a look ahead limiter, run in a worker. Verified against pyloudnorm in the tests.
 - **Video editor** upgrades: per clip fade in and out, and transitions into a clip (crossfade, dip to black, wipe, slide) built from the last frame of the previous clip. Export is still real time through MediaRecorder.
+- **Loop maker** (`samples.html`, `js/samples.js`): drum, bass, chord and melody loops from the Studio instruments in a chosen key and tempo, rendered offline with the tail folded back so they repeat cleanly. WAV, MIDI (format 0) and hand-off to the Studio as an editable track.
+- **Key and scale helper** (`keys.html`, `js/keys.js`, `js/theory.js`): scales and modes, chords and progressions in a key, Camelot codes and compatible keys, scale finder, playable keyboard.
+- **Desktop app** (`desktop/`): an Electron shell that bundles the site and runs it offline from a private secure `govibe://` address. See `desktop/README.md`. Tested with `desktop/test_desktop.py`; installers are not built in this repo.
 - **BPM and key finder** (`bpm.html`): uses `js/analyze.js`, the same detection code as the DJ console (tempo, beat grid refinement, key with Camelot code), with CSV export and tap tempo. Estimates only.
 
 ## Audio Editor upgrades

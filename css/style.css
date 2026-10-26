@@ -168,3 +168,12 @@ select { background: var(--bg); border: 1px solid var(--line); color: var(--text
 .seg { display: inline-flex; gap: 0; } .seg .btn { border-radius: 0; } .seg .btn:first-child { border-radius: 10px 0 0 10px; } .seg .btn:last-child { border-radius: 0 10px 10px 0; }
 .seg .btn[aria-pressed="true"] { background: #6d4de0; border-color: #6d4de0; color: #fff; }
 #meters td { font-variant-numeric: tabular-nums; } #meters .bad { color: #fbbf24; font-weight: 600; } #meters .good { color: #34d399; }
+.kb { margin-top: 12px; user-select: none; overflow-x: auto; max-width: 100%; } .kbin { position: relative; height: 154px; }
+.kb .wk, .kb .bk { position: absolute; top: 0; border: 1px solid #222; cursor: pointer; padding: 0; }
+.kb .wk { height: 150px; background: #f1f1f6; border-radius: 0 0 6px 6px; } .kb .wk.in { background: #c9b8ff; } .kb .wk.root { background: #8b6cf0; }
+.kb .bk { height: 92px; background: #15151f; z-index: 2; border-radius: 0 0 4px 4px; } .kb .bk.in { background: #5b43b8; } .kb .bk.root { background: #8b6cf0; }
+.kb .wk:focus-visible, .kb .bk:focus-visible { outline: 3px solid #fbbf24; z-index: 3; }
+.found { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.loopgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 12px; }
+.loopcard { background: var(--panel, #14151f); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; } .loopcard h3 { margin: 0 0 4px; font-size: 16px; } .loopcard p { margin: 0 0 10px; font-size: 13px; color: var(--muted); }
+.loopcard .row { gap: 6px; flex-wrap: wrap; }

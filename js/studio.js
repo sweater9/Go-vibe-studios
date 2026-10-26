@@ -346,12 +346,27 @@
   }
   $('xgo').onclick = exportMix; $('xstems').onclick = exportStems;
 
+  /* a loop from the Loop and sample maker becomes an editable track */
+  function addLoop(j) {
+    const sp = j.spec; edit('Add loop', () => {
+      if (!P.tracks.length) P.bpm = j.bpm; const t = Core.newTrack(P, sp.type), dur = j.bars * 4 * 60 / P.bpm; t.name = sp.name || t.name; if (sp.inst) t.inst = sp.inst;
+      /* notes are in beats, so they keep their meaning at any tempo */
+      const start = 0;
+      t.clips.push(sp.type === 'midi' ? { id: Core.uid(), start, dur, notes: sp.notes } : { id: Core.uid(), start, dur, steps: 16, swing: sp.swing || 0, grid: sp.grid });
+      P.tracks.push(t); sel = { track: t.id, clip: t.clips[0].id };
+    });
+    say('Added ' + (sp.name || 'loop') + ' as an editable track.');
+  }
+
   /* ---------- start ---------- */
   async function start() {
     syncUndo(); afterStructure(); syncScroll(); setZoom(60); $('time').textContent = fmtT(0); requestAnimationFrame(loop);
     const from = new URLSearchParams(location.search).get('from');
     if (from === 'record' && window.GVStore) { try { const b = await GVStore.get('studio-import'); if (b) { await GVStore.del('studio-import'); b.name = 'Recording.wav'; await importFiles([b]); } } catch (_) { /* nothing handed over */ } }
-    else { const items = IO.list(); if (items.length) await openProject(items[0].id); }
+    else {
+      const items = IO.list(); if (items.length) await openProject(items[0].id);
+      if (from === 'samples') { try { const j = JSON.parse(localStorage.getItem('govibe.loop') || 'null'); localStorage.removeItem('govibe.loop'); if (j && j.spec) addLoop(j); } catch (_) { /* nothing handed over */ } }
+    }
     refreshProjects();
   }
   window.addEventListener('beforeunload', () => { if (dirty) saveNow(); });

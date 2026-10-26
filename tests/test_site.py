@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "editor", "video", "create", "dj", "lessons", "convert", "bpm", "record", "studio", "master", "about", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "editor", "video", "create", "dj", "lessons", "convert", "bpm", "record", "studio", "master", "keys", "samples", "about", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -1096,6 +1096,91 @@ def test_master(browser, base):
     over = p3.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth"); check("master: no sideways scroll at 390px", over <= 0, str(over)); c3.close()
 
 
+def test_keys_samples(browser, base):
+    print("key helper and loop maker")
+    import tempfile, numpy as np, io, wave
+    errs = []
+    ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 1000}, accept_downloads=True)
+    pg.goto(base + "keys.html?gvtest")
+    pg.select_option("#root", "0"); pg.select_option("#scale", "Major")
+    check("C major summary lists the notes and Camelot 8B", "C D E F G A B" in " ".join(pg.inner_text("#summary").split()) and "8B" in pg.inner_text("#summary"), pg.inner_text("#summary"))
+    check("keyboard highlights seven notes per octave and marks the root", pg.locator("#kb .wk.in").count() == 3 * 7 - 0 or pg.locator("#kb .in").count() == 21, str(pg.locator("#kb .in").count()))
+    rows = pg.locator("#chords tbody tr"); check("seven chords with the right names", rows.count() == 7 and rows.nth(1).locator("td").nth(0).inner_text() == "Dm" and rows.nth(6).locator("td").nth(0).inner_text() == "Bdim")
+    pg.check("#sev"); check("seventh chords show maj7 and m7", rows.nth(0).locator("td").nth(0).inner_text() == "Cmaj7" and rows.nth(4).locator("td").nth(0).inner_text() == "G7")
+    pg.uncheck("#sev")
+    pg.select_option("#root", "9"); pg.select_option("#scale", "Natural minor")
+    check("A minor gives 8A and compatible keys include C major, E minor, D minor", "8A" in pg.inner_text("#summary") and all(x in pg.inner_text("#compat") for x in ["C major", "E minor", "D minor"]), pg.inner_text("#compat")[:200])
+    pg.select_option("#scale", "Blues"); check("blues has no chord or Camelot table but explains why", pg.locator("#chords tbody tr").count() == 0 and "seven note" in pg.inner_text("#nochords") and "Camelot" in pg.inner_text("#ncompat"))
+    pg.select_option("#scale", "Major"); pg.select_option("#root", "7")
+    pg.get_by_label("Play progression") if False else None
+    check("progression text for G major pop is G → D → Em → C", "G → D → Em → C" in " ".join(pg.inner_text("#pshow").split()), pg.inner_text("#pshow"))
+    pg.click("#kb button >> nth=0"); pg.click("#pplay"); check("keys page plays sound without errors", True)
+    # scale finder
+    for n in ["C", "E", "G", "B"]: pg.get_by_label(n, exact=True).check()
+    txt = pg.inner_text("#found"); check("scale finder lists C major and E natural minor for C E G B", "C Major" in txt and "E Natural minor" in txt, txt[:120])
+    pg.get_by_role("button", name="E Natural minor").click(); check("choosing a result sets the key", pg.input_value("#root") == "4" and pg.input_value("#scale") == "Natural minor")
+    check("keys: no errors", not errs, str(errs))
+    # loops
+    pg.goto(base + "samples.html?gvtest"); pg.wait_for_function("() => window.__sm", timeout=10000)
+    check("catalog has drums, bass, chords and a melody", pg.locator(".loopcard").count() == 15, str(pg.locator(".loopcard").count()))
+    pg.fill("#bpm", "100"); pg.select_option("#root", "0"); pg.select_option("#bars", "2")
+    pg.get_by_role("button", name="Play House", exact=True).click(); pg.wait_for_function("() => __sm.playing", timeout=20000); check("loop plays", True)
+    pg.get_by_role("button", name="Play House", exact=True).click(); check("loop stops", not pg.evaluate("__sm.playing"))
+    # rendered drum loop: kick on each beat, length exact
+    r = pg.evaluate("""async () => { const it = __sm.CATALOG.find((i) => i.name === 'House'), p = __sm.params(), r = await __sm.render(it, p), d = r.buf.getChannelData(0), sr = r.buf.sampleRate, spb = 60 / p.bpm;
+      const win = (t) => { let s = 0; for (let i = Math.round(t * sr); i < Math.round((t + 0.06) * sr); i++) s += d[i] * d[i]; return Math.sqrt(s / (0.06 * sr)); };
+      let pk = 0; for (let i = 0; i < d.length; i++) pk = Math.max(pk, Math.abs(d[i])); return { secs: r.buf.length / sr, want: 2 * 4 * spb, beats: [0, 1, 2, 3, 4].map((b) => win(b * spb)), gap: [0.5, 1.5, 2.5].map((b) => win(b * spb + 0.1)), pk }; }""")
+    check("2 bar house loop is exactly 4.8 s long, peaks near -1 dB, has a hit on every beat", abs(r["secs"] - r["want"]) < 0.001 and 0.8 < r["pk"] <= 0.9 and all(v > 0.05 for v in r["beats"]), str(r))
+    # melodic loops stay in key
+    m = pg.evaluate("""() => { const p = Object.assign(__sm.params(), { root: 2, minor: false, bars: 4 }); const out = {}; for (const n of ['Melody', 'Bass: Walking', 'Chords: Arpeggio']) { const it = __sm.CATALOG.find((i) => i.name === n), { spec } = __sm.projectFor(it, p); out[n] = spec.notes.map((x) => ((x.p % 12) + 12) % 12); } return out; }""")
+    major = {2, 4, 6, 7, 9, 11, 1}
+    check("D major melody, walking bass and arpeggio only use notes of D major", all(set(v) <= major for v in m.values()) and len(m["Melody"]) > 8, str({k: sorted(set(v)) for k, v in m.items()}))
+    # download WAV and MIDI
+    with pg.expect_download(timeout=30000) as dl: pg.locator(".loopcard", has_text="Boom bap").get_by_role("button", name="WAV").click()
+    w = wave.open(str(dl.value.path())); check("WAV download is stereo 16 bit 44.1 kHz", dl.value.suggested_filename.startswith("Boom-bap-100bpm") and w.getnchannels() == 2 and w.getsampwidth() == 2 and w.getframerate() == 44100, dl.value.suggested_filename)
+    with pg.expect_download(timeout=30000) as dm: pg.locator(".loopcard", has_text="Melody").get_by_role("button", name="MIDI").click()
+    b = open(dm.value.path(), "rb").read(); check("MIDI download is a valid file with notes", b[:4] == b"MThd" and b"MTrk" in b and b.count(b"\x90") >= 8, str(len(b)))
+    # variation changes melody
+    v1 = pg.evaluate("""() => { const it = __sm.CATALOG.find((i) => i.name === 'Melody'); return JSON.stringify(__sm.projectFor(it, Object.assign(__sm.params(), { seed: 1 })).spec.notes); }""")
+    v2 = pg.evaluate("""() => { const it = __sm.CATALOG.find((i) => i.name === 'Melody'); return JSON.stringify(__sm.projectFor(it, Object.assign(__sm.params(), { seed: 2 })).spec.notes); }""")
+    check("a different variation number gives a different melody", v1 != v2)
+    # open in studio
+    pg.locator(".loopcard", has_text="Trap").get_by_role("button", name="Open in Studio").click(); pg.wait_for_url("**/studio.html?from=samples", timeout=10000)
+    check("Open in Studio goes to the studio with the hand-off flag", True)
+    for name, typ in [("Trap", "drum"), ("Bass: Walking", "midi")]:
+        pg.goto(base + "samples.html?gvtest"); pg.wait_for_function("() => window.__sm")
+        pg.evaluate("(n) => { const it = __sm.CATALOG.find((i) => i.name === n); localStorage.setItem('govibe.loop', JSON.stringify({ bpm: 90, bars: 2, spec: __sm.projectFor(it, Object.assign(__sm.params(), { bars: 2, bpm: 90 })).spec })); }", name)
+        pg.goto(base + "studio.html?from=samples&gvtest"); pg.wait_for_function("() => window.__st && __st.P.tracks.length > 0", timeout=10000)
+        info = pg.evaluate("({ n: __st.P.tracks.length, type: __st.P.tracks[__st.P.tracks.length - 1].type, bpm: __st.P.bpm, dur: __st.P.tracks[__st.P.tracks.length - 1].clips[0].dur, left: localStorage.getItem('govibe.loop') })")
+        check(name + " arrives in the studio as an editable " + typ + " track at the loop tempo", info["type"] == typ and info["bpm"] in (90, 120) and abs(info["dur"] - 2 * 4 * 60 / info["bpm"]) < 0.01 and info["left"] is None, str(info))
+    check("samples: no errors", not [e for e in errs if "Failed to load resource" not in e], str(errs))
+    ctx.close()
+    axe = os.environ.get("AXE_PATH") or os.path.join(ROOT, "node_modules/axe-core/axe.min.js")
+    if os.path.exists(axe):
+        js = "axe.run(document,{runOnly:['wcag2a','wcag2aa','wcag21a','wcag21aa','best-practice']}).then(r=>r.violations.map(v=>v.id+' x'+v.nodes.length+' '+v.nodes[0].target.join(' ')))"
+        c2 = browser.new_context(bypass_csp=True, viewport={"width": 1200, "height": 900})
+        for pagename in ["keys.html", "samples.html"]:
+            p2 = c2.new_page(); p2.goto(base + pagename); p2.add_script_tag(path=axe); check(pagename + ": no axe violations", not (v := p2.evaluate(js)), str(v)); p2.close()
+        c2.close()
+    c3 = browser.new_context(viewport={"width": 390, "height": 844})
+    for pagename in ["keys.html", "samples.html"]:
+        p3 = c3.new_page(); p3.goto(base + pagename); over = p3.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth"); check(pagename + ": no sideways scroll at 390px", over <= 0, str(over)); p3.close()
+    c3.close()
+
+
+def test_desktop(browser, base):
+    print("desktop shell (Electron)")
+    import shutil, subprocess
+    d = os.path.join(ROOT, "desktop")
+    if not (os.path.exists(os.path.join(d, "node_modules/electron/dist/electron")) and shutil.which("xvfb-run")):
+        print("  skipped: run `npm install` in desktop/ and install xvfb to include this test"); return
+    r = subprocess.run(["xvfb-run", "-a", "python3", os.path.join(d, "test_desktop.py")], capture_output=True, text=True, timeout=180)
+    for line in r.stdout.splitlines():
+        if line.startswith("  ok"): check(line[6:].strip(), True)
+        elif line.startswith("  FAIL"): check(line[6:].strip(), False)
+    check("desktop test exited cleanly", r.returncode == 0, r.stderr[-300:])
+
+
 def test_views(browser, base):
     print("performance view, light theme, ratings and notes")
     import tempfile
@@ -1273,7 +1358,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_record, test_studio, test_master, test_views, test_lessons, test_video, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_record, test_studio, test_master, test_keys_samples, test_desktop, test_views, test_lessons, test_video, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

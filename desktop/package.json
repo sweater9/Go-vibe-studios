@@ -1,0 +1,29 @@
+{
+  "name": "govibe-mix-desktop",
+  "productName": "GoVibe Mix",
+  "version": "1.0.0",
+  "description": "GoVibe Mix as a desktop app (Windows, macOS, Linux). The same files as the website, running offline.",
+  "main": "main.js",
+  "license": "MIT",
+  "scripts": {
+    "prepare-site": "node scripts/copy-site.js",
+    "start": "node scripts/copy-site.js && electron .",
+    "dist": "node scripts/copy-site.js && electron-builder",
+    "dist:win": "node scripts/copy-site.js && electron-builder --win",
+    "dist:mac": "node scripts/copy-site.js && electron-builder --mac",
+    "dist:linux": "node scripts/copy-site.js && electron-builder --linux"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.govibemix.desktop",
+    "productName": "GoVibe Mix",
+    "files": ["main.js", "site/**/*", "package.json"],
+    "directories": { "output": "dist" },
+    "win": { "target": ["nsis", "portable"] },
+    "mac": { "target": ["dmg"], "category": "public.app-category.music", "extendInfo": { "NSMicrophoneUsageDescription": "GoVibe Mix uses the microphone only in the Voice recorder and the Studio, when you press record." } },
+    "linux": { "target": ["AppImage", "deb"], "category": "AudioVideo" }
+  }
+}
