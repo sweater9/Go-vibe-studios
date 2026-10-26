@@ -1,7 +1,4 @@
 @font-face { font-family: "Bricolage Grotesque"; src: url("../fonts/bricolage-grotesque.woff2") format("woff2"); font-weight: 200 800; font-style: normal; font-display: swap; }
-@view-transition { navigation: auto; }
-::view-transition-old(root), ::view-transition-new(root) { animation-duration: .28s; }
-@media (prefers-reduced-motion: reduce) { @view-transition { navigation: none; } }
 :root {
   --bg: #0b0b14;
   --panel: #14142a;
@@ -194,3 +191,4 @@ h1, h2 { letter-spacing: -.02em; }
 footer { border-top: 1px solid rgba(255, 255, 255, .06); margin-top: 20px; padding: 34px 20px; }
 .brand img { margin-right: 9px; }
 .brand span { margin-right: .26em; }
+#tools { scroll-margin-top: 70px; } html { scroll-behavior: smooth; } @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
