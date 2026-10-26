@@ -95,3 +95,8 @@ Each deck refines its BPM to 0.01 and finds where beat 1 falls (checked on synth
 - **Full view** (button, or `F`): hides the site navigation, tabs and footer, enlarges the waveforms and uses the browser's full screen where available. `Esc` leaves it.
 - **Light / dark console** (button, or `T`): a light chassis with dark screens, knobs and buttons, like real hardware. It is remembered in this browser and only affects the DJ page. Both themes pass the automated accessibility scan.
 - **Ratings and notes** in the Library: 1–5 stars and a short note per track, saved with the track. Filter by minimum rating, sort by rating, and search also looks in notes.
+
+## Library backup, colour tags and set history
+- **Backup**: Library → Export backup (.zip with audio, or .json metadata only). Import restores both; tracks imported without audio show as "audio missing" and fill in when you add the file again (notes, ratings, tags and cues are kept).
+- **Tags**: five colours per track, with a filter.
+- **History tab**: tracks played 20 s or more are logged locally; export CSV or a text set list, or build a timecoded tracklist for your last recording. Start a new set to separate sessions (gaps over 3 h also separate automatically).

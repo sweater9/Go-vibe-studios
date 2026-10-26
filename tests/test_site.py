@@ -583,7 +583,7 @@ def test_console(browser, base):
     check("knob redraws when its value is set from code (MIDI, automix)", d0 != d1, f"{d0!r} {d1!r}")
     # tabs
     pg.focus("#tab-lib"); pg.keyboard.press("ArrowRight")
-    check("arrow keys move between tabs", pg.get_attribute("#tab-am", "aria-selected") == "true" and pg.locator("#pane-am").is_visible() and not pg.locator("#pane-lib").is_visible())
+    check("arrow keys move between tabs", pg.get_attribute("#tab-hist", "aria-selected") == "true" and pg.locator("#pane-hist").is_visible() and not pg.locator("#pane-lib").is_visible())
     pg.click("#tab-lib")
     # jog scratch + bend
     pg.evaluate("""() => { const { decks, ctx } = __dj, sr = 22050, b = ctx.createBuffer(2, sr * 30, sr); for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] = 0.3 * Math.sin(2 * Math.PI * 330 * i / sr); }
@@ -660,6 +660,94 @@ def test_console(browser, base):
     pg.wait_for_function("() => document.querySelectorAll('#libbody tr[data-id]').length === 2", timeout=10000)
     check("library tracks can be removed", True)
     check("console: no errors", not [e for e in errs if "Failed to load resource" not in e], str(errs))
+    ctx.close()
+
+
+def test_backup_history(browser, base):
+    print("library backup, tags, set history")
+    import tempfile, zipfile, base64, io
+    errs = []
+    ctx, pg = new_page(browser, errs, viewport={"width": 1400, "height": 1000})
+    pg.goto(base + "dj.html?gvtest&gvlog=2")
+    tmp = tempfile.mkdtemp(); f1, f2 = tmp + "/Click 120.wav", tmp + "/Other 128.wav"
+    make_wav(f1, 120); make_wav(f2, 128, tone=330.0)
+    pg.set_input_files("#libfile", [f1, f2])
+    pg.wait_for_function("() => document.querySelectorAll('#libbody tr[data-id]').length === 2", timeout=30000)
+    row = lambda n: pg.locator("#libbody tr[data-id]", has_text=n)
+    row("Click 120").locator(".libtag").select_option("red")
+    pg.wait_for_timeout(400)
+    check("a track can be given a colour tag", "tag-red" in (row("Click 120").get_attribute("class") or ""))
+    pg.select_option("#libtagf", "red"); pg.wait_for_timeout(200)
+    check("tag filter shows only matching tracks", pg.locator("#libbody tr[data-id]").count() == 1)
+    pg.select_option("#libtagf", ""); pg.wait_for_timeout(200)
+    row("Other 128").locator("input[type=text], textarea").first.fill("fav") if row("Other 128").locator("input[type=text], textarea").count() else None
+    # zip backup
+    b64 = pg.evaluate("""async () => { const b = await __lib.exportZip(), u = new Uint8Array(await b.arrayBuffer()); let s = ''; for (let i = 0; i < u.length; i += 8192) s += String.fromCharCode(...u.subarray(i, i + 8192)); return btoa(s); }""")
+    z = zipfile.ZipFile(io.BytesIO(base64.b64decode(b64)))
+    names = z.namelist(); lib = json.loads(z.read("library.json"))
+    check("backup zip is valid, has library.json and one audio file per track", z.testzip() is None and "library.json" in names and len([n for n in names if n.startswith("audio/")]) == 2 and len(lib["tracks"]) == 2, str(names))
+    check("backup keeps tags", any(t.get("tag") == "red" for t in lib["tracks"]))
+    zp = tmp + "/backup.zip"; open(zp, "wb").write(base64.b64decode(b64))
+    jp = tmp + "/backup.json"; json.dump(lib, open(jp, "w"))
+    # clear and restore from zip
+    for _ in range(2):
+        pg.locator("#libbody tr[data-id]").first.get_by_role("button", name=re.compile("^Remove")).click(); pg.wait_for_timeout(300)
+    check("library emptied", pg.locator("#libbody tr[data-id]").count() == 0)
+    pg.set_input_files("#libimpfile", zp)
+    pg.wait_for_function("() => document.querySelectorAll('#libbody tr[data-id]').length === 2", timeout=20000)
+    check("zip import restores tracks and tags", "tag-red" in (row("Click 120").get_attribute("class") or "") and pg.locator("#libbody tr.libmissing").count() == 0)
+    row("Click 120").get_by_role("button", name=re.compile("into deck A")).click()
+    pg.wait_for_function("() => __dj.decks[0].buf !== null", timeout=15000)
+    check("restored audio loads into a deck", abs(pg.evaluate("__dj.decks[0].bpm") - 120) < 0.5)
+    # json-only import -> placeholders
+    for _ in range(2):
+        pg.locator("#libbody tr[data-id]").first.get_by_role("button", name=re.compile("^Remove")).click(); pg.wait_for_timeout(300)
+    pg.set_input_files("#libimpfile", jp)
+    pg.wait_for_function("() => document.querySelectorAll('#libbody tr.libmissing').length === 2", timeout=20000)
+    check("json import makes 'audio missing' placeholders with load disabled", row("Click 120").get_by_role("button", name=re.compile("into deck A")).is_disabled())
+    pg.set_input_files("#libfile", [f1]); pg.wait_for_timeout(2500)
+    check("adding the file fills the placeholder and keeps its tag", pg.locator("#libbody tr.libmissing").count() == 1 and "tag-red" in (row("Click 120").get_attribute("class") or "") and pg.locator("#libbody tr[data-id]").count() == 2)
+    pg.set_input_files("#libimpfile", f1); pg.wait_for_timeout(500)
+    check("importing a non-backup file is refused without crashing", pg.locator("#libbody tr[data-id]").count() == 2)
+    # history
+    pg.evaluate("""() => { const b = __dj.ctx.createBuffer(2, 22050 * 20, 22050); for (let c = 0; c < 2; c++) b.getChannelData(c).fill(0.05); __dj.decks[0].setBuffer(b, 'Hist One.wav', { bpm: 123, key: '8A' }); __dj.decks[0].play(); }""")
+    pg.wait_for_function("() => __hist.log.length === 1", timeout=8000)
+    pg.wait_for_timeout(2500)
+    check("a track is logged once after the threshold, not repeatedly", pg.evaluate("__hist.log.length") == 1)
+    pg.click("#tab-hist")
+    check("history table lists it", "Hist One" in pg.inner_text("#hbody") and "123.0" in pg.inner_text("#hbody"))
+    pg.click("#hnew"); pg.evaluate("__dj.decks[0].pause(); __dj.decks[0].seek(0); __dj.decks[0].play()")
+    pg.wait_for_function("() => __hist.log.length === 3", timeout=8000)
+    check("new-set marker adds a break and the same track logs again", "New set" in pg.inner_text("#hbody") and pg.evaluate("__hist.log[1].brk") is True)
+    csv = pg.evaluate("__hist.csv()"); txt = pg.evaluate("__hist.text()")
+    check("CSV and text set list export", csv.splitlines()[0].startswith("Date,Time,Title") and len(csv.strip().splitlines()) == 3 and "1. Hist One" in txt and "New set" in txt, csv + txt)
+    # recording tracklist
+    pg.click("#tab-lib"); pg.click("#rec"); pg.wait_for_timeout(600)
+    pg.evaluate("__dj.decks[0].pause(); __dj.decks[0].seek(0); __dj.decks[0].setBuffer(__dj.ctx.createBuffer(2, 22050 * 20, 22050), 'Hist Two.wav', { bpm: 100, key: null }); __dj.decks[0].play()")
+    pg.wait_for_function("() => __hist.log.length === 4", timeout=8000)
+    pg.click("#rec"); pg.wait_for_selector("#recdl:not(.hidden)", timeout=8000)
+    pg.click("#tab-hist")
+    check("tracklist button enables after a recording", not pg.locator("#hrec").is_disabled())
+    pg.click("#hrec"); out = pg.input_value("#hout")
+    check("tracklist has timecodes relative to the recording", re.search(r"^00:0\d  Hist Two \(100 BPM\)$", out, re.M) is not None, out)
+    pg.reload(); pg.click("#tab-hist")
+    check("history survives a reload", pg.locator("#hbody tr").count() >= 4)
+    pg.once("dialog", lambda d: d.accept()); pg.click("#hclear")
+    check("history can be cleared", "Nothing played yet" in pg.inner_text("#hbody"))
+    # a11y + phone
+    axe = os.environ.get("AXE_PATH") or os.path.join(ROOT, "node_modules/axe-core/axe.min.js")
+    if os.path.exists(axe):
+        js = "axe.run(document,{runOnly:['wcag2a','wcag2aa','wcag21a','wcag21aa','best-practice']}).then(r=>r.violations.map(v=>v.id+' x'+v.nodes.length+' '+v.nodes[0].target.join(' ')))"
+        c2 = browser.new_context(bypass_csp=True); p2 = c2.new_page()
+        for theme in ("dark", "light"):
+            p2.goto(base + "dj.html"); p2.evaluate(f"localStorage.setItem('govibe.djtheme', '{theme}')"); p2.reload()
+            p2.add_script_tag(path=axe)
+            check(f"history tab ({theme}): no axe violations", not (v := (p2.click("#tab-hist"), p2.evaluate(js))[1]), str(v))
+            check(f"library backup row ({theme}): no axe violations", not (v := (p2.click("#tab-lib"), p2.evaluate(js))[1]), str(v))
+        c2.close()
+    pg.set_viewport_size({"width": 390, "height": 800}); pg.wait_for_timeout(200)
+    check("no horizontal overflow at 390px with the new tabs", pg.evaluate("document.documentElement.scrollWidth <= window.innerWidth + 1"))
+    check("backup/history: no errors", not [e for e in errs if "Failed to load resource" not in e and "not a Go Vibe" not in e], str(errs))
     ctx.close()
 
 
@@ -805,7 +893,7 @@ def main():
     test_static()
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor_games, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_views, test_lessons, test_video, test_offline):
+        for t in (test_pages, test_a11y, test_editor_games, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_views, test_lessons, test_video, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

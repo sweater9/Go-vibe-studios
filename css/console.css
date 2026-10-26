@@ -187,3 +187,11 @@ html[data-theme=light] .star { color: #8a90a6; } html[data-theme=light] .star[ar
 .libnote { min-width: 120px; padding: 5px 8px; font-size: 13px; }
 @media (max-width: 700px) { .libtbl th:nth-child(6), .libtbl td:nth-child(6) { display: none; } }
 html[data-theme=light] .strip.a .sname { color: #9a3412; } html[data-theme=light] .strip.b .sname { color: #075985; }
+
+.libmissing td { opacity: .7; } .libmatch.warn { background: #3b2a0d; color: #fcd34d; }
+.libtbl tr.tag-red td:first-child { box-shadow: inset 4px 0 #e11d48; } .libtbl tr.tag-orange td:first-child { box-shadow: inset 4px 0 #f97316; }
+.libtbl tr.tag-green td:first-child { box-shadow: inset 4px 0 #22c55e; } .libtbl tr.tag-blue td:first-child { box-shadow: inset 4px 0 #3b82f6; } .libtbl tr.tag-purple td:first-child { box-shadow: inset 4px 0 #a855f7; }
+.libtag { padding: 4px 6px; }
+@media (max-width: 700px) { .libtbl th:nth-child(6), .libtbl td:nth-child(6) { display: table-cell; } .libtbl th:nth-child(7), .libtbl td:nth-child(7) { display: none; } }
+.hbreak { background: #151720; color: var(--lab); font-size: 12px; letter-spacing: .6px; font-weight: 600; }
+html[data-theme=light] .hbreak { background: #e4e7f0; }

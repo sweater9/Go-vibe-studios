@@ -24,7 +24,7 @@
   }
   const q16 = (x) => { const s = Math.max(-1, Math.min(1, x)); return s < 0 ? s * 0x8000 : s * 0x7fff; };
   function finish(blob, ext) {
-    clearInterval(timer); recording = false;
+    clearInterval(timer); recording = false; window.dispatchEvent(new CustomEvent('gv-rec', { detail: { state: 'stop', t: Date.now() } }));
     const a = $('recdl'); if (a.href) URL.revokeObjectURL(a.href);
     a.href = URL.createObjectURL(blob); a.download = 'govibe-mix.' + ext; a.textContent = 'Download mix (' + (blob.size / 1048576).toFixed(1) + ' MB)'; a.classList.remove('hidden');
     $('rec').textContent = '● Record mix'; $('rec').classList.remove('rec-on'); $('rectime').textContent = ''; $('recfmt').disabled = false;
@@ -55,7 +55,7 @@
     if (!wav && !window.MediaRecorder) return say('Recording is not supported in this browser.');
     ctx.resume(); $('recdl').classList.add('hidden');
     try { wav ? await startWav() : startCompressed(); } catch (e) { return say('Could not start recording: ' + e.message); }
-    recording = true; t0 = Date.now(); $('recfmt').disabled = true;
+    recording = true; t0 = Date.now(); $('recfmt').disabled = true; window.dispatchEvent(new CustomEvent('gv-rec', { detail: { state: 'start', t: t0 } }));
     $('rec').textContent = '■ Stop recording'; $('rec').classList.add('rec-on');
     timer = setInterval(() => { const s = (Date.now() - t0) / 1000; $('rectime').textContent = fmt(s); if (s > MAX_SECS) stop(); }, 250);
   };

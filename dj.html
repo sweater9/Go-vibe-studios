@@ -93,12 +93,32 @@
   <section class="tools" aria-label="Tools">
     <div role="tablist" aria-label="Tools" class="tabbar">
       <button role="tab" class="tab" id="tab-lib" aria-selected="true" aria-controls="pane-lib">Library</button>
+      <button role="tab" class="tab" id="tab-hist" aria-selected="false" aria-controls="pane-hist" tabindex="-1">History</button>
       <button role="tab" class="tab" id="tab-am" aria-selected="false" aria-controls="pane-am" tabindex="-1">Automix</button>
       <button role="tab" class="tab" id="tab-beat" aria-selected="false" aria-controls="pane-beat" tabindex="-1">Beat maker</button>
     </div>
     <div role="tabpanel" id="pane-lib" aria-labelledby="tab-lib" class="tabpane">
       <h2>Library</h2>
       <p class="status">Your tracks, saved in this browser with their BPM, key and cue points.</p>
+    </div>
+    <div role="tabpanel" id="pane-hist" aria-labelledby="tab-hist" class="tabpane" hidden>
+      <h2>Set history</h2>
+      <p class="status">Every track you play for 20 seconds or more is logged here, on this device only. Use it as a set list or to credit tracks in a recording.</p>
+      <div class="row" style="margin:10px 0">
+        <button class="btn" id="hnew">Start a new set</button>
+        <button class="btn" id="hcsv">Export CSV</button>
+        <button class="btn" id="htxt">Export set list (text)</button>
+        <button class="btn" id="hrec" disabled>Tracklist for last recording</button>
+        <button class="btn danger" id="hclear">Clear history</button>
+      </div>
+      <div id="hrecbox" class="hidden">
+        <label class="ctl" style="min-width:0">Tracklist with timecodes (copy it into your upload description)
+          <textarea id="hout" readonly rows="6" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:10px;border-radius:10px;font:13px ui-monospace,monospace;width:100%"></textarea>
+        </label>
+        <div class="row" style="margin-top:6px"><button class="btn mini" id="hcopy">Copy</button><span class="status" id="hcopymsg" role="status"></span></div>
+      </div>
+      <p class="status" id="hstatus" role="status"></p>
+      <div class="libwrap"><table class="libtbl" aria-label="Set history"><thead><tr><th scope="col">Time</th><th scope="col">Title</th><th scope="col">BPM</th><th scope="col">Key</th><th scope="col">Deck</th></tr></thead><tbody id="hbody"></tbody></table></div>
     </div>
     <div role="tabpanel" id="pane-am" aria-labelledby="tab-am" class="tabpane" hidden>
       <h2 id="amtitle">Queue &amp; Automix</h2>
@@ -157,7 +177,9 @@
 <script src="js/jog.js"></script>
 <script src="js/automix.js"></script>
 <script src="js/recorder.js"></script>
+<script src="js/zip.js"></script>
 <script src="js/library.js"></script>
+<script src="js/history.js"></script>
 <script src="js/controls.js"></script>
 <script src="js/tabs.js"></script>
 <script src="js/beat.js"></script>
