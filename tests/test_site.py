@@ -1282,7 +1282,7 @@ def test_lessons(browser, base):
     pg.check('[data-done="bpm"]')
     pg.check('[data-done="eq"]')
     pg.reload()
-    check("lesson progress survives reload", pg.inner_text("#ptext").startswith("2 of 5") and pg.is_checked('[data-done="bpm"]'))
+    check("lesson progress survives reload", pg.inner_text("#ptext").startswith("2 of 10") and pg.is_checked('[data-done="bpm"]'))
     pg.click("#tstart")
     pg.wait_for_timeout(500)
     best = pg.evaluate("""() => { const s = document.getElementById('padj'); let best = null;
@@ -1290,8 +1290,31 @@ def test_lessons(browser, base):
         const e = parseFloat(document.getElementById('tmsg').textContent.match(/off by ([0-9.]+)/)[1]), st = document.getElementById('stars').textContent;
         if (!best || e < best.e) best = { e, st }; document.getElementById('tstart').click(); } return best; }""")
     check("trainer can be won with a perfect adjustment", best["st"] == "★★★" and best["e"] < 0.3, str(best))
+    # new DJ lessons
+    check("ten lessons now", pg.locator("[data-lesson]").count() == 10)
+    ta = pg.evaluate("[__lessons.tempoAdjust(126, 128), __lessons.tempoAdjust(128, 128), __lessons.tempoAdjust(70, 140), __lessons.tempoAdjust(124, 150)]")
+    check("tempo calculator: 126 to 128 is -1.56 %, equal tempos 0, 70 vs 140 suggests double time, 124 vs 150 is out of range", abs(ta[0]["pct"] + 1.5625) < 0.01 and ta[1]["pct"] == 0 and ta[2]["alt"] and ta[2]["alt"][0]["name"] == "half time" and not ta[3]["ok"], str(ta))
+    pg.fill("#cA", "124"); pg.fill("#cB", "128"); check("calculator text says slow down by 3.1 percent", "slow it down by 3.1 percent" in pg.inner_text("#cOut"), pg.inner_text("#cOut"))
+    check("phrase score thresholds", pg.evaluate("[0.1, 0.4, 0.9, 1.5].map(__lessons.phraseScore)") == [3, 2, 1, 0])
+    pg.select_option("#plen", "4"); pg.click("#pstart"); pg.wait_for_function("() => __lessons.pround", timeout=5000)
+    tgt = pg.evaluate("__lessons.pround.target - __lessons.pround.t0"); check("third phrase of 4 bars at 120 BPM begins 16 s in", abs(tgt - 16) < 0.001, str(tgt))
+    r = pg.evaluate("__lessons.pcheck(__lessons.pround.target + 0.1)"); check("pressing 0.2 beats late scores three stars", r["s"] == 3 and pg.inner_text("#pstars") == "★★★" and "late" in pg.inner_text("#pmsg"), str(r))
+    pg.click("#pstart"); r2 = pg.evaluate("__lessons.pcheck(__lessons.pround.target - 0.7)"); check("pressing 1.4 beats early scores no stars", r2["s"] == 0 and "early" in pg.inner_text("#pmsg"), str(r2))
+    pg.click("#kqnew"); kq = pg.evaluate("__lessons.kq"); check("key trainer offers four keys with exactly one right", len(kq["opts"]) == 4 and sum(1 for o in kq["opts"] if o in kq["good"]) == 1)
+    right = [o for o in kq["opts"] if o in kq["good"]][0]; pg.evaluate("(k) => __lessons.kqAnswer(k)", right); check("right key is accepted", "Correct" in pg.inner_text("#kqtext") and "1 of 1" in pg.inner_text("#kqscore"))
+    pg.evaluate("() => { for (let i = 0; i < 12; i++) { __lessons.kqNew(); const k = __lessons.kq; __lessons.kqAnswer(k.opts.find((o) => k.good.includes(o))); } }")
+    check("ten right key answers complete the keys lesson", pg.is_checked('[data-done="keys"]'))
+    for qid, qs in pg.evaluate("Object.entries(__lessons.QUIZ)"):
+        check(f"DJ quiz {qid}: valid answers and explanations", all(0 <= x["a"] < len(x["o"]) and x["w"] for x in qs) and len(qs) >= 2)
+    pg.locator('[data-quiz="cues"] input').nth(0).check(); pg.locator('[data-quiz="cues"] fieldset').nth(1).locator("input").nth(0).check(); pg.locator('[data-quiz="cues"]').get_by_role("button", name="Check answers").click()
+    check("passing a quiz marks that lesson done", pg.is_checked('[data-done="cues"]'))
     check("lessons: no errors", not errs, str(errs))
     ctx.close()
+    axe = os.environ.get("AXE_PATH") or os.path.join(ROOT, "node_modules/axe-core/axe.min.js")
+    if os.path.exists(axe):
+        c2 = browser.new_context(bypass_csp=True, viewport={"width": 1200, "height": 900}); p2 = c2.new_page(); p2.goto(base + "lessons.html?gvtest"); p2.wait_for_function("() => window.__lessons"); p2.click("#kqnew"); p2.add_script_tag(path=axe)
+        v = p2.evaluate("axe.run(document,{runOnly:['wcag2a','wcag2aa','wcag21a','wcag21aa','best-practice']}).then(r=>r.violations.map(v=>v.id+' x'+v.nodes.length+' '+v.nodes[0].target.join(' ')))"); check("DJ lessons page: no axe violations", not v, str(v)); c2.close()
+    c3 = browser.new_context(viewport={"width": 390, "height": 844}); p3 = c3.new_page(); p3.goto(base + "lessons.html"); over = p3.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth"); check("DJ lessons: no sideways scroll at 390px", over <= 0, str(over)); c3.close()
 
 
 # ---------------------------------------------------------------- video editor

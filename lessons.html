@@ -31,6 +31,12 @@
   .stars { font-size: 26px; letter-spacing: 4px; }
   .progress { height: 8px; border-radius: 99px; background: var(--panel-2); overflow: hidden; max-width: 360px; margin-top: 10px; }
   .progress i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .3s; }
+  .lesson p a, .lesson li a, .lead a { text-decoration: underline; }
+  .quiz { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; } .quiz fieldset { border: 0; padding: 0; margin: 0 0 12px; } .quiz legend { font-weight: 600; margin-bottom: 6px; }
+  .quiz label { display: flex; gap: 8px; align-items: center; padding: 4px 0; } .qfb { font-size: 13px; margin-top: 4px; } .qfb.ok { color: var(--good); } .qfb.no { color: #fbbf24; }
+  .tools { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; } .answers { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .answers .btn[data-ok="1"] { border-color: var(--good); color: var(--good); } .answers .btn[data-ok="0"] { border-color: #fb7185; color: #fb7185; }
+  .calc { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-top: 10px; } .tbl2 { width: 100%; border-collapse: collapse; font-size: 14px; } .tbl2 th, .tbl2 td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
 </style>
 </head>
 <body>
@@ -47,7 +53,7 @@
 
 <main id="main" tabindex="-1" class="wrap" style="max-width:860px">
   <h1>Learn to <span class="grad">DJ</span></h1>
-  <p class="lead">Five short lessons plus two practice tools. Practise on the <a href="dj.html">DJ Mixer</a> with your own music, or with tracks you make on the <a href="create.html">Create</a> page.</p>
+  <p class="lead">Ten short lessons, four practice tools and a quiz for most lessons. Practise on the <a href="dj.html">DJ Mixer</a> with your own music, or with tracks you make on the <a href="create.html">Create</a> page.</p>
   <p class="status">New: <a href="learn-music.html">Learn music and production</a>, with lessons on rhythm, scales, chords, ear training, mixing, recording and mastering.</p>
   <div class="progress"><i id="bar"></i></div>
   <p class="status" id="ptext" role="status"></p>
@@ -56,6 +62,14 @@
     <h2>1. What BPM means</h2>
     <p><b>BPM</b> is beats per minute: the speed of the track. House is often around 120–130 BPM, hip hop 80–100, drum and bass about 170–175.</p>
     <p>Two tracks sound good together when their BPMs are close. Large gaps are why DJs change the tempo of one track to match the other.</p>
+    <h3 style="font-size:15px;margin-top:14px">Tempo change calculator</h3>
+    <p class="status">Type the BPM of the track that is playing and the track you want to bring in. The calculator shows how far you must change the new track's tempo.</p>
+    <div class="calc">
+      <label class="ctl" style="min-width:0">Playing track (BPM)<input type="number" id="cA" min="40" max="220" step="0.1" value="124"></label>
+      <label class="ctl" style="min-width:0">New track (BPM)<input type="number" id="cB" min="40" max="220" step="0.1" value="128"></label>
+    </div>
+    <p class="status" id="cOut" role="status"></p>
+    <div class="quiz" data-quiz="bpm"></div>
     <div class="done-row"><label class="row time"><input type="checkbox" data-done="bpm"> Mark as done</label></div>
   </section>
 
@@ -84,6 +98,15 @@
       <li>Count in fours: "1 2 3 4, 2 2 3 4, 3 2 3 4…" so you know where you are.</li>
       <li>Use the <b>Cue</b> and <b>Loop 4</b> buttons on the mixer to set up and practise the start.</li>
     </ul>
+    <h3 style="font-size:15px;margin-top:14px">Phrase trainer</h3>
+    <p class="status">You will hear a steady beat with a louder click on the first beat of every bar. A bell marks the start of the first two phrases. Press the button when you think the third phrase begins. The bell stays silent for that one.</p>
+    <div class="row">
+      <label class="ctl" style="min-width:0">Phrase length<select id="plen"><option value="4">4 bars</option><option value="8">8 bars</option></select></label>
+      <button class="btn primary" id="pstart">▶ Start</button><button class="btn" id="pnow" disabled>The new phrase starts now</button>
+    </div>
+    <p class="stars" id="pstars"></p>
+    <p class="status" id="pmsg" role="status">Press Start. Count the bars silently: "1 2 3 4, 2 2 3 4…"</p>
+    <div class="quiz" data-quiz="phrasing"></div>
     <div class="done-row"><label class="row time"><input type="checkbox" data-done="phrasing"> Mark as done</label></div>
   </section>
 
@@ -96,6 +119,7 @@
       <li>Use the <b>Mid</b> and <b>High</b> knobs to keep vocals from clashing.</li>
       <li>Move the crossfader across, then take the old track out.</li>
     </ul>
+    <div class="quiz" data-quiz="eq"></div>
     <div class="done-row"><label class="row time"><input type="checkbox" data-done="eq"> Mark as done</label></div>
   </section>
 
@@ -105,10 +129,93 @@
     <p class="status">Safe moves: the same key, one number up or down with the same letter, or the same number with the other letter. Your tracks' keys come from a key-detection tool, which this site does not have yet.</p>
     <div class="keys" id="keys"></div>
     <p class="status" id="kmsg" role="status"></p>
+    <h3 style="font-size:15px;margin-top:14px">Key mixing trainer</h3>
+    <p class="status" id="kqtext">Press "New question".</p>
+    <div class="answers" id="kqans" role="group" aria-label="Choose the key that mixes well"></div>
+    <div class="row" style="margin-top:8px"><button class="btn" id="kqnew">New question</button><span class="status" id="kqscore" role="status">Score: 0 of 0</span></div>
+    <div class="quiz" data-quiz="keys"></div>
     <div class="done-row"><label class="row time"><input type="checkbox" data-done="keys"> Mark as done</label></div>
+  </section>
+
+  <section class="panel lesson" data-lesson="cues">
+    <h2>6. Cue points and loops</h2>
+    <p>A <b>cue point</b> is a marker you can jump back to. Set one on the first beat of the part you want to start from, usually the first strong beat after the intro, so you can start a track exactly on time. <b>Hot cues</b> are several markers on pads, handy for jumping to the drop, a breakdown or a vocal.</p>
+    <p>A <b>loop</b> repeats a short section. Looping the last bars of a track's intro lets you hold the energy while you line up the next track. Loop lengths of 4, 8 or 16 beats stay in time with the music. Always release the loop on a phrase boundary, not in the middle of a bar.</p>
+    <ul>
+      <li>Load a track, press play, and set a cue on the first kick of the main beat.</li>
+      <li>Use <b>Loop 4</b> to repeat one bar, then release it exactly as the next bar begins.</li>
+      <li>Practise starting a track from its cue while another one plays, to a count of four.</li>
+    </ul>
+    <div class="tools"><a class="btn" href="dj.html">Practise in the DJ console</a></div>
+    <div class="quiz" data-quiz="cues"></div>
+    <div class="done-row"><label class="row time"><input type="checkbox" data-done="cues"> Mark as done</label></div>
+  </section>
+
+  <section class="panel lesson" data-lesson="fx">
+    <h2>7. Filters and effects</h2>
+    <p>A <b>filter</b> removes part of the sound. A low pass filter cuts the highs and makes a track sound muffled, as if heard through a wall. A high pass filter cuts the lows and leaves a thin sound. Sweeping a filter during a transition makes the change smooth.</p>
+    <p>Other effects, such as <b>echo</b> (repeats that fade away) and <b>reverb</b> (the sound of a room), are best used briefly. Echo out is a classic way to leave a track: add echo, then cut the track and let the repeats fade as the next one takes over.</p>
+    <ul>
+      <li>Less is more. An effect that is on all the time stops feeling special.</li>
+      <li>Time effect changes with the music, at the start of a bar or phrase.</li>
+      <li>Turn an effect down before it feeds back or clips the output.</li>
+    </ul>
+    <div class="tools"><a class="btn" href="dj.html">Try filters and effects in the DJ console</a></div>
+    <div class="quiz" data-quiz="fx"></div>
+    <div class="done-row"><label class="row time"><input type="checkbox" data-done="fx"> Mark as done</label></div>
+  </section>
+
+  <section class="panel lesson" data-lesson="transitions">
+    <h2>8. Transition styles</h2>
+    <p>There is more than one way to get from one track to the next. Pick the style that suits the two tracks.</p>
+    <table class="tbl2"><caption class="status" style="text-align:left">Common transitions</caption>
+      <thead><tr><th scope="col">Style</th><th scope="col">How</th><th scope="col">Best when</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Long blend</th><td>Bring the new track in over 16 to 32 bars, swapping the lows halfway</td><td>Same genre, close BPM and key</td></tr>
+        <tr><th scope="row">Bass swap</th><td>At a phrase change, cut the old low and open the new low in one move</td><td>Two tracks with strong basslines</td></tr>
+        <tr><th scope="row">Quick cut</th><td>Cut to the new track on the first beat of a phrase</td><td>Different tempos or moods</td></tr>
+        <tr><th scope="row">Echo out</th><td>Add echo to the old track, cut it, start the new track on the next phrase</td><td>Breaks, genre changes, rescuing a bad mix</td></tr>
+        <tr><th scope="row">Filter sweep</th><td>Close a low pass filter on the old track as the new one comes in</td><td>Smooth, dreamy changes</td></tr>
+      </tbody></table>
+    <p style="margin-top:10px">Whatever you choose, change things at a phrase boundary, keep only one bassline at a time, and let the crowd hear the new track clearly before the old one is gone.</p>
+    <div class="tools"><a class="btn" href="dj.html">Try a transition in the DJ console</a><a class="btn" href="dj.html">Use Automix to hear a finished example</a></div>
+    <div class="quiz" data-quiz="transitions"></div>
+    <div class="done-row"><label class="row time"><input type="checkbox" data-done="transitions"> Mark as done</label></div>
+  </section>
+
+  <section class="panel lesson" data-lesson="set">
+    <h2>9. Building a set</h2>
+    <p>A good set tells a story. Think about <b>energy</b>: open gently, build to a peak, give the crowd a breather, then finish well. Do not play your biggest tracks first.</p>
+    <ul>
+      <li><b>Plan a rough order</b> by tempo and key. Move up or down by a few BPM at a time, and use the key finder to see which tracks fit together.</li>
+      <li><b>Know your tracks.</b> Mark cue points and note where the intro, drop and outro are.</li>
+      <li><b>Read the room.</b> Be ready to change the plan when the crowd reacts.</li>
+      <li><b>Keep a history.</b> The DJ console logs what you played so you can learn from each set.</li>
+    </ul>
+    <table class="tbl2"><caption class="status" style="text-align:left">Typical tempo ranges</caption>
+      <thead><tr><th scope="col">Style</th><th scope="col">BPM</th></tr></thead>
+      <tbody><tr><td>Hip hop</td><td>80 to 100</td></tr><tr><td>Reggaeton</td><td>90 to 100</td></tr><tr><td>House</td><td>120 to 130</td></tr><tr><td>Techno</td><td>125 to 140</td></tr><tr><td>Trance</td><td>130 to 140</td></tr><tr><td>Drum and bass</td><td>170 to 178</td></tr></tbody></table>
+    <div class="tools"><a class="btn" href="bpm.html">Find the BPM and key of your tracks</a><a class="btn" href="dj.html">Open your library</a></div>
+    <div class="quiz" data-quiz="set"></div>
+    <div class="done-row"><label class="row time"><input type="checkbox" data-done="set"> Mark as done</label></div>
+  </section>
+
+  <section class="panel lesson" data-lesson="review">
+    <h2>10. Record, listen back, improve</h2>
+    <p>The fastest way to get better is to record your practice mixes and listen the next day. Use the recorder in the DJ console, then check the set history to remember what you played.</p>
+    <ol>
+      <li>Record a 20 minute practice mix with at least five transitions.</li>
+      <li>Listen back. Note where the beats drifted apart, where two basslines clashed, and where the energy dropped.</li>
+      <li>Fix one thing at a time in the next practice.</li>
+      <li>Check the loudness on the <a href="master.html">Mastering</a> page before you share the mix, so it plays at a level streaming services expect.</li>
+    </ol>
+    <div class="tools"><a class="btn" href="dj.html">Record a mix</a><a class="btn" href="master.html">Check the loudness</a><a class="btn" href="learn-music.html">Learn music and production</a></div>
+    <div class="quiz" data-quiz="review"></div>
+    <div class="done-row"><label class="row time"><input type="checkbox" data-done="review"> Mark as done</label></div>
   </section>
 </main>
 <footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/quiz.js"></script>
 <script src="js/lessons.js"></script>
 <script src="js/pwa.js"></script>
 </body>

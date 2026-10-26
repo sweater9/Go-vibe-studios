@@ -1,11 +1,11 @@
 /* GoVibe Mix service worker: lets the site open offline after the first visit.
  * Network first (so a new deploy shows up right away), cached copy as the fallback.
  * Only same-origin GET requests are handled; API calls and downloads are never touched. */
-const CACHE = 'govibe-v21';
+const CACHE = 'govibe-v22';
 const PRECACHE = [
   'index.html', 'editor.html', 'video.html', 'create.html', 'dj.html', 'lessons.html', 'privacy.html', 'convert.html', 'record.html', 'studio.html', 'bpm.html', 'about.html', 'faq.html', 'blog.html', 'blog-beatmatching.html', 'blog-camelot.html', 'blog-record-mix.html', 'blog-clean-audio.html', 'blog-vertical-video.html', 'terms.html',
   'css/style.css',
-  'js/store.js', 'js/editor.js', 'js/video.js', 'js/create.js', 'js/dj.js','js/beat.js','js/automix.js','js/stems.js','js/knobs.js','js/view.js','js/library.js','js/zip.js','js/record.js','master.html','js/master.js','learn-music.html','js/learn.js','keys.html','samples.html','js/keys.js','js/samples.js','js/theory.js','js/master-dsp.js','js/master-worker.js','js/synth.js','js/studio-core.js','js/studio-io.js','js/studio.js','js/studio-roll.js','css/studio.css','js/analyze.js','js/convert.js','js/convert-worker.js','js/vendor/lame.min.js','js/bpm.js','js/history.js','js/recorder.js','js/rec-worklet.js','js/jog.js','js/tabs.js','css/console.css','js/controls.js','js/stems-worker.js', 'js/lessons.js', 'js/pwa.js',
+  'js/store.js', 'js/editor.js', 'js/video.js', 'js/create.js', 'js/dj.js','js/beat.js','js/automix.js','js/stems.js','js/knobs.js','js/view.js','js/library.js','js/zip.js','js/record.js','master.html','js/master.js','learn-music.html','js/learn.js','js/quiz.js','keys.html','samples.html','js/keys.js','js/samples.js','js/theory.js','js/master-dsp.js','js/master-worker.js','js/synth.js','js/studio-core.js','js/studio-io.js','js/studio.js','js/studio-roll.js','css/studio.css','js/analyze.js','js/convert.js','js/convert-worker.js','js/vendor/lame.min.js','js/bpm.js','js/history.js','js/recorder.js','js/rec-worklet.js','js/jog.js','js/tabs.js','css/console.css','js/controls.js','js/stems-worker.js', 'js/lessons.js', 'js/pwa.js',
   'icons/favicon.svg', 'icons/icon-192.png', 'manifest.webmanifest'
 ];
 

@@ -15,7 +15,7 @@ Free browser tools for music lovers, content creators, DJs and music makers. No 
 ## Phase 3
 
 - **Sound effects and game loops** (on the Create page): pick a type. Sound effects use Stable Audio 2.5 with 1-15 s lengths. Game loops use 10-60 s lengths and add a "seamless loop, instrumental" hint to the prompt; the model does not guarantee a perfect loop, so trim the result in the Audio Editor if needed.
-- **Learn to DJ** (`lessons.html`): five short lessons (BPM, beatmatching, phrasing, EQ blending, harmonic mixing) with progress saved in the browser, a beatmatching ear-trainer that scores how close your tempo match is, and a Camelot-wheel helper showing which keys mix well.
+- **Learn to DJ** (`lessons.html`): ten short lessons (BPM with a tempo change calculator, beatmatching, phrasing with a phrase trainer, EQ blending, harmonic mixing with a key trainer, cue points and loops, filters and effects, transition styles, building a set, reviewing your mixes) with quizzes (`js/quiz.js`) with progress saved in the browser, a beatmatching ear-trainer that scores how close your tempo match is, and a Camelot-wheel helper showing which keys mix well.
 - Not done: **stem separation**. It needs a hosted model and a way to upload a full-size song from the browser, and the Replicate model and upload details could not be verified, so it is left out rather than shipped untested.
 
 ## Phase 4

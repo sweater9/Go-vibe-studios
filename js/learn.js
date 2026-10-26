@@ -46,23 +46,7 @@
   paint();
   function markDone(id) { const b = document.querySelector('[data-done="' + id + '"]'); if (b && !b.checked) { b.checked = true; b.onchange(); } }
 
-  /* ---------- quiz rendering ---------- */
-  document.querySelectorAll('[data-quiz]').forEach((box) => {
-    const id = box.dataset.quiz, qs = QUIZ[id]; if (!qs) return;
-    const h = document.createElement('h3'); h.textContent = 'Check yourself'; h.style.fontSize = '15px'; box.appendChild(h);
-    qs.forEach((q, qi) => {
-      const fs = document.createElement('fieldset'), lg = document.createElement('legend'); lg.textContent = (qi + 1) + '. ' + q.q; fs.appendChild(lg);
-      q.o.forEach((txt, oi) => { const lb = document.createElement('label'), r = document.createElement('input'); r.type = 'radio'; r.name = 'q-' + id + '-' + qi; r.value = oi; lb.append(r, document.createTextNode(' ' + txt)); fs.appendChild(lb); });
-      const fb = document.createElement('div'); fb.className = 'qfb'; fb.setAttribute('role', 'status'); fs.appendChild(fb); box.appendChild(fs);
-    });
-    const btn = document.createElement('button'); btn.className = 'btn'; btn.textContent = 'Check answers'; const res = document.createElement('p'); res.className = 'status'; res.setAttribute('role', 'status'); box.append(btn, res);
-    btn.onclick = () => {
-      let right = 0, answered = 0;
-      qs.forEach((q, qi) => { const sel = box.querySelector('input[name="q-' + id + '-' + qi + '"]:checked'), fb = box.querySelectorAll('.qfb')[qi]; if (!sel) { fb.textContent = 'Pick an answer.'; fb.className = 'qfb'; return; } answered++; const ok = +sel.value === q.a; if (ok) right++; fb.textContent = (ok ? 'Correct. ' : 'Not quite. ') + q.w; fb.className = 'qfb ' + (ok ? 'ok' : 'no'); });
-      if (answered < qs.length) { res.textContent = 'Answer all ' + qs.length + ' questions first.'; return; }
-      res.textContent = right + ' of ' + qs.length + ' correct.' + (right === qs.length ? ' Lesson marked as done.' : ' Read the notes above and try again.'); if (right === qs.length) markDone(id);
-    };
-  });
+  GVQuiz.init(QUIZ, markDone);
 
   /* ---------- ear trainer ---------- */
   const INTERVALS = [[0, 'Unison'], [1, 'Minor 2nd'], [2, 'Major 2nd'], [3, 'Minor 3rd'], [4, 'Major 3rd'], [5, 'Perfect 4th'], [6, 'Tritone'], [7, 'Perfect 5th'], [8, 'Minor 6th'], [9, 'Major 6th'], [10, 'Minor 7th'], [11, 'Major 7th'], [12, 'Octave']];
