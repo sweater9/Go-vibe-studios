@@ -4,7 +4,7 @@
   const { ctx, decks, detectBPM, detectGrid, detectKey, keysMatch } = A, $ = (id) => document.getElementById(id);
   const pane = $('pane-lib'), RK = 'govibe.libremember';
   const remember = () => { try { return localStorage.getItem(RK) !== '0'; } catch (_) { return true; } };
-  let recs = [], sortBy = 'added', query = '', busy = false;
+  let recs = [], sortBy = 'added', query = '', minRate = 0, busy = false;
 
   /* ---------- UI ---------- */
   pane.insertAdjacentHTML('beforeend', `
@@ -13,12 +13,15 @@
       <input type="file" id="libfile" accept="audio/*" multiple hidden aria-label="Add tracks to the library">
       <label class="ctl" style="min-width:160px">Search<input type="text" id="libq" placeholder="Title" autocomplete="off"></label>
       <label class="ctl" style="min-width:0">Sort by
-        <select id="libsort" class="mini"><option value="added">Recently added</option><option value="played">Recently played</option><option value="name">Title</option><option value="bpm">BPM</option><option value="key">Key</option><option value="m0">Best match for deck A</option><option value="m1">Best match for deck B</option></select>
+        <select id="libsort" class="mini"><option value="added">Recently added</option><option value="played">Recently played</option><option value="name">Title</option><option value="bpm">BPM</option><option value="key">Key</option><option value="rating">Rating</option><option value="m0">Best match for deck A</option><option value="m1">Best match for deck B</option></select>
+      </label>
+      <label class="ctl" style="min-width:0">Rating
+        <select id="libminrate" class="mini" aria-label="Minimum rating"><option value="0">Any</option><option value="3">3 ★ and up</option><option value="4">4 ★ and up</option><option value="5">5 ★ only</option></select>
       </label>
       <label class="row time" style="gap:6px"><input type="checkbox" id="libkeep"> Remember tracks I load into a deck</label>
     </div>
     <p class="status" id="libstatus" role="status"></p>
-    <div class="libwrap"><table class="libtbl" aria-label="Library tracks"><thead><tr><th scope="col">Title</th><th scope="col">BPM</th><th scope="col">Key</th><th scope="col">Length</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody id="libbody"></tbody></table></div>
+    <div class="libwrap"><table class="libtbl" aria-label="Library tracks"><thead><tr><th scope="col">Title</th><th scope="col">BPM</th><th scope="col">Key</th><th scope="col">Length</th><th scope="col">Rating</th><th scope="col">Notes</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody id="libbody"></tbody></table></div>
     <p class="status" id="libstore"></p>`);
   $('libkeep').checked = remember();
   $('libkeep').onchange = () => { try { localStorage.setItem(RK, $('libkeep').checked ? '1' : '0'); } catch (_) {} };
@@ -31,15 +34,15 @@
     const k = keysMatch(d.key, r.key); return ratio * 100 + (k === 'clash' ? 6 : k === null ? 3 : 0);
   };
   function visible() {
-    let v = recs.filter((r) => r.name.toLowerCase().includes(query.toLowerCase()));
-    const cmp = { added: (a, b) => b.added - a.added, played: (a, b) => (b.played || 0) - (a.played || 0), name: (a, b) => a.name.localeCompare(b.name), bpm: (a, b) => (a.bpm || 1e3) - (b.bpm || 1e3), key: (a, b) => (a.key || 'zz').localeCompare(b.key || 'zz', undefined, { numeric: true }) };
+    const qq = query.toLowerCase(); let v = recs.filter((r) => (r.name.toLowerCase().includes(qq) || (r.notes || '').toLowerCase().includes(qq)) && (r.rating || 0) >= minRate);
+    const cmp = { added: (a, b) => b.added - a.added, played: (a, b) => (b.played || 0) - (a.played || 0), name: (a, b) => a.name.localeCompare(b.name), bpm: (a, b) => (a.bpm || 1e3) - (b.bpm || 1e3), rating: (a, b) => (b.rating || 0) - (a.rating || 0), key: (a, b) => (a.key || 'zz').localeCompare(b.key || 'zz', undefined, { numeric: true }) };
     if (sortBy === 'm0' || sortBy === 'm1') { const d = decks[+sortBy[1]]; v.sort((a, b) => score(a, d) - score(b, d)); } else v.sort(cmp[sortBy]);
     return v;
   }
   function render() {
     const tb = $('libbody'); tb.innerHTML = '';
     const list = visible();
-    if (!list.length) { const tr = tb.insertRow(), td = tr.insertCell(); td.colSpan = 5; td.textContent = recs.length ? 'No tracks match your search.' : 'No tracks yet. Add some, or load a track into a deck with "Remember tracks" ticked.'; td.className = 'libempty'; }
+    if (!list.length) { const tr = tb.insertRow(), td = tr.insertCell(); td.colSpan = 7; td.textContent = recs.length ? 'No tracks match your search.' : 'No tracks yet. Add some, or load a track into a deck with "Remember tracks" ticked.'; td.className = 'libempty'; }
     list.forEach((r) => {
       const tr = tb.insertRow(); tr.dataset.id = r.id;
       const c0 = tr.insertCell(); c0.className = 'libname'; c0.textContent = r.name;
@@ -48,6 +51,10 @@
       tr.insertCell().textContent = r.bpm ? r.bpm.toFixed(1) : '—';
       tr.insertCell().textContent = r.key || '—';
       tr.insertCell().textContent = mmss(r.dur);
+      const cr = tr.insertCell(); cr.className = 'libstars'; cr.setAttribute('role', 'group'); cr.setAttribute('aria-label', 'Rating for ' + r.name);
+      for (let s = 1; s <= 5; s++) { const b = document.createElement('button'); b.className = 'star'; b.textContent = '★'; b.setAttribute('aria-label', s + (s === 1 ? ' star' : ' stars')); b.setAttribute('aria-pressed', (r.rating || 0) >= s ? 'true' : 'false'); b.onclick = () => setRating(r, (r.rating || 0) === s ? 0 : s); cr.appendChild(b); }
+      const cn = tr.insertCell(); const ni = document.createElement('input'); ni.type = 'text'; ni.className = 'libnote'; ni.maxLength = 200; ni.value = r.notes || ''; ni.placeholder = 'Add a note'; ni.setAttribute('aria-label', 'Notes for ' + r.name);
+      ni.onchange = async () => { r.notes = ni.value.trim(); try { await GVStore.lib.put(r); } catch (_) {} }; cn.appendChild(ni);
       const ac = tr.insertCell(); ac.className = 'libact';
       [['→ A', () => loadTo(0, r), 'Load "' + r.name + '" into deck A'], ['→ B', () => loadTo(1, r), 'Load "' + r.name + '" into deck B'], ['+ Queue', () => queueIt(r), 'Add "' + r.name + '" to the Automix queue'], ['✕', () => remove(r), 'Remove "' + r.name + '" from the library']].forEach(([t, fn, label]) => {
         const b = document.createElement('button'); b.className = 'btn mini'; b.textContent = t; b.setAttribute('aria-label', label); b.onclick = fn; ac.appendChild(b);
@@ -77,12 +84,13 @@
         const id = idOf(f); if (recs.some((r) => r.id === id)) { say(f.name + ' is already in the library.'); continue; }
         say('Analysing ' + f.name + '…'); await new Promise((r) => setTimeout(r, 20));
         const buf = await ctx.decodeAudioData(await f.arrayBuffer()), b0 = detectBPM(buf), grid = b0 ? detectGrid(buf, b0) : null;
-        await save({ id, name: f.name, size: f.size, dur: buf.duration, bpm: grid ? grid.bpm : b0, key: detectKey(buf), grid, cues: [null, null, null, null], added: Date.now(), played: 0 }, f);
+        await save({ id, name: f.name, size: f.size, dur: buf.duration, bpm: grid ? grid.bpm : b0, key: detectKey(buf), grid, cues: [null, null, null, null], rating: 0, notes: '', added: Date.now(), played: 0 }, f);
         n++; render();
       } catch (_) { say('Could not read ' + f.name + '.'); }
     }
     busy = false; if (n) say('Added ' + n + ' track' + (n === 1 ? '' : 's') + '.'); render(); return n;
   }
+  async function setRating(r, n) { r.rating = n; try { await GVStore.lib.put(r); } catch (_) {} render(); }
   async function decode(rec) { const blob = await GVStore.get(bkey(rec.id)); if (!blob) throw new Error('missing'); return ctx.decodeAudioData(await blob.arrayBuffer()); }
   async function loadTo(i, rec) {
     try {
@@ -101,7 +109,7 @@
       const id = idOf(file), have = recs.find((r) => r.id === id);
       if (have) { d.libId = id; if (have.grid) { d.grid = { ...have.grid }; d.bpm = have.grid.bpm; d.updateBpm(); d.gridInfo(); } d.hot = (have.cues || [null, null, null, null]).slice(); d.paintHot(); have.played = Date.now(); GVStore.lib.put(have); render(); return; }
       if (!remember()) return;
-      await save({ id, name: file.name, size: file.size, dur: d.buf.duration, bpm: d.bpm, key: d.key, grid: d.grid ? { ...d.grid } : null, cues: d.hot.slice(), added: Date.now(), played: Date.now() }, file);
+      await save({ id, name: file.name, size: file.size, dur: d.buf.duration, bpm: d.bpm, key: d.key, grid: d.grid ? { ...d.grid } : null, cues: d.hot.slice(), rating: 0, notes: '', added: Date.now(), played: Date.now() }, file);
       d.libId = id; render();
     } catch (_) { /* storage full or blocked: the track still plays */ }
   };
@@ -115,6 +123,7 @@
   $('libadd').onclick = () => $('libfile').click();
   $('libfile').onchange = () => { const f = [...$('libfile').files]; $('libfile').value = ''; addFiles(f); };
   $('libq').oninput = () => { query = $('libq').value; render(); };
+  $('libminrate').onchange = () => { minRate = +$('libminrate').value; render(); };
   $('libsort').onchange = () => { sortBy = $('libsort').value; render(); };
   const audioOnly = (dt) => [...(dt.files || [])].filter((f) => f.type.startsWith('audio/') || /\.(mp3|wav|flac|ogg|m4a|aac|opus|webm)$/i.test(f.name));
   const prevent = (e) => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); };

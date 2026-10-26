@@ -663,6 +663,57 @@ def test_console(browser, base):
     ctx.close()
 
 
+def test_views(browser, base):
+    print("performance view, light theme, ratings and notes")
+    import tempfile
+    errs = []
+    ctx, pg = new_page(browser, errs, viewport={"width": 1400, "height": 1000})
+    pg.goto(base + "dj.html?gvtest")
+    check("starts in the dark console with the nav visible", pg.evaluate("document.documentElement.getAttribute('data-theme')") is None and pg.locator(".nav").is_visible())
+    pg.click("#perfbtn")
+    check("full view hides the nav, tabs and footer", pg.evaluate("document.documentElement.classList.contains('perf')") and not pg.locator(".nav").is_visible() and not pg.locator(".tools").is_visible() and pg.get_attribute("#perfbtn", "aria-pressed") == "true")
+    pg.keyboard.press("Escape")
+    check("Escape leaves full view", not pg.evaluate("document.documentElement.classList.contains('perf')") and pg.locator(".nav").is_visible())
+    pg.keyboard.press("f"); pg.keyboard.press("f")
+    check("F toggles full view", not pg.evaluate("document.documentElement.classList.contains('perf')"))
+    pg.click("#themebtn")
+    check("light theme applies and is remembered", pg.evaluate("document.documentElement.getAttribute('data-theme')") == "light" and pg.inner_text("#themebtn").endswith("Dark"))
+    pg.reload()
+    check("theme survives a reload (applied before first paint)", pg.evaluate("document.documentElement.getAttribute('data-theme')") == "light")
+    axe = os.environ.get("AXE_PATH") or os.path.join(ROOT, "node_modules/axe-core/axe.min.js")
+    if os.path.exists(axe):
+        ctx2 = browser.new_context(bypass_csp=True, viewport={"width": 1400, "height": 1000}); p2 = ctx2.new_page()
+        p2.goto(base + "dj.html"); p2.evaluate("localStorage.setItem('govibe.djtheme', 'light')"); p2.reload()
+        p2.add_script_tag(path=axe)
+        js = "axe.run(document,{runOnly:['wcag2a','wcag2aa','wcag21a','wcag21aa','best-practice']}).then(r=>r.violations.map(v=>v.id+' x'+v.nodes.length+' '+v.nodes[0].target.join(' ')))"
+        check("light theme: no axe violations", not (v := p2.evaluate(js)), str(v))
+        p2.click("#tab-beat")
+        check("light theme, beat tab: no axe violations", not (v := p2.evaluate(js)), str(v))
+        ctx2.close()
+    pg.click("#themebtn")
+    # ratings and notes
+    tmp = tempfile.mkdtemp(); f1, f2 = tmp + "/Alpha.wav", tmp + "/Beta.wav"; make_wav(f1, 120, 12); make_wav(f2, 126, 12, tone=300.0)
+    pg.set_input_files("#libfile", [f1, f2])
+    pg.wait_for_function("() => document.querySelectorAll('#libbody tr[data-id]').length === 2", timeout=30000)
+    row = pg.locator("#libbody tr[data-id]", has_text="Alpha")
+    row.get_by_role("button", name="4 stars").click()
+    pg.locator("#libbody tr[data-id]", has_text="Alpha").locator(".libnote").fill("great opener, 8A"); pg.locator("#libbody tr[data-id]", has_text="Alpha").locator(".libnote").dispatch_event("change")
+    pg.wait_for_timeout(300)
+    pg.reload(); pg.wait_for_function("() => document.querySelectorAll('#libbody tr[data-id]').length === 2", timeout=10000)
+    st = pg.evaluate("[...document.querySelectorAll('#libbody tr[data-id]')].map((r) => [r.cells[0].textContent.replace(/fits.*/, ''), [...r.querySelectorAll('.star')].filter((b) => b.getAttribute('aria-pressed') === 'true').length, r.querySelector('.libnote').value])")
+    check("rating and note are saved with the track", sorted(st) == [["Alpha.wav", 4, "great opener, 8A"], ["Beta.wav", 0, ""]], str(st))
+    pg.select_option("#libminrate", "4")
+    check("minimum-rating filter", pg.locator("#libbody tr[data-id]").count() == 1)
+    pg.select_option("#libminrate", "0"); pg.fill("#libq", "opener")
+    check("search also looks in notes", pg.locator("#libbody tr[data-id]").count() == 1)
+    pg.fill("#libq", ""); pg.select_option("#libsort", "rating")
+    check("sort by rating puts the best first", pg.locator("#libbody tr[data-id]").first.inner_text().startswith("Alpha"))
+    row = pg.locator("#libbody tr[data-id]", has_text="Alpha"); row.get_by_role("button", name="4 stars").click()
+    check("clicking the same star again clears the rating", pg.evaluate("__lib.recs.find((r) => r.name === 'Alpha.wav').rating") == 0)
+    check("views: no errors", not [e for e in errs if "Failed to load resource" not in e], str(errs))
+    ctx.close()
+
+
 # ---------------------------------------------------------------- lessons
 def test_lessons(browser, base):
     print("lessons")
@@ -754,7 +805,7 @@ def main():
     test_static()
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor_games, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_lessons, test_video, test_offline):
+        for t in (test_pages, test_a11y, test_editor_games, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_views, test_lessons, test_video, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

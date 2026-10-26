@@ -146,3 +146,44 @@ canvas.vmeter { width: 12px; height: 100%; background: #05060a; border-radius: 3
 .libact { white-space: nowrap; text-align: right; } .libact .btn { margin-left: 4px; }
 .libempty { color: var(--lab); padding: 16px 10px !important; }
 @media (max-width: 700px) { .libname { max-width: 150px; } .libtbl th:nth-child(3), .libtbl td:nth-child(3), .libtbl th:nth-child(4), .libtbl td:nth-child(4) { display: none; } }
+
+/* performance (full) view */
+html.perf .nav, html.perf footer, html.perf .cmidi, html.perf .tools, html.perf .console > p.status, html.perf .ctop h1 { display: none; }
+html.perf .console { max-width: none; padding: 8px 10px; }
+html.perf canvas.zoom { height: 17vh; min-height: 80px; }
+html.perf canvas.wave { height: 4vh; min-height: 26px; }
+html.perf .jog { width: min(34vh, 290px); }
+html.perf .wstrip { padding: 5px 8px; }
+html.perf .dpane, html.perf .mixer { padding: 8px; }
+html.perf .waves { margin-top: 6px; }
+html.perf .ctop { padding: 6px 10px; }
+
+/* light chassis (screens, knobs and buttons stay dark like real hardware) */
+html[data-theme=light] { --bg: #e6e9f1; --panel: #ffffff; --panel-2: #eef0f6; --line: #c3c8d8; --text: #14161f; --muted: #454b61; --accent: #6d4de0; --accent-2: #0e7490; color-scheme: light; }
+html[data-theme=light] body { background: var(--bg); }
+html[data-theme=light] .nav { background: #ffffffe6; }
+html[data-theme=light] .console { --metal: #f1f3f8; --metal-2: #dde1ec; --edge: #b5bbce; --lab: #454b61; --a: #c2410c; --b: #0369a1; }
+html[data-theme=light] .wbadge, html[data-theme=light] .dbadge { color: #fff; }
+html[data-theme=light] .strip, html[data-theme=light] .fxrow, html[data-theme=light] .xfwrap { background: #e4e7f0; border-color: var(--edge); }
+html[data-theme=light] .recbox, html[data-theme=light] .libwrap { background: #f6f7fb; border-color: var(--edge); }
+html[data-theme=light] .libtbl th { background: #e4e7f0; }
+html[data-theme=light] .libtbl td { border-top-color: #d3d7e4; }
+html[data-theme=light] .recbtn { color: #b91c1c; }
+html[data-theme=light] .keychip:not(:empty) { background: #fff; border-color: var(--edge); color: var(--text); }
+html[data-theme=light] .dpane .tname, html[data-theme=light] .tv, html[data-theme=light] .tab[aria-selected="true"] { color: var(--text); }
+html[data-theme=light] .jdur { color: #a4a9bd; }
+html[data-theme=light] .km.compatible, html[data-theme=light] .km.same\ key { color: #047857; }
+html[data-theme=light] .km.clash { color: #92400e; }
+html[data-theme=light] .btn.danger { color: #be123c; }
+html[data-theme=light] .xl, html[data-theme=light] .klabel { color: var(--lab); }
+html[data-theme=light] .tabbar { border-color: var(--edge); }
+html[data-theme=light] .tab:hover { color: var(--text); }
+
+.libstars { white-space: nowrap; }
+.star { appearance: none; border: 0; background: transparent; color: #596074; font-size: 18px; line-height: 1; padding: 2px; cursor: pointer; }
+.star[aria-pressed="true"] { color: #fbbf24; }
+.star:focus-visible { outline: 2px solid #fff; outline-offset: 1px; border-radius: 4px; }
+html[data-theme=light] .star { color: #8a90a6; } html[data-theme=light] .star[aria-pressed="true"] { color: #b45309; }
+.libnote { min-width: 120px; padding: 5px 8px; font-size: 13px; }
+@media (max-width: 700px) { .libtbl th:nth-child(6), .libtbl td:nth-child(6) { display: none; } }
+html[data-theme=light] .strip.a .sname { color: #9a3412; } html[data-theme=light] .strip.b .sname { color: #075985; }

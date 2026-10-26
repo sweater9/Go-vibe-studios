@@ -89,3 +89,9 @@ Each deck refines its BPM to 0.01 and finds where beat 1 falls (checked on synth
 - **Jog wheel**: drag to scratch (forwards and backwards; one full turn is 1.8 s of audio). If the deck was playing it resumes on release. *Bend* buttons nudge pitch by 6% while held. Scratching is a granular approximation, not a vinyl simulation, and needs the full mix (not stems).
 - **Library**: tracks you add, or load into a deck with "Remember tracks I load" ticked, are stored in this browser (IndexedDB) with BPM, key, beat grid and hot cues. Search, sort (including best match for deck A/B), load to a deck, queue for Automix, remove. Reloading the same file restores its cues. Drag audio files onto a deck or the Library. Browsers can clear site storage; nothing is uploaded.
 - **WAV recording**: *Record mix* captures the master output (after the limiter) as 16-bit stereo WAV via an AudioWorklet, or compressed audio if you choose it (or if the browser lacks AudioWorklet). WAV recording stops at 30 minutes (memory).
+
+## Full view, light console, ratings and notes
+
+- **Full view** (button, or `F`): hides the site navigation, tabs and footer, enlarges the waveforms and uses the browser's full screen where available. `Esc` leaves it.
+- **Light / dark console** (button, or `T`): a light chassis with dark screens, knobs and buttons, like real hardware. It is remembered in this browser and only affects the DJ page. Both themes pass the automated accessibility scan.
+- **Ratings and notes** in the Library: 1–5 stars and a short note per track, saved with the track. Filter by minimum rating, sort by rating, and search also looks in notes.

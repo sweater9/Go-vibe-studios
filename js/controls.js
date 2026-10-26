@@ -27,6 +27,8 @@
   add('beat', 'Beat maker start / stop', 'button', () => click($('bplay')), 'b');
   add('rec', 'Record mix', 'button', () => click($('rec')), 'r');
   ['Kick', 'Clap', 'Horn', 'Riser'].forEach((nm, i) => add('pad' + i, 'Pad ' + nm, 'button', () => click(document.querySelectorAll('#pads .pad')[i]), ['x', 'c', 'v', 'n'][i]));
+  add('perf', 'Full performance view on / off', 'button', () => click($('perfbtn')), 'f');
+  add('theme', 'Light / dark console', 'button', () => click($('themebtn')), 't');
   add('help', 'Show keyboard shortcuts', 'button', () => openHelp(), '?');
 
   /* ---------- help dialog ---------- */
