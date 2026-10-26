@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Create music — Go Vibe Studios</title>
+<title>Create music and sounds — Go Vibe Studios</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -17,14 +17,21 @@
 </nav>
 
 <main class="wrap">
-  <h1>Create <span class="grad">music</span> from a prompt</h1>
-  <p class="lead">Describe the music you want. Generation runs on your own Replicate account, so this site never pays for it and never sees your key.</p>
+  <h1>Create <span class="grad">music and sounds</span> from a prompt</h1>
+  <p class="lead">Make music, sound effects or game loops. Generation runs on your own Replicate account, so this site never pays for it and never sees your key.</p>
 
   <div class="panel">
     <label class="ctl" style="min-width:0">Prompt
-      <textarea id="prompt" rows="3" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:10px 12px;border-radius:10px;font:inherit;width:100%" placeholder="e.g. upbeat lo-fi hip hop, warm piano, vinyl crackle, 85 BPM"></textarea>
+      <textarea id="prompt" rows="3" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:10px 12px;border-radius:10px;font:inherit;width:100%"></textarea>
     </label>
     <div class="row" style="margin-top:12px; align-items:flex-end">
+      <label class="ctl">Type
+        <select id="type" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px">
+          <option value="music">Music</option>
+          <option value="sfx">Sound effect</option>
+          <option value="loop">Game loop (best effort)</option>
+        </select>
+      </label>
       <label class="ctl">Model
         <select id="model" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"></select>
       </label>

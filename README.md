@@ -13,6 +13,11 @@ Free browser tools for music makers, DJs and gamers. No sign-up, no payments, no
 - **Proxy** (`worker/`): optional Cloudflare Worker for when the browser blocks direct calls to Replicate (CORS). It does not store or log keys. See `worker/README.md`.
 - **DJ Mixer** (`dj.html`): two decks with 3-band EQ, tempo (±16%), cue, 4-beat loop, BPM detection, tempo sync, equal-power crossfader, synthesized sampler pads and mix recording (WebM/Ogg). Load your own files; BPM detection is approximate (within about 1 BPM on clear beats) and sync matches tempo only, not beat phase.
 
+## Phase 3 (in progress)
+
+- **Sound effects and game loops** (on the Create page): pick a type. Sound effects use Stable Audio 2.5 with 1-15 s lengths. Game loops use 10-60 s lengths and add a "seamless loop, instrumental" hint to the prompt; the model does not guarantee a perfect loop, so trim the result in the Audio Editor if needed.
+- Still to come: stem separation and DJ lessons.
+
 ## Run locally
 
 It is a static site with no build step. Open `index.html`, or serve the folder:
@@ -27,7 +32,7 @@ Push to GitHub, then connect the repo to Cloudflare Pages, GitHub Pages or Verce
 
 ## Roadmap
 
-- Phase 3: stem separation, sound effects, DJ lessons.
+- Phase 3: stem separation and DJ lessons (sound effects are done).
 - Phase 4: basic video editor, sharing.
 
 ## Notes
