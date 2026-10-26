@@ -1,9 +1,9 @@
 /* GoVibe Mix service worker: lets the site open offline after the first visit.
  * Network first (so a new deploy shows up right away), cached copy as the fallback.
  * Only same-origin GET requests are handled; API calls and downloads are never touched. */
-const CACHE = 'govibe-v14';
+const CACHE = 'govibe-v15';
 const PRECACHE = [
-  'index.html', 'editor.html', 'video.html', 'create.html', 'dj.html', 'lessons.html', 'privacy.html', 'terms.html',
+  'index.html', 'editor.html', 'video.html', 'create.html', 'dj.html', 'lessons.html', 'privacy.html', 'about.html', 'faq.html', 'blog.html', 'blog-beatmatching.html', 'blog-camelot.html', 'blog-record-mix.html', 'blog-clean-audio.html', 'blog-vertical-video.html', 'terms.html',
   'css/style.css',
   'js/store.js', 'js/editor.js', 'js/video.js', 'js/create.js', 'js/dj.js','js/beat.js','js/automix.js','js/stems.js','js/knobs.js','js/view.js','js/library.js','js/zip.js','js/history.js','js/recorder.js','js/rec-worklet.js','js/jog.js','js/tabs.js','css/console.css','js/controls.js','js/stems-worker.js', 'js/lessons.js', 'js/pwa.js',
   'icons/favicon.svg', 'icons/icon-192.png', 'manifest.webmanifest'

@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "editor", "video", "create", "dj", "lessons", "privacy", "terms"]
+PAGES = ["index", "editor", "video", "create", "dj", "lessons", "about", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
