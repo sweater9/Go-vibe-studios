@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mastering and loudness — GoVibe Mix</title>
+<meta name="description" content="Master a track in your browser. Measure LUFS and true peak, match streaming loudness, add a limiter, compare before and after, then export WAV or MP3. Nothing is uploaded.">
+<link rel="canonical" href="https://govibemix.com/master.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Mastering and loudness — GoVibe Mix">
+<meta property="og:description" content="Master a track in your browser. Measure LUFS and true peak, match streaming loudness, add a limiter, compare before and after, then export WAV or MP3. Nothing is uploaded.">
+<meta property="og:url" content="https://govibemix.com/master.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="index.html">Home</a>
+  <a class="link" href="create.html">Create</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>Mastering and loudness</h1>
+  <p class="lead">Load a finished mix, see how loud it really is, and bring it to the level streaming services expect. Measure LUFS and true peak, add a limiter, compare before and after at the same volume, then export. Your audio never leaves your device.</p>
+
+  <div class="panel">
+    <h2>1. Load a track</h2>
+    <div class="row"><button class="btn primary" id="pick">Choose an audio file</button><input type="file" id="file" accept="audio/*,.wav,.mp3,.m4a,.ogg,.flac" class="hidden" aria-label="Audio file"><span class="status" id="fname">No file yet. WAV, MP3, M4A, OGG and FLAC work in most browsers.</span></div>
+    <p class="status" id="status" role="status"></p>
+  </div>
+
+  <div id="rig" class="hidden">
+    <div class="panel">
+      <h2>2. Loudness</h2>
+      <div class="tblwrap"><table class="tbl" id="meters">
+        <thead><tr><th scope="col">Measure</th><th scope="col">Original</th><th scope="col">Mastered</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Integrated loudness (LUFS)</th><td id="o_lufs">–</td><td id="m_lufs">–</td></tr>
+          <tr><th scope="row">Loudest short moment (LUFS, 3 s)</th><td id="o_st">–</td><td id="m_st">–</td></tr>
+          <tr><th scope="row">Loudness range (LU)</th><td id="o_lra">–</td><td id="m_lra">–</td></tr>
+          <tr><th scope="row">True peak (dBTP)</th><td id="o_tp">–</td><td id="m_tp">–</td></tr>
+          <tr><th scope="row">Sample peak (dBFS)</th><td id="o_pk">–</td><td id="m_pk">–</td></tr>
+          <tr><th scope="row">Gain change / limiter reduction</th><td>–</td><td id="m_gain">–</td></tr>
+        </tbody></table></div>
+      <p class="status" id="hint"></p>
+    </div>
+
+    <div class="panel">
+      <h2>3. Master</h2>
+      <div class="row" style="align-items:flex-end">
+        <label class="ctl">Target
+          <select id="preset">
+            <option value="-14|-1">Spotify, YouTube, Tidal · −14 LUFS</option>
+            <option value="-16|-1">Apple Music · −16 LUFS</option>
+            <option value="-16|-1.5">Podcast · −16 LUFS</option>
+            <option value="-23|-1">Broadcast (EBU R128) · −23 LUFS</option>
+            <option value="-9|-0.3">Loud (club, no normalising) · −9 LUFS</option>
+            <option value="custom">Custom…</option>
+          </select></label>
+        <label class="ctl">Loudness (LUFS)<input type="number" id="target" min="-30" max="-5" step="0.5" value="-14"></label>
+        <label class="ctl">Ceiling (dBTP)<input type="number" id="ceil" min="-6" max="0" step="0.1" value="-1"></label>
+      </div>
+      <div class="row" style="align-items:flex-end;margin-top:10px">
+        <label class="ctl">Bass (dB)<input type="range" id="bass" min="-6" max="6" step="0.5" value="0"></label>
+        <label class="ctl">Treble (dB)<input type="range" id="treble" min="-6" max="6" step="0.5" value="0"></label>
+        <label class="ctl">Glue compression<input type="range" id="glue" min="0" max="100" step="5" value="0"></label>
+        <label class="ctl">Stereo width<input type="range" id="width" min="0" max="150" step="5" value="100"></label>
+        <label class="ctl">Limiter release (ms)<input type="number" id="rel" min="10" max="500" step="10" value="80"></label>
+      </div>
+      <div class="row" style="margin-top:12px"><button class="btn primary" id="go">Master</button><span class="status" id="busy" role="status"></span></div>
+    </div>
+
+    <div class="panel" id="abpanel">
+      <h2>4. Compare</h2>
+      <div class="row">
+        <button class="btn" id="play">Play</button>
+        <div class="seg" role="group" aria-label="Which version to hear"><button class="btn" id="aOrig" aria-pressed="true">Original</button><button class="btn" id="aMast" aria-pressed="false" disabled>Mastered</button></div>
+        <label class="row time"><input type="checkbox" id="match" checked> Match volume (compare the sound, not the loudness)</label>
+      </div>
+      <div class="row" style="margin-top:8px"><label class="ctl" style="flex:1">Position<input type="range" id="seek" min="0" max="1000" value="0" aria-label="Position"></label><span class="time" id="pos">0:00 / 0:00</span></div>
+    </div>
+
+    <div class="panel">
+      <h2>5. Export</h2>
+      <div class="row" style="align-items:flex-end">
+        <label class="ctl">Format<select id="fmt"><option value="wav16">WAV 16 bit</option><option value="wav24">WAV 24 bit</option><option value="mp3">MP3 320 kbps</option><option value="mp3b">MP3 192 kbps</option></select></label>
+        <button class="btn primary" id="save" disabled>Download mastered file</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="prose">
+    <h2>What the numbers mean</h2>
+    <ul>
+      <li><strong>LUFS</strong> measures how loud music seems, using the ITU BS.1770 method with gating. Streaming services turn loud tracks down to about −14 LUFS, so a track mastered far louder does not play louder, it only loses punch.</li>
+      <li><strong>True peak</strong> catches the peaks between samples that can distort after MP3 or AAC conversion. A ceiling of −1 dBTP is the usual safe choice.</li>
+      <li>The limiter looks 2 ms ahead, so it stops peaks without clipping. The tool raises the level until the loudness target is reached, within the ceiling.</li>
+      <li>Hitting a very loud target on dynamic music means heavy limiting. Watch the reduction figure. Past about 6 dB the sound starts to flatten.</li>
+    </ul>
+  </div>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/studio-core.js"></script>
+<script src="js/master.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>

@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "editor", "video", "create", "dj", "lessons", "convert", "bpm", "record", "studio", "about", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "editor", "video", "create", "dj", "lessons", "convert", "bpm", "record", "studio", "master", "about", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -1034,6 +1034,68 @@ def test_studio(browser, base):
     c3.close()
 
 
+def test_master(browser, base):
+    print("master: loudness, limiter, A/B, export")
+    import tempfile, numpy as np, scipy.io.wavfile as sw, pyloudnorm as pyln
+    errs = []
+    ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 1000}, accept_downloads=True)
+    sr, secs = 44100, 24; tt = np.arange(sr * secs) / sr; rng = np.random.default_rng(3)
+    env = 0.35 + 0.65 * (np.sin(2 * np.pi * tt / 6) > 0); sig = sum(np.sin(2 * np.pi * f * tt) / (i + 1) for i, f in enumerate([110, 220, 330, 440])) * env * 0.12 + rng.normal(0, 0.02, tt.size) * env
+    st = np.stack([sig, np.roll(sig, 40)], 1).astype(np.float32); tmp = tempfile.mkdtemp(); fp = tmp + "/Demo song.wav"; sw.write(fp, sr, (st * 32767).astype(np.int16))
+    ref = pyln.Meter(sr).integrated_loudness(st.astype(np.float64))
+    pg.goto(base + "master.html?gvtest"); pg.set_input_files("#file", fp); pg.wait_for_function("() => window.__ms && __ms.aRes", timeout=30000)
+    got = pg.evaluate("__ms.aRes.lufs"); check("original loudness matches the pyloudnorm reference within 0.2 LU", abs(got - ref) < 0.2, f"{got:.2f} vs {ref:.2f}")
+    check("the hint explains the gain needed", "needs" in pg.inner_text("#hint") and "LUFS" in pg.inner_text("#hint"))
+    pg.select_option("#preset", "-16|-1"); check("choosing a preset fills target and ceiling", pg.input_value("#target") == "-16" and pg.input_value("#ceil") == "-1")
+    pg.select_option("#preset", "-14|-1")
+    pg.click("#go"); pg.wait_for_function("() => window.__ms && __ms.mRes", timeout=60000)
+    m = pg.evaluate("__ms.mRes"); check("mastering reaches -14 LUFS within 0.3 and keeps true peak under the ceiling", abs(m["lufs"] + 14) < 0.3 and m["truePeakDb"] < -0.9, str(m))
+    check("the mastered column and gain text are filled", pg.inner_text("#m_lufs") != "–" and "dB /" in pg.inner_text("#m_gain"))
+    with pg.expect_download(timeout=60000) as dl: pg.click("#save")
+    check("download file name says mastered", dl.value.suggested_filename == "Demo song (mastered).wav", dl.value.suggested_filename)
+    sr2, out = sw.read(dl.value.path()); outf = out.astype(np.float64) / 32768; l2 = pyln.Meter(sr2).integrated_loudness(outf)
+    check("exported WAV measures -14 LUFS with an independent meter (within 0.4)", abs(l2 + 14) < 0.4, f"{l2:.2f}")
+    check("exported WAV sample peak is at or below -1 dBFS", 20 * np.log10(np.abs(outf).max()) <= -0.95, f"{20*np.log10(np.abs(outf).max()):.2f}")
+    # louder target
+    pg.select_option("#preset", "-9|-0.3"); pg.click("#go"); pg.wait_for_function("() => __ms.mRes.lufs > -10.5", timeout=60000)
+    m2 = pg.evaluate("__ms.mRes"); check("loud preset gets near -9 LUFS under a -0.3 dBTP ceiling", abs(m2["lufs"] + 9) < 0.5 and m2["truePeakDb"] < -0.25, str(m2))
+    # tone controls change the sound but loudness still lands
+    pg.select_option("#preset", "-14|-1"); pg.fill("#bass", "6") if False else pg.evaluate("document.getElementById('bass').value = 6; document.getElementById('bass').dispatchEvent(new Event('input'))")
+    pg.click("#go"); pg.wait_for_function("() => Math.abs(__ms.mRes.lufs + 14) < 0.4", timeout=60000)
+    check("bass boost still lands on the loudness target", True)
+    # A/B
+    pg.click("#aOrig"); pg.click("#play"); pg.wait_for_function("() => __ms.playing", timeout=5000); pg.wait_for_timeout(1500)
+    mg = pg.evaluate("__ms.matchGain()"); exp = 10 ** ((pg.evaluate("__ms.mRes.lufs") - pg.evaluate("__ms.aRes.lufs")) / 20)
+    check("match volume scales the original to the mastered loudness", abs(mg - exp) < 0.01 and pg.evaluate("__ms.which") == "a", f"{mg} {exp}")
+    p1 = pg.evaluate("__ms.pos"); pg.click("#aMast"); pg.wait_for_timeout(500); p2 = pg.evaluate("__ms.pos")
+    check("switching to mastered keeps playing from about the same position", pg.evaluate("__ms.which") == "m" and pg.evaluate("__ms.playing") and 0.3 < p2 - p1 < 1.0, f"{p1:.2f} -> {p2:.2f}")
+    pg.click("#play"); check("pause works", not pg.evaluate("__ms.playing"))
+    pg.evaluate("document.getElementById('seek').value = 500; document.getElementById('seek').dispatchEvent(new Event('input'))"); check("seek moves the position to half way", abs(pg.evaluate("__ms.pos") - secs / 2) < 0.5)
+    # exports
+    pg.select_option("#fmt", "wav24")
+    with pg.expect_download(timeout=60000) as d3: pg.click("#save")
+    b = open(d3.value.path(), "rb").read(); check("24 bit WAV export has 24 bits per sample", struct.unpack("<H", b[34:36])[0] == 24)
+    pg.select_option("#fmt", "mp3")
+    with pg.expect_download(timeout=120000) as d4: pg.click("#save")
+    mp3 = open(d4.value.path(), "rb").read(); i = 0
+    if mp3[:3] == b"ID3": i = 10 + ((mp3[6] << 21) | (mp3[7] << 14) | (mp3[8] << 7) | mp3[9])
+    check("MP3 export is a valid MP3", mp3[i] == 0xFF and (mp3[i + 1] & 0xE0) == 0xE0 and d4.value.suggested_filename.endswith("(mastered).mp3"))
+    # bad file
+    bad = tmp + "/bad.wav"; open(bad, "wb").write(b"not audio at all"); pg.set_input_files("#file", bad); pg.wait_for_function("() => document.getElementById('status').textContent.startsWith('Could not')", timeout=10000)
+    check("an unreadable file is refused with a message", True)
+    check("master: no errors", not [e for e in errs if "Failed to load resource" not in e and "EncodingError" not in e], str(errs))
+    ctx.close()
+    axe = os.environ.get("AXE_PATH") or os.path.join(ROOT, "node_modules/axe-core/axe.min.js")
+    if os.path.exists(axe):
+        js = "axe.run(document,{runOnly:['wcag2a','wcag2aa','wcag21a','wcag21aa','best-practice']}).then(r=>r.violations.map(v=>v.id+' x'+v.nodes.length+' '+v.nodes[0].target.join(' ')))"
+        c2 = browser.new_context(bypass_csp=True, viewport={"width": 1200, "height": 900}); p2 = c2.new_page(); p2.goto(base + "master.html?gvtest")
+        p2.add_script_tag(path=axe); check("master page empty: no axe violations", not (v := p2.evaluate(js)), str(v))
+        p2.set_input_files("#file", fp); p2.wait_for_function("() => window.__ms && __ms.aRes", timeout=30000); p2.click("#go"); p2.wait_for_function("() => __ms.mRes", timeout=60000)
+        check("master page with results: no axe violations", not (v := p2.evaluate(js)), str(v)); c2.close()
+    c3 = browser.new_context(viewport={"width": 390, "height": 844}); p3 = c3.new_page(); p3.goto(base + "master.html?gvtest"); p3.set_input_files("#file", fp); p3.wait_for_function("() => window.__ms && __ms.aRes", timeout=30000)
+    over = p3.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth"); check("master: no sideways scroll at 390px", over <= 0, str(over)); c3.close()
+
+
 def test_views(browser, base):
     print("performance view, light theme, ratings and notes")
     import tempfile
@@ -1178,7 +1240,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_record, test_studio, test_views, test_lessons, test_video, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_record, test_studio, test_master, test_views, test_lessons, test_video, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

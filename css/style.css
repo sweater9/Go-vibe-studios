@@ -165,3 +165,6 @@ select { background: var(--bg); border: 1px solid var(--line); color: var(--text
 .bigtime { font: 700 34px ui-monospace, monospace; min-width: 130px; }
 .countnum { font-size: 72px; font-weight: 800; text-align: center; color: var(--accent); }
 .takes { list-style: none; padding: 0; margin: 0; } .take { border-top: 1px solid var(--line); padding: 12px 0; } .take audio { width: 100%; margin-top: 8px; }
+.seg { display: inline-flex; gap: 0; } .seg .btn { border-radius: 0; } .seg .btn:first-child { border-radius: 10px 0 0 10px; } .seg .btn:last-child { border-radius: 0 10px 10px 0; }
+.seg .btn[aria-pressed="true"] { background: #6d4de0; border-color: #6d4de0; color: #fff; }
+#meters td { font-variant-numeric: tabular-nums; } #meters .bad { color: #fbbf24; font-weight: 600; } #meters .good { color: #34d399; }
