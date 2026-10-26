@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Voice and mic recorder — GoVibe Mix</title>
+<meta name="description" content="Record voice or instruments with your microphone in the browser. Several takes, level meter, countdown, and WAV or MP3 download. Nothing is uploaded.">
+<link rel="canonical" href="https://govibemix.com/record.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Voice and mic recorder — GoVibe Mix">
+<meta property="og:description" content="Record voice or instruments with your microphone in the browser. Several takes, level meter, countdown, and WAV or MP3 download. Nothing is uploaded.">
+<meta property="og:url" content="https://govibemix.com/record.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="index.html">Home</a>
+  <a class="link" href="create.html">Create</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>Voice and mic recorder</h1>
+  <p class="lead">Record your voice or an instrument with your microphone, keep several takes, then download WAV or MP3 or open a take in the editor. Recordings stay on your device.</p>
+
+  <div id="setup" class="panel">
+    <h2>Start</h2>
+    <p class="status">Your browser will ask to use the microphone. Nothing is recorded until you press Record, and nothing is uploaded.</p>
+    <div class="row" style="margin-top:10px"><button class="btn primary" id="allow">Allow microphone</button></div>
+  </div>
+
+  <div id="rig" class="hidden">
+    <div class="panel">
+      <h2>Input</h2>
+      <div class="row" style="align-items:flex-end">
+        <label class="ctl" style="min-width:240px">Microphone
+          <select id="dev"></select>
+        </label>
+        <label class="row time"><input type="checkbox" id="aec"> Echo cancellation</label>
+        <label class="row time"><input type="checkbox" id="ns"> Noise suppression</label>
+        <label class="row time"><input type="checkbox" id="agc"> Automatic gain</label>
+      </div>
+      <p class="status">Leave the three switches off for the cleanest music and voice recordings. Turn them on for calls or a noisy room.</p>
+      <div style="margin-top:12px">
+        <div class="meterbox" id="meter" role="meter" aria-label="Input level in decibels" aria-valuemin="-60" aria-valuemax="0" aria-valuenow="-60"><div class="lvlbar" id="lvl"></div></div>
+        <div class="status" id="lvltxt">silence</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Record</h2>
+      <div class="row">
+        <button class="btn primary recbig" id="rec">● Record</button>
+        <span class="bigtime" id="time" aria-live="off">0:00.0</span>
+        <label class="row time"><input type="checkbox" id="cd" checked> 3 second countdown</label>
+        <label class="row time"><input type="checkbox" id="mon"> Hear myself (use headphones)</label>
+      </div>
+      <div id="count" class="countnum hidden" aria-hidden="true">3</div>
+      <p class="status" id="status" role="status"></p>
+    </div>
+
+    <div class="panel">
+      <h2 id="takeshead" class="hidden">Takes</h2>
+      <ul id="takes" class="takes" aria-label="Recorded takes"></ul>
+    </div>
+  </div>
+
+  <div class="prose">
+    <h2>Tips</h2>
+    <ul>
+      <li>Wear headphones if you turn on "Hear myself", or the speakers will feed back into the microphone.</li>
+      <li>Aim for a level that peaks in the green or yellow. If the bar turns red, move back or lower the input volume in your system settings.</li>
+      <li>Record a few seconds of silence first. It helps the noise gate in the <a href="editor.html">Audio Editor</a> find the noise level.</li>
+      <li>Press the space bar to start and stop when no button is focused.</li>
+      <li>Recordings are held in memory until you close the page, so download the takes you want to keep.</li>
+    </ul>
+  </div>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/store.js"></script>
+<script src="js/record.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>

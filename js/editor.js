@@ -50,8 +50,9 @@
   drop.addEventListener('drop', (e) => loadFile(e.dataTransfer.files[0]));
 
   // Hand-off from the Create page
-  if (new URLSearchParams(location.search).get('from') === 'create' && window.GVStore) {
-    GVStore.get('handoff').then((b) => { if (b) { b.name = 'generated track'; loadFile(b); GVStore.del('handoff'); } }).catch(() => {});
+  { const from = new URLSearchParams(location.search).get('from');
+  if ((from === 'create' || from === 'record' || from === 'studio') && window.GVStore)
+    GVStore.get('handoff').then((b) => { if (b) { b.name = from === 'record' ? 'recording' : from === 'studio' ? 'studio mix' : 'generated track'; loadFile(b); GVStore.del('handoff'); } }).catch(() => {});
   }
 
   /* ---------- history ---------- */

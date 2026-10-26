@@ -157,3 +157,11 @@ kbd { background: var(--panel-2); border: 1px solid var(--line); border-bottom-w
 .tbl td { padding: 8px 10px; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; word-break: break-word; }
 .tbl td.bad { color: #fda4af; }
 select { background: var(--bg); border: 1px solid var(--line); color: var(--text); padding: 9px 12px; border-radius: 10px; font-size: 14px; }
+/* recorder */
+.meterbox { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; height: 18px; overflow: hidden; }
+.lvlbar { height: 100%; width: 0; background: linear-gradient(90deg, #22d3ee, #34d399); transition: width .05s linear; }
+.lvlbar.hot { background: linear-gradient(90deg, #34d399, #fbbf24); } .lvlbar.clip { background: #f43f5e; }
+.recbig { min-width: 150px; height: 56px; font-size: 18px; } .rec-on { background: #be123c !important; border-color: #fb7185 !important; color: #fff !important; }
+.bigtime { font: 700 34px ui-monospace, monospace; min-width: 130px; }
+.countnum { font-size: 72px; font-weight: 800; text-align: center; color: var(--accent); }
+.takes { list-style: none; padding: 0; margin: 0; } .take { border-top: 1px solid var(--line); padding: 12px 0; } .take audio { width: 100%; margin-top: 8px; }

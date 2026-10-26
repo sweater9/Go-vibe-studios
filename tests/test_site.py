@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "editor", "video", "create", "dj", "lessons", "convert", "bpm", "about", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "editor", "video", "create", "dj", "lessons", "convert", "bpm", "record", "studio", "about", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -854,6 +854,186 @@ def test_editor_dsp(browser, base):
         check("editor with the new panels: no axe violations", not (v := p2.evaluate(js)), str(v)); c2.close()
 
 
+def test_record(browser, base):
+    print("voice and mic recorder (fake microphone)")
+    from playwright.sync_api import sync_playwright as _sp
+    errs = []
+    b2 = _sp_instance.chromium.launch(args=["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", "--autoplay-policy=no-user-gesture-required"])
+    ctx = b2.new_context(permissions=["microphone"]); pg = ctx.new_page()
+    pg.on("pageerror", lambda e: errs.append(f"pageerror: {e}"))
+    pg.goto(base + "record.html?gvtest")
+    check("recorder asks before using the microphone (rig hidden)", pg.locator("#rig").is_hidden() and pg.locator("#allow").is_visible())
+    pg.click("#allow"); pg.wait_for_selector("#rig:not(.hidden)", timeout=10000)
+    check("microphone list is filled", pg.locator("#dev option").count() >= 1)
+    pg.wait_for_timeout(800)
+    check("level meter moves with the fake microphone tone", pg.evaluate("document.getElementById('meter').getAttribute('aria-valuenow')") != "-60" or "dB" in pg.inner_text("#lvltxt"), pg.inner_text("#lvltxt"))
+    pg.uncheck("#cd"); pg.click("#rec"); pg.wait_for_function("() => __rec.recording", timeout=5000); pg.wait_for_timeout(2200); pg.click("#rec")
+    pg.wait_for_function("() => __rec.takes.length === 1", timeout=8000)
+    d = pg.evaluate("""async () => { const t = __rec.takes[0], u = new Uint8Array(await t.blob.arrayBuffer()), v = new DataView(u.buffer); let pk = 0; for (let i = 44; i < u.length; i += 2) pk = Math.max(pk, Math.abs(v.getInt16(i, true)));
+      return { riff: String.fromCharCode(...u.slice(0, 4)), ch: v.getUint16(22, true), sr: v.getUint32(24, true), secs: t.secs, pk }; }""")
+    check("take is a valid mono 16 bit WAV of about 2 seconds with sound in it", d["riff"] == "RIFF" and d["ch"] == 1 and 1.6 < d["secs"] < 3.2 and d["pk"] > 500, str(d))
+    pg.click("#rec"); pg.wait_for_timeout(1200); pg.click("#rec"); pg.wait_for_function("() => __rec.takes.length === 2", timeout=8000)
+    check("several takes are kept", pg.locator("#takes li").count() == 2)
+    with pg.expect_download() as dl:
+        pg.get_by_role("button", name="Download WAV Take 1").click()
+    check("take downloads as WAV", dl.value.suggested_filename == "Take 1.wav")
+    with pg.expect_download() as dl2:
+        pg.get_by_role("button", name="Download MP3 Take 1").click()
+    data = open(dl2.value.path(), "rb").read(); i = 0
+    if data[:3] == b"ID3": i = 10 + ((data[6] << 21) | (data[7] << 14) | (data[8] << 7) | data[9])
+    check("take downloads as a valid MP3", dl2.value.suggested_filename == "Take 1.mp3" and data[i] == 0xFF and (data[i + 1] & 0xE0) == 0xE0, str(len(data)))
+    pg.get_by_role("button", name="Delete").first.click()
+    check("a take can be deleted", pg.locator("#takes li").count() == 1)
+    pg.get_by_role("button", name=re.compile("Open Take 2 in the Audio Editor")).click()
+    pg.wait_for_url(re.compile("editor.html"), timeout=10000); pg.wait_for_selector("#editor:not(.hidden)", timeout=10000)
+    check("a take opens in the Audio Editor", "recording" in pg.inner_text("#status").lower() and "1 ch" in pg.inner_text("#info"), pg.inner_text("#status") + pg.inner_text("#info"))
+    check("recorder: no errors", not errs, str(errs))
+    ctx.close()
+    # permission denied path
+    ctx = b2.new_context(); p2 = ctx.new_page(); p2.goto(base + "record.html")
+    p2.evaluate("() => { navigator.mediaDevices.getUserMedia = () => Promise.reject(Object.assign(new Error('x'), { name: 'NotAllowedError' })); }")
+    p2.click("#allow"); p2.wait_for_timeout(300)
+    check("blocked microphone shows a clear message", "blocked" in p2.inner_text("#status").lower() or p2.locator("#setup").is_visible())
+    ctx.close()
+    axe = os.environ.get("AXE_PATH") or os.path.join(ROOT, "node_modules/axe-core/axe.min.js")
+    if os.path.exists(axe):
+        js = "axe.run(document,{runOnly:['wcag2a','wcag2aa','wcag21a','wcag21aa','best-practice']}).then(r=>r.violations.map(v=>v.id+' x'+v.nodes.length+' '+v.nodes[0].target.join(' ')))"
+        c2 = b2.new_context(bypass_csp=True, permissions=["microphone"]); p3 = c2.new_page(); p3.goto(base + "record.html"); p3.click("#allow"); p3.wait_for_selector("#rig:not(.hidden)", timeout=10000); p3.add_script_tag(path=axe)
+        check("recorder with microphone open: no axe violations", not (v := p3.evaluate(js)), str(v)); c2.close()
+    b2.close()
+
+
+def test_studio(browser, base):
+    print("studio: timeline, editing, playback, keys, drums, export, save, backup")
+    import tempfile, zipfile, base64, io, math
+    errs = []
+    ctx, pg = new_page(browser, errs, viewport={"width": 1400, "height": 1000}, accept_downloads=True)
+    tmp = tempfile.mkdtemp(); f1, f2 = tmp + "/Click 120.wav", tmp + "/Tone 330.wav"
+    make_wav(f1, 120, secs=10); make_wav(f2, 100, secs=6, tone=330.0)
+    pg.goto(base + "studio.html?gvtest"); pg.wait_for_function("() => window.__st", timeout=10000)
+    pg.select_option("#snap", "off")
+    pg.set_input_files("#file", [f1, f2]); pg.wait_for_function("() => __st.P.tracks.length === 2", timeout=20000)
+    st = lambda js: pg.evaluate(js)
+    check("importing two files makes two audio tracks with clips of the right length", st("__st.P.tracks.every((t) => t.type === 'audio' && t.clips.length === 1)") and abs(st("__st.P.tracks[0].clips[0].dur") - 10) < 0.05 and abs(st("__st.P.tracks[1].clips[0].dur") - 6) < 0.05)
+    check("waveform summaries exist for imported audio", st("__st.buffers.size") == 2)
+    box = pg.locator("#tl").bounding_box(); LANE, RULER = 122, 28
+    X = lambda sec: box["x"] + st(f"__st.xOf({sec})"); Y = lambda lane, off=60: box["y"] + RULER + LANE * lane + off
+    # move clip 2 (lane 1) forward by 2 s
+    pg.mouse.move(X(3), Y(1)); pg.mouse.down(); pg.mouse.move(X(3) + 60, Y(1), steps=4); pg.mouse.move(X(3) + 120, Y(1), steps=4); pg.mouse.up()
+    check("dragging a clip moves it (2 s at 60 px per second)", abs(st("__st.P.tracks[1].clips[0].start") - 2) < 0.1, str(st("__st.P.tracks[1].clips[0].start")))
+    # trim right edge of clip 2 back by 1 s
+    end = 2 + 6
+    pg.mouse.move(X(end) - 2, Y(1)); pg.mouse.down(); pg.mouse.move(X(end) - 62, Y(1), steps=5); pg.mouse.up()
+    check("dragging the right edge trims the clip", abs(st("__st.P.tracks[1].clips[0].dur") - 5) < 0.1, str(st("__st.P.tracks[1].clips[0].dur")))
+    # trim left edge by 1 s: offset grows
+    pg.mouse.move(X(2) + 2, Y(1)); pg.mouse.down(); pg.mouse.move(X(2) + 62, Y(1), steps=5); pg.mouse.up()
+    c = st("__st.P.tracks[1].clips[0]")
+    check("dragging the left edge trims and moves the audio start inside the file", abs(c["offset"] - 1) < 0.1 and abs(c["start"] - 3) < 0.1 and abs(c["dur"] - 4) < 0.1, str(c))
+    # undo / redo
+    d0 = st("__st.undoDepth"); pg.click("#undo"); c2 = st("__st.P.tracks[1].clips[0]"); pg.click("#redo")
+    check("undo restores the clip before the left trim and redo reapplies it", abs(c2["offset"]) < 0.01 and abs(st("__st.P.tracks[1].clips[0].offset") - 1) < 0.1 and d0 >= 3, str((c2, d0)))
+    # split with keyboard
+    pg.mouse.click(X(5), Y(0)); st("__st.setPlayhead(5)"); pg.click("#split")
+    check("split cuts the selected clip at the playhead into two clips that add up", st("__st.P.tracks[0].clips.length") == 2 and abs(sum(c["dur"] for c in st("__st.P.tracks[0].clips")) - 10) < 0.01)
+    pg.keyboard.press("Delete"); check("Delete removes the selected clip", st("__st.P.tracks[0].clips.length") == 1)
+    pg.click("#undo")
+    # fades via core scheduling: render with a fade in
+    r = st("""async () => { const P = __st.P, c = P.tracks[0].clips[0]; c.fadeIn = 1; c.start = 0; c.dur = 10; c.offset = 0; P.tracks[1].mute = true;
+      const b = await __st.Core.render(P, __st.buffers, { from: 0, to: 4, rate: 22050 }), d = b.getChannelData(0), rms = (a, z) => { let s = 0; for (let i = a; i < z; i++) s += d[i] * d[i]; return Math.sqrt(s / (z - a)); };
+      P.tracks[1].mute = false; return { early: rms(0, 2205), late: rms(22050 * 2, 22050 * 3), len: b.length / b.sampleRate }; }""")
+    check("offline render honours a one second fade in", r["early"] < r["late"] * 0.4 and r["late"] > 0.02, str(r))
+    # solo and mute
+    pg.get_by_role("button", name="Mute Tone 330").click()
+    check("mute silences a track in the mix", st("__st.Core.audible(__st.P, __st.P.tracks[1])") is False)
+    pg.get_by_role("button", name="Mute Tone 330").click()
+    pg.get_by_role("button", name="Solo Click 120").click()
+    check("solo silences the others", st("__st.Core.audible(__st.P, __st.P.tracks[1])") is False and st("__st.Core.audible(__st.P, __st.P.tracks[0])"))
+    pg.get_by_role("button", name="Solo Click 120").click()
+    # playback
+    pg.keyboard.press("Home"); pg.locator("#tl").focus(); pg.keyboard.press("Space"); pg.wait_for_function("() => __st.playing", timeout=5000); pg.wait_for_timeout(1500)
+    ph = st("__st.playhead"); check("space starts playback and the playhead advances", 0.8 < ph < 2.6, str(ph))
+    pg.keyboard.press("Space"); check("space pauses", not st("__st.playing"))
+    # loop: set region 1..2 s with shift-drag on the ruler, play, playhead stays inside
+    pg.keyboard.down("Shift"); pg.mouse.move(X(1), box["y"] + 10); pg.mouse.down(); pg.mouse.move(X(1.5), box["y"] + 10, steps=3); pg.mouse.move(X(2), box["y"] + 10, steps=3); pg.mouse.up(); pg.keyboard.up("Shift")
+    lp = st("__st.P.loop"); check("shift drag on the ruler sets and enables the loop", lp["on"] and abs(lp["a"] - 1) < 0.15 and abs(lp["b"] - 2) < 0.15, str(lp))
+    st("__st.setPlayhead(1)"); st("__st.startFrom(1)"); pg.wait_for_timeout(3300)
+    ph2 = st("__st.playhead"); nseg = st("__st.segs.length")
+    check("looping keeps the playhead inside the loop region after 3 seconds", st("__st.playing") and 0.9 < ph2 < 2.1, str((ph2, nseg)))
+    st("__st.stop()"); pg.click("#loop")
+    # tempo change
+    pg.fill("#bpm", "90"); pg.press("#bpm", "Enter"); pg.locator("#bpm").blur(); check("tempo can be changed", st("__st.P.bpm") == 90)
+    pg.fill("#bpm", "120"); pg.locator("#bpm").blur()
+    # keys track: create clip by double click, add notes in the roll
+    pg.click("#addkeys"); st("__st.P.tracks[2].inst = 'Electric piano'"); idx = 2
+    pg.mouse.dblclick(X(12), Y(idx)); pg.wait_for_selector("#rollcv", timeout=5000)
+    check("double click on an empty keys lane makes a one bar clip and opens the piano roll", st("__st.P.tracks[2].clips.length") == 1 and abs(st("__st.P.tracks[2].clips[0].dur") - 2) < 0.01)
+    rb = pg.locator("#rollcv").bounding_box(); k = lambda beat, pitch: (rb["x"] + 58 + beat * 52 + 6, rb["y"] + (96 - pitch) * 16 + 8)
+    pg.select_option("select[aria-label=none]", "1") if False else None
+    pg.locator(".rollscroll").scroll_into_view_if_needed(); pg.evaluate("document.querySelector('.rollscroll').scrollTop = 200"); pg.wait_for_timeout(100)
+    for beat, pitch in [(0, 69), (1, 72), (2, 76)]:
+        box_r = pg.locator("#rollcv").bounding_box(); pg.mouse.click(box_r["x"] + 58 + beat * 52 + 6, box_r["y"] + (96 - pitch) * 16 + 8)
+    notes = st("__st.P.tracks[2].clips[0].notes")
+    check("clicking the roll adds notes at the clicked pitch and time", len(notes) == 3 and [n["p"] for n in notes] == [69, 72, 76] and [round(n["t"], 2) for n in notes] == [0, 1, 2], str(notes))
+    pg.keyboard.press("ArrowUp"); check("arrow up moves the selected note up one semitone", st("__st.P.tracks[2].clips[0].notes[2].p") == 77)
+    pg.keyboard.press("Delete"); check("Delete removes the selected note", st("__st.P.tracks[2].clips[0].notes.length") == 2)
+    pg.get_by_role("button", name="Quantize", exact=True).click()
+    # render keys alone: A4 sine at 440 Hz for the first note
+    f = st("""async () => { const P = __st.P; const tr = P.tracks[2], c = tr.clips[0]; c.start = 0; c.notes = [{ t: 0, d: 2, p: 69, v: 110 }]; tr.inst = 'Electric piano';
+      P.tracks.forEach((t, i) => { if (i !== 2) t.mute = true; });
+      const b = await __st.Core.render(P, __st.buffers, { from: 0, to: 1.5, rate: 44100 }), d = b.getChannelData(0); let best = 0, bl = 0; for (let L = 40; L < 400; L++) { let s = 0; for (let i = 8000; i < 40000; i++) s += d[i] * d[i + L]; if (s > best) { best = s; bl = L; } }
+      let pk = 0; for (let i = 0; i < d.length; i++) pk = Math.max(pk, Math.abs(d[i])); P.tracks.forEach((t) => { t.mute = false; }); return { hz: 44100 / bl, pk }; }""")
+    check("a rendered A4 note on the electric piano sits near 440 Hz and is audible", 400 < f["hz"] < 520 and f["pk"] > 0.05, str(f))
+    # drum track
+    pg.click("#adddrums"); pg.locator("#tl").scroll_into_view_if_needed(); pg.evaluate("window.scrollTo(0, 0)"); box = pg.locator("#tl").bounding_box(); pg.mouse.dblclick(X(5), Y(3)); pg.wait_for_selector(".stepgrid", timeout=5000)
+    pg.select_option("text=Choose…", "Four on the floor") if False else pg.locator("#rollpane select").nth(1).select_option("Four on the floor")
+    g = st("__st.P.tracks[3].clips[0].grid"); check("drum preset fills the step grid (kick on 1 2 3 4)", g["Kick"][0] == 1 and g["Kick"][4] == 1 and g["Kick"][8] == 1 and g["Kick"][12] == 1 and g["Kick"][2] == 0, str(g))
+    pg.get_by_role("button", name="Open hat step 3").click(); check("a step can be toggled", st("__st.P.tracks[3].clips[0].grid['Open hat'][2]") == 1 and pg.get_by_role("button", name="Open hat step 3").get_attribute("aria-pressed") == "true")
+    dr = st("""async () => { const P = __st.P, tr = P.tracks[3], c = tr.clips[0]; c.start = 0; c.dur = 4; tr.clips[0].grid['Open hat'][2] = 0; P.tracks.forEach((t, i) => { t.mute = i !== 3; });
+      const b = await __st.Core.render(P, __st.buffers, { from: 0, to: 2, rate: 22050, tail: 0.2 }), d = b.getChannelData(0), win = (a, z) => { let s = 0; for (let i = Math.round(a * 22050); i < Math.round(z * 22050); i++) s += d[i] * d[i]; return Math.sqrt(s / (22050 * (z - a))); };
+      const o = { onBeat: [0, 0.5, 1, 1.5].map((t) => win(t, t + 0.05)), between: [0.2, 0.7, 1.2, 1.7].map((t) => win(t, t + 0.05)) }; P.tracks.forEach((t) => { t.mute = false; }); return o; }""")
+    check("rendered drums hit on the beats (kick every half second at 120 BPM) and are quiet between", all(v > 0.05 for v in dr["onBeat"]) and max(dr["between"]) < min(dr["onBeat"]) * 0.7, str(dr))
+    # export mix WAV and MP3, stems
+    with pg.expect_download(timeout=60000) as dl: pg.click("#xgo")
+    wavb = open(dl.value.path(), "rb").read(); secs = struct.unpack("<I", wavb[40:44])[0] / 4 / struct.unpack("<I", wavb[24:28])[0]
+    check("export mix downloads a stereo WAV about as long as the project", wavb[:4] == b"RIFF" and struct.unpack("<H", wavb[22:24])[0] == 2 and 8 < secs < 30, str(secs))
+    pg.select_option("#xfmt", "mp3")
+    with pg.expect_download(timeout=90000) as dl2: pg.click("#xgo")
+    mp3 = open(dl2.value.path(), "rb").read(); i = 0
+    if mp3[:3] == b"ID3": i = 10 + ((mp3[6] << 21) | (mp3[7] << 14) | (mp3[8] << 7) | mp3[9])
+    check("export mix as MP3 gives a valid MP3", mp3[i] == 0xFF and (mp3[i + 1] & 0xE0) == 0xE0 and dl2.value.suggested_filename.endswith(".mp3"))
+    with pg.expect_download(timeout=90000) as dl3: pg.click("#xstems")
+    zf = zipfile.ZipFile(dl3.value.path()); names = zf.namelist()
+    lens = {n: struct.unpack("<I", zf.read(n)[40:44])[0] for n in names}
+    check("stems ZIP holds one WAV per track with identical lengths", len(names) == len(st("__st.P.tracks.filter((t) => t.clips.length)")) and len(set(lens.values())) == 1 and zf.testzip() is None, str((names, lens)))
+    # save, reload, reopen
+    pg.fill("#pname", "Test song"); pg.locator("#pname").blur(); st("__st.saveNow()"); pg.wait_for_function("() => document.getElementById('saved').textContent.startsWith('Saved')", timeout=10000)
+    ntr = st("__st.P.tracks.length"); pg.reload(); pg.wait_for_function("() => window.__st && __st.P.name === 'Test song' && __st.buffers.size === 2", timeout=20000)
+    check("the project reopens by itself after a reload, with tracks and decoded audio", st("__st.P.tracks.length") == ntr and st("__st.buffers.size") == 2)
+    # backup zip
+    with pg.expect_download() as dl4: pg.click("#pexport")
+    z2 = zipfile.ZipFile(dl4.value.path()); nm2 = z2.namelist(); pj = json.loads(z2.read("project.json"))
+    check("backup zip has project.json and the audio files", "project.json" in nm2 and len([n for n in nm2 if n.startswith("assets/")]) == 2 and pj["app"] == "govibe-mix-studio" and z2.testzip() is None, str(nm2))
+    zpath = tmp + "/backup.zip"; open(zpath, "wb").write(open(dl4.value.path(), "rb").read())
+    pg.click("#pnew"); pg.wait_for_timeout(500); check("new project starts empty", st("__st.P.tracks.length") == 0)
+    pg.set_input_files("#pimpfile", zpath); pg.wait_for_function("() => __st.P.tracks.length > 0 && __st.buffers.size === 2", timeout=20000)
+    check("backup imports back with its tracks and audio", st("__st.P.name").startswith("Test song") and st("__st.P.tracks.length") == ntr)
+    pg.set_input_files("#pimpfile", f1); pg.wait_for_timeout(500)
+    check("importing a non backup file is refused without damage", st("__st.P.tracks.length") == ntr and "Import failed" in pg.inner_text("#status"))
+    check("studio: no errors", not [e for e in errs if "Failed to load resource" not in e], str(errs))
+    ctx.close()
+    # a11y and phone
+    axe = os.environ.get("AXE_PATH") or os.path.join(ROOT, "node_modules/axe-core/axe.min.js")
+    if os.path.exists(axe):
+        js = "axe.run(document,{runOnly:['wcag2a','wcag2aa','wcag21a','wcag21aa','best-practice']}).then(r=>r.violations.map(v=>v.id+' x'+v.nodes.length+' '+v.nodes[0].target.join(' ')))"
+        c2 = browser.new_context(bypass_csp=True, viewport={"width": 1300, "height": 900}); p2 = c2.new_page(); p2.goto(base + "studio.html?gvtest"); p2.wait_for_function("() => window.__st"); p2.click("#addaudio"); p2.click("#addkeys"); p2.click("#adddrums")
+        p2.add_script_tag(path=axe); check("studio with three tracks: no axe violations", not (v := p2.evaluate(js)), str(v))
+        p2.mouse.dblclick(400, 28 + 122 + 60 + p2.locator("#tl").bounding_box()["y"]); p2.wait_for_selector("#rollcv"); check("studio with the piano roll open: no axe violations", not (v := p2.evaluate(js)), str(v))
+        c2.close()
+    c3 = browser.new_context(viewport={"width": 390, "height": 844}); p3 = c3.new_page(); p3.goto(base + "studio.html"); p3.click("#addaudio"); p3.wait_for_timeout(300)
+    check("studio: no sideways scroll at 390px", p3.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth") <= 0, str(p3.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")))
+    c3.close()
+
+
 def test_views(browser, base):
     print("performance view, light theme, ratings and notes")
     import tempfile
@@ -994,9 +1174,11 @@ def test_offline(browser, base):
 def main():
     srv, base = start_server()
     test_static()
+    global _sp_instance
     with sync_playwright() as p:
+        _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_views, test_lessons, test_video, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_record, test_studio, test_views, test_lessons, test_video, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

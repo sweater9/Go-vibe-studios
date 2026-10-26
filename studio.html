@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Studio — GoVibe Mix</title>
+<meta name="description" content="Arrange audio, keys and drum tracks on a timeline, mix and export. A multitrack music studio in your browser. Nothing is uploaded.">
+<link rel="canonical" href="https://govibemix.com/studio.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Studio — GoVibe Mix">
+<meta property="og:description" content="Arrange audio, keys and drum tracks on a timeline, mix and export. A multitrack music studio in your browser. Nothing is uploaded.">
+<meta property="og:url" content="https://govibemix.com/studio.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/studio.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="index.html">Home</a>
+  <a class="link" href="create.html">Create</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap studio">
+  <h1>Studio</h1>
+  <p class="lead">Arrange audio, keys and drums on a timeline, mix them, and export. Your projects are saved in this browser, and nothing is uploaded.</p>
+
+  <div class="sbar" role="toolbar" aria-label="Transport and tools">
+    <button class="btn primary" id="play" aria-label="Play">▶ Play</button>
+    <button class="btn" id="stop" aria-label="Stop and return to start">■ Stop</button>
+    <button class="btn" id="rew" aria-label="Go to start of loop or project">⏮</button>
+    <span class="stime" id="time" role="timer" aria-label="Playhead position">0:00.00</span>
+    <label class="ctl">BPM <input type="number" id="bpm" min="30" max="300" value="120"></label>
+    <label class="ctl">Snap
+      <select id="snap" aria-label="Snap to grid"><option value="off">Off</option><option value="16">1/16</option><option value="8">1/8</option><option value="4" selected>1/4 beat</option><option value="bar">Bar</option></select>
+    </label>
+    <button class="btn" id="loop" aria-pressed="false" title="Loop (L). Shift and drag on the ruler to set the region.">Loop</button>
+    <button class="btn" id="metro" aria-pressed="false" title="Metronome (M)">Metronome</button>
+    <span class="sep"></span>
+    <button class="btn" id="addaudio">+ Audio track</button>
+    <button class="btn" id="addkeys">+ Keys track</button>
+    <button class="btn" id="adddrums">+ Drum track</button>
+    <button class="btn" id="import">Import audio…</button>
+    <input type="file" id="file" accept="audio/*" multiple hidden aria-label="Import audio files">
+    <span class="sep"></span>
+    <button class="btn" id="split" disabled title="Split at playhead (S)">Split</button>
+    <button class="btn" id="dup" disabled title="Duplicate (Ctrl+D)">Duplicate</button>
+    <button class="btn" id="del" disabled title="Delete (Delete)">Delete</button>
+    <button class="btn" id="undo" disabled>↶ Undo</button>
+    <button class="btn" id="redo" disabled>↷ Redo</button>
+  </div>
+  <p class="status" id="clipinfo" role="status" style="margin-top:8px">No clip selected</p>
+
+  <div class="tlbox">
+    <div class="heads" id="heads"></div>
+    <div class="tlwrap" id="tlwrap">
+      <canvas id="tl" width="900" height="120" tabindex="0" role="application" aria-label="Timeline. Click the ruler to move the playhead. Drag clips to move them and drag their edges to trim. Arrow keys move the playhead, up and down choose a track, open and close square brackets choose a clip, S splits, Delete removes."></canvas>
+    </div>
+  </div>
+  <div class="hs">
+    <label for="hscroll" class="status">Scroll</label><input type="range" id="hscroll" min="0" max="600" value="0" aria-label="Scroll the timeline">
+    <button class="btn mini" id="zoomout" aria-label="Zoom out">−</button>
+    <input type="range" id="zoom" min="0" max="100" value="40" aria-label="Zoom" style="max-width:160px">
+    <button class="btn mini" id="zoomin" aria-label="Zoom in">+</button>
+  </div>
+  <p class="status" id="status" role="status"></p>
+
+  <div class="rollpane" id="rollpane"></div>
+
+  <div class="srow">
+    <div class="panel">
+      <h2>Master</h2>
+      <label class="ctl">Master volume
+        <input type="range" id="master" min="0" max="120" value="90" aria-label="Master volume">
+      </label>
+      <label class="row time" style="margin-top:8px"><input type="checkbox" id="lim" checked> Limiter (stops the mix from clipping)</label>
+      <canvas id="mmeter" class="mmeter" width="360" height="24" role="img" aria-label="Master level meter"></canvas>
+      <div class="status" id="mdb"></div>
+    </div>
+    <div class="panel">
+      <h2>Export</h2>
+      <div class="row" style="align-items:flex-end">
+        <label class="ctl">Part
+          <select id="xrange"><option value="all">Whole project</option><option value="loop">Loop region</option></select>
+        </label>
+        <label class="ctl">Format
+          <select id="xfmt"><option value="wav16">WAV 16 bit</option><option value="wav24">WAV 24 bit</option><option value="mp3">MP3 192 kbps</option></select>
+        </label>
+        <button class="btn primary" id="xgo">Export mix</button>
+        <button class="btn" id="xstems">Export each track (ZIP)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Project</h2>
+    <div class="row" style="align-items:flex-end">
+      <label class="ctl" style="min-width:240px">Project name
+        <input type="text" id="pname" value="Untitled project">
+      </label>
+      <button class="btn" id="pnew">New project</button>
+      <button class="btn" id="pexport">Download backup (.zip)</button>
+      <button class="btn" id="pimport">Open backup…</button>
+      <input type="file" id="pimpfile" accept=".zip,application/zip" hidden aria-label="Open a project backup">
+    </div>
+    <p class="status" id="saved" role="status">Not saved yet</p>
+    <ul class="plist" id="plist" aria-label="Saved projects"></ul>
+  </div>
+
+  <div class="prose">
+    <h2>How it works</h2>
+    <ul>
+      <li>Drop audio files on the timeline or use Import audio. Drag clips to move them, drag the edges to trim, and drag the small squares at the top of a selected clip to add fades.</li>
+      <li>Keys and drum tracks hold clips you write yourself. Double click an empty spot on one of those tracks to make a clip, then edit its notes or steps below the timeline.</li>
+      <li>Space plays and pauses. S splits at the playhead. L turns the loop on. Shift and drag on the ruler to set the loop region.</li>
+      <li>The project is saved in this browser. Download a backup if you want to keep it safe or move it to another computer.</li>
+      <li>Time signature is 4/4. Recording a voice or instrument is on the <a href="record.html">recorder page</a>, which can send a take straight here.</li>
+    </ul>
+  </div>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/store.js"></script>
+<script src="js/zip.js"></script>
+<script src="js/synth.js"></script>
+<script src="js/studio-core.js"></script>
+<script src="js/studio-io.js"></script>
+<script src="js/studio.js"></script>
+<script src="js/studio-roll.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>

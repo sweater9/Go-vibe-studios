@@ -1,0 +1,36 @@
+/* GoVibe Mix — Studio */
+.studio { max-width: 1500px; }
+.sbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin-top: 12px; }
+.sbar .sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
+.sbar label.ctl { min-width: 0; flex-direction: row; align-items: center; gap: 6px; }
+.sbar input[type=number] { width: 70px; background: var(--bg); border: 1px solid var(--line); color: var(--text); padding: 7px 8px; border-radius: 8px; font: inherit; }
+.stime { font: 700 22px ui-monospace, monospace; min-width: 96px; text-align: center; }
+.btn[aria-pressed=true] { background: #8b5cf633; border-color: var(--accent); color: #fff; }
+.tlbox { display: grid; grid-template-columns: 250px 1fr; margin-top: 12px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: #0d0e16; }
+.heads { border-right: 1px solid var(--line); background: var(--panel); }
+.thead { box-sizing: border-box; border-bottom: 1px solid var(--line); border-left: 5px solid var(--accent); padding: 5px 8px; display: flex; flex-direction: column; gap: 3px; justify-content: center; }
+.thead.sel { background: var(--panel-2); }
+.trow { display: flex; gap: 5px; align-items: center; }
+.tname { flex: 1; min-width: 0; background: transparent; border: 1px solid transparent; color: var(--text); font: 600 13px system-ui, sans-serif; padding: 2px 4px; border-radius: 6px; }
+.tname:hover, .tname:focus { border-color: var(--line); background: var(--bg); }
+.ttype { font-size: 11px; color: var(--muted); }
+.tbtn2 { padding: 2px 8px; min-width: 28px; font-size: 12px; }
+.tinst { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 6px; font-size: 12px; padding: 2px 4px; max-width: 118px; }
+.tl { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); } .tl input[type=range] { flex: 1; min-width: 0; }
+.tlvl { height: 5px; background: var(--bg); border-radius: 3px; overflow: hidden; } .tlvlb { height: 100%; width: 0; background: linear-gradient(90deg, #34d399, #fbbf24); }
+.tlwrap { position: relative; min-width: 0; } .tlwrap.over { outline: 2px dashed var(--accent); outline-offset: -3px; }
+#tl { display: block; width: 100%; touch-action: none; } #tl:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.hs { display: flex; gap: 8px; align-items: center; margin-top: 8px; } .hs input[type=range] { flex: 1; }
+.srow { display: flex; flex-wrap: wrap; gap: 16px; }
+.srow .panel { flex: 1 1 320px; }
+.plist { list-style: none; padding: 0; margin: 8px 0 0; } .prow { display: flex; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); } .prow span { flex: 1; font-size: 13px; color: var(--muted); }
+.mmeter { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; width: 100%; max-width: 360px; height: 24px; display: block; }
+/* piano roll and step editor */
+.rollpane { margin-top: 12px; } .rollpane .panel { margin-top: 0; }
+.rollscroll { overflow: auto; max-height: 380px; border: 1px solid var(--line); border-radius: 10px; background: #0d0e16; }
+#rollcv { display: block; touch-action: none; } #rollcv:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.stepgrid { display: grid; gap: 3px; align-items: center; overflow-x: auto; padding-bottom: 6px; }
+.stepgrid .lab { font-size: 12px; color: var(--muted); padding-right: 8px; white-space: nowrap; position: sticky; left: 0; background: var(--panel); }
+.stepb { width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); cursor: pointer; padding: 0; }
+.stepb.beat { border-color: #3b4060; } .stepb[aria-pressed=true] { background: var(--accent); border-color: #c4b5fd; } .stepb.now { outline: 2px solid #fbbf24; }
+@media (max-width: 760px) { .tlbox { grid-template-columns: 170px 1fr; } .tl { display: none; } .stime { font-size: 18px; min-width: 80px; } }
