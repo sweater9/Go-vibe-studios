@@ -128,3 +128,13 @@ footer a:hover { color: var(--text); }
 .bstep[aria-pressed="true"] { background: #6d4de0; border-color: #6d4de0; }
 .bstep.now { outline: 2px solid #22d3ee; outline-offset: 1px; }
 @media (max-width: 700px) { .brow { grid-template-columns: 44px repeat(16, 1fr); gap: 2px; } .bstep { height: 32px; border-radius: 5px; } }
+
+/* DJ extras */
+.mini { background: var(--bg); border: 1px solid var(--line); color: var(--text); padding: 8px; border-radius: 10px; font: inherit; }
+.btn.hot.on { background: #6d4de0; border-color: #6d4de0; }
+.btn.on { background: #0f766e; border-color: #0f766e; }
+.km.same\ key, .km.compatible { color: #34d399; } .km.clash { color: #fbbf24; }
+.amlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.amlist li { display: flex; gap: 10px; align-items: center; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2); font-size: 14px; }
+.amlist li.now { border-color: #22d3ee; } .amlist li .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.amlist li .meta { color: var(--muted); font-size: 12px; } .amlist li button { padding: 4px 10px; }

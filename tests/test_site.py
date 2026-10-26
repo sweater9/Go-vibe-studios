@@ -338,6 +338,61 @@ def test_dj(browser, base):
     ctx.close()
 
 
+def test_dj_extras(browser, base):
+    print("dj effects, hot cues, key detection, automix")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "dj.html?gvtest")
+    r = pg.evaluate("""async () => { const { decks, ctx, detectKey, keysMatch } = __dj, o = {};
+      const chord = (freqs, secs = 12, sr = 22050) => { const b = ctx.createBuffer(1, sr * secs, sr), d = b.getChannelData(0);
+        for (let i = 0; i < d.length; i++) { let v = 0; for (const f of freqs) v += Math.sin(2 * Math.PI * f * i / sr) + 0.3 * Math.sin(2 * Math.PI * 2 * f * i / sr); d[i] = v / freqs.length * 0.5; } return b; };
+      o.cmaj = detectKey(chord([261.63, 329.63, 392.0, 130.81]));
+      o.fsmaj = detectKey(chord([369.99, 466.16, 554.37, 185.0]));
+      o.silent = detectKey(ctx.createBuffer(1, 22050 * 12, 22050));
+      o.match = [keysMatch('8A', '8B'), keysMatch('8A', '9A'), keysMatch('8A', '2B'), keysMatch('8A', '8A')];
+      const mk = (bpm, sr = 22050, secs = 30) => { const b = ctx.createBuffer(1, sr * secs, sr), d = b.getChannelData(0), beat = Math.round(sr * 60 / bpm);
+        for (let i = 0; i < d.length; i += beat) for (let k = 0; k < 400 && i + k < d.length; k++) d[i + k] = Math.sin(k / 6) * Math.exp(-k / 80); return b; };
+      const A = decks[0]; A.setBuffer(mk(120), 'a.wav');
+      // loop sizes
+      A.el.lbeats.value = '8'; A.el.lbeats.onchange(); A.toggleLoop(); o.loop8 = A.loop.end - A.loop.start; A.toggleLoop();
+      // hot cues
+      A.seek(5); A.hotCue(0); A.seek(9); A.hotCue(0); o.hotJump = A.position(); o.hotOn = A.el.hot1.classList.contains('on');
+      A.el.hotclr.click(); o.hotCleared = A.hot[0] === null;
+      // effects
+      A.el.filt.value = -100; A.el.filt.oninput(); A.el.echo.value = 60; A.el.echo.oninput(); A.el.rev.value = 50; A.el.rev.oninput();
+      await new Promise((r) => setTimeout(r, 300));
+      o.lp = A.lp.frequency.value; o.hp = A.hp.frequency.value; o.echo = A.echoWet.gain.value; o.rev = A.revWet.gain.value; o.dly = A.dly.delayTime.value;
+      A.el.filt.value = 100; A.el.filt.oninput(); await new Promise((r) => setTimeout(r, 300)); o.hpUp = A.hp.frequency.value; o.lpUp = A.lp.frequency.value;
+      return o; }""")
+    check("key detection finds C major (8B) and F# major (2B)", r["cmaj"] in ("8B", "8A") and r["fsmaj"] in ("2B", "2A") and r["cmaj"][-1] == "B" and r["fsmaj"][-1] == "B", str((r["cmaj"], r["fsmaj"])))
+    check("key detection returns nothing for silence", r["silent"] is None)
+    check("key compatibility rules", r["match"] == ["compatible", "compatible", "clash", "same key"], str(r["match"]))
+    check("loop length follows the beat selector (8 beats = 4 s)", abs(r["loop8"] - 4) < 0.05, str(r["loop8"]))
+    check("hot cue sets, jumps back and clears", abs(r["hotJump"] - 5) < 0.2 and r["hotOn"] and r["hotCleared"], str(r))
+    check("filter, echo and reverb move their nodes", r["lp"] < 400 and r["hp"] < 30 and r["echo"] > 0.1 and r["rev"] > 0.1 and abs(r["dly"] - 0.25) < 0.01 and r["hpUp"] > 5000 and r["lpUp"] > 19000, str(r))
+
+    # automix: two short tracks at 120 and 124 BPM, 4 s transition
+    pg.goto(base + "dj.html?gvtest")
+    pg.select_option("#amlen", "4")
+    pg.evaluate("""async () => { const { ctx } = __dj;
+      const mk = (bpm, secs, sr = 22050) => { const b = ctx.createBuffer(1, sr * secs, sr), d = b.getChannelData(0), beat = Math.round(sr * 60 / bpm);
+        for (let i = 0; i < d.length; i += beat) for (let k = 0; k < 400 && i + k < d.length; k++) d[i + k] = Math.sin(k / 6) * Math.exp(-k / 80); return b; };
+      await __am.addBuffer(mk(120, 14), 'one.wav'); await __am.addBuffer(mk(124, 14), 'two.wav'); }""")
+    check("queue lists both tracks with BPM", pg.locator("#amlist li").count() == 2 and "BPM" in pg.inner_text("#amlist"))
+    pg.click("#amgo")
+    check("automix starts deck A", pg.evaluate("__dj.decks[0].playing") and pg.inner_text("#amgo").startswith("■"))
+    pg.wait_for_function("() => __am.S.tr !== null", timeout=20000)
+    mid = pg.evaluate("({ b: __dj.decks[1].playing, name: __dj.decks[1].el.name.textContent, bpm: __dj.decks[1].liveBpm })")
+    check("transition starts deck B with the next track, tempo matched", mid["b"] and mid["name"] == "two.wav" and abs(mid["bpm"] - 120) < 1.5, str(mid))
+    pg.wait_for_function("() => __am.S.tr === null && __am.S.idx === 1", timeout=15000)
+    end = pg.evaluate("({ a: __dj.decks[0].playing, xf: +document.getElementById('xf').value, low: __dj.decks[1].low.gain.value })")
+    check("after the transition A stops, crossfader is on B, bass restored", end["a"] is False and end["xf"] == 100 and end["low"] == 0, str(end))
+    pg.click("#amgo")
+    check("automix can be stopped", pg.inner_text("#amgo").startswith("▶"))
+    check("dj extras: no errors", not errs, str(errs))
+    ctx.close()
+
+
 # ---------------------------------------------------------------- lessons
 def test_lessons(browser, base):
     print("lessons")
@@ -429,7 +484,7 @@ def main():
     test_static()
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor_games, test_create, test_dj, test_lessons, test_video, test_offline):
+        for t in (test_pages, test_a11y, test_editor_games, test_create, test_dj, test_dj_extras, test_lessons, test_video, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

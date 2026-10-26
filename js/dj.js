@@ -37,6 +37,39 @@
     return best > 0 ? bestBpm : null;
   }
 
+  /* ---------- key detection (chroma + Krumhansl-Schmuckler profiles) ---------- */
+  const CAM_MAJ = [8, 3, 10, 5, 12, 7, 2, 9, 4, 11, 6, 1], CAM_MIN = [5, 12, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10];
+  const KS_MAJ = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88], KS_MIN = [6.33, 2.68, 3.52, 5.38, 2.6, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
+  function detectKey(buf) {
+    const sr = buf.sampleRate, ch = buf.getChannelData(0), N = 8192, hopS = Math.round(sr * 0.5);
+    const span = Math.min(buf.length, sr * 40), from = Math.floor((buf.length - span) / 2);
+    if (span < N * 4) return null;
+    const chroma = new Float64Array(12), win = new Float32Array(N);
+    for (let i = 0; i < N; i++) win[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (N - 1));
+    const coef = []; for (let m = 36; m < 96; m++) coef.push({ pc: m % 12, c: 2 * Math.cos(2 * Math.PI * 440 * Math.pow(2, (m - 69) / 12) / sr) });
+    for (let o = from; o + N <= from + span; o += hopS) {
+      const fr = new Float32Array(N); for (let i = 0; i < N; i++) fr[i] = ch[o + i] * win[i];
+      for (const { pc, c } of coef) { let s1 = 0, s2 = 0; for (let i = 0; i < N; i++) { const s0 = fr[i] + c * s1 - s2; s2 = s1; s1 = s0; } chroma[pc] += Math.sqrt(Math.max(0, s1 * s1 + s2 * s2 - c * s1 * s2)); }
+    }
+    const tot = chroma.reduce((a, b) => a + b, 0); if (!(tot > 0)) return null;
+    const corr = (prof, k) => { let ma = 0, mb = 0; for (let i = 0; i < 12; i++) { ma += chroma[(i + k) % 12]; mb += prof[i]; } ma /= 12; mb /= 12; let n = 0, da = 0, db = 0; for (let i = 0; i < 12; i++) { const a = chroma[(i + k) % 12] - ma, b = prof[i] - mb; n += a * b; da += a * a; db += b * b; } return n / Math.sqrt(da * db || 1); };
+    let best = -2, res = null;
+    for (let k = 0; k < 12; k++) {
+      const a = corr(KS_MAJ, k), b = corr(KS_MIN, k);
+      if (a > best) { best = a; res = CAM_MAJ[k] + 'B'; }
+      if (b > best) { best = b; res = CAM_MIN[k] + 'A'; }
+    }
+    return res;
+  }
+  function keysMatch(a, b) {
+    if (!a || !b) return null;
+    const na = +a.slice(0, -1), nb = +b.slice(0, -1), d = Math.min((na - nb + 12) % 12, (nb - na + 12) % 12);
+    return a === b ? 'same key' : (a[a.length - 1] === b[b.length - 1] && d === 1) || (na === nb) ? 'compatible' : 'clash';
+  }
+
+  let _imp = null;
+  function impulse() { if (_imp) return _imp; const len = Math.floor(ctx.sampleRate * 1.8); _imp = ctx.createBuffer(2, len, ctx.sampleRate); for (let c = 0; c < 2; c++) { const d = _imp.getChannelData(c); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5); } return _imp; }
+
   /* ---------- deck ---------- */
   class Deck {
     constructor(i, root) {
@@ -49,20 +82,29 @@
       this.mid = ctx.createBiquadFilter(); this.mid.type = 'peaking'; this.mid.frequency.value = 1000; this.mid.Q.value = 0.7;
       this.high = ctx.createBiquadFilter(); this.high.type = 'highshelf'; this.high.frequency.value = 4000;
       this.vol = ctx.createGain(); this.xf = ctx.createGain();
-      this.low.connect(this.mid); this.mid.connect(this.high); this.high.connect(this.vol); this.vol.connect(this.xf); this.xf.connect(master);
+      this.hp = ctx.createBiquadFilter(); this.hp.type = 'highpass'; this.hp.frequency.value = 20;
+      this.lp = ctx.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 20000;
+      this.dly = ctx.createDelay(2); this.fb = ctx.createGain(); this.fb.gain.value = 0.45; this.echoWet = ctx.createGain(); this.echoWet.gain.value = 0;
+      this.conv = ctx.createConvolver(); this.conv.buffer = impulse(); this.revWet = ctx.createGain(); this.revWet.gain.value = 0;
+      this.low.connect(this.mid); this.mid.connect(this.high); this.high.connect(this.hp); this.hp.connect(this.lp); this.lp.connect(this.vol);
+      this.lp.connect(this.dly); this.dly.connect(this.fb); this.fb.connect(this.dly); this.dly.connect(this.echoWet); this.echoWet.connect(this.vol);
+      this.lp.connect(this.conv); this.conv.connect(this.revWet); this.revWet.connect(this.vol);
+      this.vol.connect(this.xf); this.xf.connect(master);
+      this.loopBeats = 4; this.hot = [null, null, null, null]; this.key = null;
       this.build();
     }
     build() {
       const n = this.name;
       this.root.innerHTML = `
-        <h2>Deck ${n} <span class="bpm" data-r="bpm">— BPM</span></h2>
+        <h2>Deck ${n} <span class="bpm" data-r="bpm">— BPM</span> <span class="bpm" data-r="key" title="Musical key (Camelot)"></span></h2>
         <div class="tname" data-r="name">No track loaded</div>
         <canvas class="wave" data-r="wave" role="img" aria-label="Deck ${n} waveform. Click to move the playhead."></canvas>
         <div class="row time" style="justify-content:space-between;margin-top:6px"><span data-r="pos">0:00.0</span><span data-r="dur">0:00.0</span></div>
         <div class="row" style="margin-top:8px">
           <button class="btn primary" data-r="play">▶ Play</button>
           <button class="btn" data-r="cue">Cue</button>
-          <button class="btn" data-r="loop">Loop 4</button>
+          <button class="btn" data-r="loop">Loop</button>
+          <select data-r="lbeats" aria-label="Loop length in beats" class="mini"><option value="1">1 beat</option><option value="2">2</option><option value="4" selected>4</option><option value="8">8</option><option value="16">16</option></select>
           <button class="btn" data-r="load">Load…</button>
           <input type="file" accept="audio/*" hidden data-r="file">
         </div>
@@ -72,6 +114,16 @@
           </label>
           <button class="btn" data-r="reset">Reset</button>
         </div>
+        <div class="row" style="margin-top:10px" role="group" aria-label="Hot cues">
+          <span class="time">Hot cues</span>
+          ${[1, 2, 3, 4].map((k) => `<button class="btn hot" data-r="hot${k}" aria-label="Hot cue ${k}">${k}</button>`).join('')}
+          <button class="btn" data-r="hotclr" title="Clear all hot cues">Clear</button>
+        </div>
+        <div class="eq" style="grid-template-columns:repeat(3,1fr)">
+          <label class="ctl">Filter<input type="range" min="-100" max="100" value="0" data-r="filt"></label>
+          <label class="ctl">Echo<input type="range" min="0" max="100" value="0" data-r="echo"></label>
+          <label class="ctl">Reverb<input type="range" min="0" max="100" value="0" data-r="rev"></label>
+        </div>
         <div class="eq">
           <label class="ctl">Low<input type="range" min="-26" max="6" value="0" data-r="low"></label>
           <label class="ctl">Mid<input type="range" min="-26" max="6" value="0" data-r="mid"></label>
@@ -79,7 +131,7 @@
           <label class="ctl">Vol<input type="range" min="0" max="100" value="90" data-r="vol"></label>
         </div>`;
       const q = (k) => this.root.querySelector('[data-r="' + k + '"]');
-      this.el = {}; ['bpm', 'name', 'wave', 'pos', 'dur', 'play', 'cue', 'loop', 'load', 'file', 'tv', 'tempo', 'reset', 'low', 'mid', 'high', 'vol'].forEach((k) => (this.el[k] = q(k)));
+      this.el = {}; ['bpm', 'key', 'lbeats', 'hot1', 'hot2', 'hot3', 'hot4', 'hotclr', 'filt', 'echo', 'rev', 'name', 'wave', 'pos', 'dur', 'play', 'cue', 'loop', 'load', 'file', 'tv', 'tempo', 'reset', 'low', 'mid', 'high', 'vol'].forEach((k) => (this.el[k] = q(k)));
       this.g = this.el.wave.getContext('2d');
       const e = this.el;
       e.load.onclick = () => e.file.click();
@@ -88,6 +140,13 @@
       e.cue.onclick = () => this.cueBtn();
       e.loop.onclick = () => this.toggleLoop();
       e.tempo.oninput = () => this.setTempoPct(+e.tempo.value);
+      e.lbeats.onchange = () => { this.loopBeats = +e.lbeats.value; if (this.loop) { this.toggleLoop(); this.toggleLoop(); } };
+      [1, 2, 3, 4].forEach((k) => (e['hot' + k].onclick = () => this.hotCue(k - 1)));
+      e.hotclr.onclick = () => { this.hot = [null, null, null, null]; this.paintHot(); };
+      e.filt.oninput = () => this.setFilter(+e.filt.value);
+      e.echo.oninput = () => (this.echoWet.gain.value = Math.pow(e.echo.value / 100, 1.3) * 0.9);
+      e.rev.oninput = () => (this.revWet.gain.value = Math.pow(e.rev.value / 100, 1.3) * 1.1);
+      e.filt.ondblclick = () => { e.filt.value = 0; this.setFilter(0); };
       e.reset.onclick = () => { e.tempo.value = 0; this.setTempoPct(0); };
       e.low.oninput = () => (this.low.gain.value = +e.low.value);
       e.mid.oninput = () => (this.mid.gain.value = +e.mid.value);
@@ -106,12 +165,14 @@
         this.setBuffer(await ctx.decodeAudioData(await file.arrayBuffer()), file.name);
       } catch (_) { say('Could not read that file.'); }
     }
-    setBuffer(buf, name) {
-      this.stopSrc(); this.playing = false; this.buf = buf; this.startPos = 0; this.cue = 0; this.loop = null;
+    setBuffer(buf, name, pre) {
+      this.stopSrc(); this.playing = false; this.buf = buf; this.startPos = 0; this.cue = 0; this.loop = null; this.hot = [null, null, null, null]; this.paintHot();
       this.el.loop.classList.remove('on'); this.el.play.textContent = '▶ Play';
       this.el.name.textContent = name; this.el.dur.textContent = fmt(buf.duration);
       this.computePeaks();
-      this.bpm = detectBPM(buf);
+      this.bpm = pre && 'bpm' in pre ? pre.bpm : detectBPM(buf);
+      this.key = pre && 'key' in pre ? pre.key : detectKey(buf);
+      this.el.key.textContent = this.key || ''; refreshMatch();
       this.updateBpm(); say(this.bpm ? 'Deck ' + this.name + ' ready, about ' + this.bpm.toFixed(1) + ' BPM.' : 'Deck ' + this.name + ' ready (BPM not detected).');
     }
     computePeaks() {
@@ -123,8 +184,20 @@
         this.peaks[b] = m;
       }
     }
+    setFilter(v) {
+      const t = ctx.currentTime;
+      this.lp.frequency.setTargetAtTime(v < 0 ? 20000 * Math.pow(200 / 20000, -v / 100) : 20000, t, 0.02);
+      this.hp.frequency.setTargetAtTime(v > 0 ? 20 * Math.pow(8000 / 20, v / 100) : 20, t, 0.02);
+    }
+    syncFx() { this.dly.delayTime.value = Math.min(1.9, 60 / (this.liveBpm || 120) * 0.5); }
+    hotCue(i) {
+      if (!this.buf) return;
+      if (this.hot[i] == null) this.hot[i] = this.position(); else this.seek(this.hot[i]);
+      this.paintHot();
+    }
+    paintHot() { this.hot.forEach((v, i) => { const b = this.el['hot' + (i + 1)]; b.classList.toggle('on', v != null); b.title = v != null ? 'Jump to ' + fmt(v) : 'Set hot cue here'; }); }
     get liveBpm() { return this.bpm ? this.bpm * this.rate : null; }
-    updateBpm() { this.el.bpm.textContent = this.bpm ? this.liveBpm.toFixed(1) + ' BPM' : '— BPM'; }
+    updateBpm() { this.el.bpm.textContent = this.bpm ? this.liveBpm.toFixed(1) + ' BPM' : '— BPM'; this.syncFx(); }
     position() {
       if (!this.buf) return 0;
       let p = this.playing ? this.startPos + (ctx.currentTime - this.startCtx) * this.rate : this.startPos;
@@ -155,7 +228,7 @@
     toggleLoop() {
       if (!this.buf) return;
       if (this.loop) { const p = this.position(); this.loop = null; if (this.src) this.src.loop = false; this.startPos = p; this.startCtx = ctx.currentTime; this.el.loop.classList.remove('on'); return; }
-      const beat = this.bpm ? 60 / this.bpm : 0.5, p = this.position(), end = Math.min(this.buf.duration, p + beat * 4);
+      const beat = this.bpm ? 60 / this.bpm : 0.5, p = this.position(), end = Math.min(this.buf.duration, p + beat * this.loopBeats);
       if (end - p < 0.1) return;
       this.loop = { start: p, end };
       if (this.playing) { this.startPos = p; this.startCtx = ctx.currentTime; this.play(); }
@@ -176,6 +249,11 @@
   }
 
   const decks = [new Deck(0, $('deck0')), new Deck(1, $('deck1'))];
+  function refreshMatch() {
+    const m = keysMatch(decks[0].key, decks[1].key), el = $('keymatch'); if (!el) return;
+    el.textContent = m ? (m === 'clash' ? 'Keys clash (' + decks[0].key + ' / ' + decks[1].key + ')' : 'Keys ' + (m === 'same key' ? 'match' : 'work together') + ' (' + decks[0].key + ' / ' + decks[1].key + ')') : '';
+    el.className = 'status km ' + (m || '');
+  }
   (function frame() { decks.forEach((d) => d.draw()); requestAnimationFrame(frame); })();
 
   /* ---------- mixer ---------- */
@@ -208,7 +286,7 @@
   };
   Object.keys(PADS).forEach((k) => { const b = document.createElement('button'); b.className = 'pad'; b.textContent = k; b.onclick = () => { ctx.resume(); PADS[k](ctx.currentTime + 0.01); }; $('pads').appendChild(b); });
 
-  window.GVAudio.decks = decks;
+  window.GVAudio.decks = decks; Object.assign(window.GVAudio, { detectBPM, detectKey, applyXf, say, fmt });
 
   /* ---------- record mix ---------- */
   let rec = null, chunks = [], recT0 = 0, recTimer = 0;
@@ -231,5 +309,5 @@
     recTimer = setInterval(() => ($('rectime').textContent = fmt((Date.now() - recT0) / 1000)), 250);
   };
 
-  if (/[?&]gvtest\b/.test(location.search)) window.__dj = { decks, detectBPM, ctx, sync, applyXf };   // test hook: only exposed with ?gvtest
+  if (/[?&]gvtest\b/.test(location.search)) window.__dj = { decks, detectBPM, detectKey, keysMatch, ctx, sync, applyXf };   // test hook: only exposed with ?gvtest
 })();

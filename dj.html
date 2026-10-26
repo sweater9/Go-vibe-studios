@@ -33,7 +33,7 @@
 
 <main id="main" tabindex="-1" class="wrap" style="max-width:1200px">
   <h1>DJ <span class="grad">Mixer</span></h1>
-  <p class="lead">Load two tracks from your device, match their tempo, blend with the crossfader, add your own beat and record your mix.</p>
+  <p class="lead">Load two tracks from your device, match their tempo, blend with the crossfader, use effects and Automix, add your own beat and record your mix.</p>
 
   <div class="djgrid">
     <section class="deck panel" id="deck0"></section>
@@ -44,6 +44,7 @@
         <input type="range" id="xf" min="0" max="100" value="50">
       </label>
       <div class="row time" style="justify-content:space-between"><span>A</span><span>B</span></div>
+      <p class="status km" id="keymatch" role="status"></p>
       <label class="ctl" style="min-width:0;margin-top:12px">Master volume
         <input type="range" id="master" min="0" max="100" value="80">
       </label>
@@ -64,6 +65,22 @@
 
     <section class="deck panel" id="deck1"></section>
   </div>
+  <section class="panel" id="automix" style="margin-top:16px" aria-labelledby="amtitle">
+    <h2 id="amtitle">Queue &amp; Automix</h2>
+    <p class="status">Add several tracks and let the mixer play them one after another. It matches tempo, swaps the bass and crossfades for you.</p>
+    <div class="row" style="align-items:flex-end;margin:10px 0">
+      <button class="btn" id="amadd">Add tracks…</button>
+      <input type="file" id="amfile" accept="audio/*" multiple hidden>
+      <label class="ctl">Transition
+        <select id="amlen" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="4">4 s</option><option value="8">8 s</option><option value="16" selected>16 s</option><option value="32">32 s</option></select>
+      </label>
+      <button class="btn primary" id="amgo">▶ Start Automix</button>
+      <button class="btn" id="amskip">Skip to next</button>
+      <button class="btn danger" id="amclear">Clear queue</button>
+    </div>
+    <ol id="amlist" class="amlist" aria-label="Track queue"></ol>
+    <p class="status" id="amstatus" role="status"></p>
+  </section>
   <section class="panel" id="beat" style="margin-top:16px" aria-labelledby="beattitle">
     <h2 id="beattitle">Beat maker</h2>
     <p class="status">Click the squares to build a 16-step pattern. It plays through the mixer, so it is included in your recording.</p>
@@ -99,6 +116,7 @@
 <footer>Go Vibe Studios · all processing happens in your browser · <nav aria-label="Footer" class="fnav"><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
 <script src="js/store.js"></script>
 <script src="js/dj.js"></script>
+<script src="js/automix.js"></script>
 <script src="js/beat.js"></script>
 <script src="js/pwa.js"></script>
 </body>

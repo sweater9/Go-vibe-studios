@@ -64,3 +64,7 @@ The DJ page has a 16-step, 6-track beat maker (kick, snare, clap, hats, bass) wi
 - **Legal**: `privacy.html` and `terms.html` are plain-language drafts, not legal advice. Have them reviewed before relying on them. Contact is the GitHub Issues page.
 - **Accessibility and phones**: skip link, landmarks, visible focus, reduced-motion support, labelled dialogs and canvases, AA contrast, no sideways scroll at 390 px.
 - **Tests**: `python tests/test_site.py` (needs `pip install playwright && playwright install chromium`; optionally `npm install --no-save axe-core` for the accessibility audit). It serves the site with the real `_headers`, so CSP violations fail the run, mocks Replicate, and covers pages, editor, games, Create modes, DJ, lessons, video export, offline mode and phone layout. GitHub Actions runs it on every push (`.github/workflows/test.yml`).
+
+## DJ extras
+
+Per deck: filter (sweep low-pass / high-pass, double-click to reset), echo (synced to the deck's tempo), reverb, 4 hot cues, loop lengths of 1–16 beats, and musical-key detection (Camelot notation, with a "keys work together / clash" hint between the decks). Queue & Automix plays a list of tracks in turn, matching tempo (within ±8%), swapping the bass and crossfading. Key detection is an estimate and can be off on dense or atypical music. There is no beat grid, because the BPM detector finds tempo but not where the beats fall.
