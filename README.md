@@ -68,3 +68,7 @@ The DJ page has a 16-step, 6-track beat maker (kick, snare, clap, hats, bass) wi
 ## DJ extras
 
 Per deck: filter (sweep low-pass / high-pass, double-click to reset), echo (synced to the deck's tempo), reverb, 4 hot cues, loop lengths of 1–16 beats, and musical-key detection (Camelot notation, with a "keys work together / clash" hint between the decks). Queue & Automix plays a list of tracks in turn, matching tempo (within ±8%), swapping the bass and crossfading. Key detection is an estimate and can be off on dense or atypical music. There is no beat grid, because the BPM detector finds tempo but not where the beats fall.
+
+## Stem splitter (beta)
+
+Each deck has **Split stems**. It separates the loaded track into vocals, drums, bass and music, which you can mute or unmute live and download as WAV. This is classic signal processing in a Web Worker, **not an AI model**: bass by frequency, drums by harmonic/percussive median filtering, vocals as the centre-panned harmonic part. The four stems add back up to the original, but expect bleed (kick in the vocals, guitars in the vocals, and so on). Mono recordings split poorly. Limit: tracks up to 5 minutes (memory); a 4-minute track takes about 20 s on a desktop. Real AI separation would need a model download or a paid API.

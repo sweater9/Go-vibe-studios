@@ -138,3 +138,6 @@ footer a:hover { color: var(--text); }
 .amlist li { display: flex; gap: 10px; align-items: center; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2); font-size: 14px; }
 .amlist li.now { border-color: #22d3ee; } .amlist li .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .amlist li .meta { color: var(--muted); font-size: 12px; } .amlist li button { padding: 4px 10px; }
+
+.btn.stem[aria-pressed="false"] { background: transparent; color: var(--muted); text-decoration: line-through; }
+.btn.stem[aria-pressed="true"] { background: #6d4de0; border-color: #6d4de0; }

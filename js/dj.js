@@ -90,6 +90,8 @@
       this.lp.connect(this.dly); this.dly.connect(this.fb); this.fb.connect(this.dly); this.dly.connect(this.echoWet); this.echoWet.connect(this.vol);
       this.lp.connect(this.conv); this.conv.connect(this.revWet); this.revWet.connect(this.vol);
       this.vol.connect(this.xf); this.xf.connect(master);
+      this.stems = null; this.extra = []; this.sg = {};
+      ['vocals', 'drums', 'bass', 'music'].forEach((k) => { const g = ctx.createGain(); g.connect(this.low); this.sg[k] = g; });
       this.loopBeats = 4; this.hot = [null, null, null, null]; this.key = null;
       this.build();
     }
@@ -114,6 +116,7 @@
           </label>
           <button class="btn" data-r="reset">Reset</button>
         </div>
+        <div class="stembox" data-r="stembox"></div>
         <div class="row" style="margin-top:10px" role="group" aria-label="Hot cues">
           <span class="time">Hot cues</span>
           ${[1, 2, 3, 4].map((k) => `<button class="btn hot" data-r="hot${k}" aria-label="Hot cue ${k}">${k}</button>`).join('')}
@@ -166,14 +169,14 @@
       } catch (_) { say('Could not read that file.'); }
     }
     setBuffer(buf, name, pre) {
-      this.stopSrc(); this.playing = false; this.buf = buf; this.startPos = 0; this.cue = 0; this.loop = null; this.hot = [null, null, null, null]; this.paintHot();
+      this.stopSrc(); this.playing = false; this.buf = buf; this.stems = null; Object.values(this.sg).forEach((g) => (g.gain.value = 1)); this.startPos = 0; this.cue = 0; this.loop = null; this.hot = [null, null, null, null]; this.paintHot();
       this.el.loop.classList.remove('on'); this.el.play.textContent = '▶ Play';
       this.el.name.textContent = name; this.el.dur.textContent = fmt(buf.duration);
       this.computePeaks();
       this.bpm = pre && 'bpm' in pre ? pre.bpm : detectBPM(buf);
       this.key = pre && 'key' in pre ? pre.key : detectKey(buf);
       this.el.key.textContent = this.key || ''; refreshMatch();
-      this.updateBpm(); say(this.bpm ? 'Deck ' + this.name + ' ready, about ' + this.bpm.toFixed(1) + ' BPM.' : 'Deck ' + this.name + ' ready (BPM not detected).');
+      this.updateBpm(); if (window.GVAudio && GVAudio.onLoad) GVAudio.onLoad(this); say(this.bpm ? 'Deck ' + this.name + ' ready, about ' + this.bpm.toFixed(1) + ' BPM.' : 'Deck ' + this.name + ' ready (BPM not detected).');
     }
     computePeaks() {
       const bins = 1000, d = this.buf.getChannelData(0), step = Math.max(1, Math.floor(d.length / bins));
@@ -204,14 +207,22 @@
       if (this.loop && this.playing && p >= this.loop.end) p = this.loop.start + ((p - this.loop.start) % (this.loop.end - this.loop.start));
       return Math.min(p, this.buf.duration);
     }
-    stopSrc() { if (this.src) { const s = this.src; this.src = null; s.onended = null; try { s.stop(); } catch (_) {} s.disconnect(); } }
+    eachSrc(fn) { if (this.src) fn(this.src); this.extra.forEach(fn); }
+    stopSrc() { const all = [this.src, ...this.extra].filter(Boolean); this.src = null; this.extra = []; all.forEach((s) => { s.onended = null; try { s.stop(); } catch (_) {} s.disconnect(); }); }
     play() {
       if (!this.buf) return; ctx.resume(); this.stopSrc();
       if (this.startPos >= this.buf.duration - 0.05) this.startPos = 0;
-      const s = ctx.createBufferSource(); s.buffer = this.buf; s.playbackRate.value = this.rate; s.connect(this.low);
-      if (this.loop) { s.loop = true; s.loopStart = this.loop.start; s.loopEnd = this.loop.end; }
-      s.onended = () => { if (this.src === s) { this.src = null; this.playing = false; this.startPos = 0; this.el.play.textContent = '▶ Play'; } };
-      s.start(0, this.startPos); this.src = s; this.startCtx = ctx.currentTime; this.playing = true;
+      const list = this.stems ? Object.keys(this.sg).map((k) => [this.stems[k], this.sg[k]]) : [[this.buf, this.low]];
+      const t0 = ctx.currentTime + (this.stems ? 0.03 : 0);
+      const srcs = list.map(([b, dst]) => {
+        const s = ctx.createBufferSource(); s.buffer = b; s.playbackRate.value = this.rate; s.connect(dst);
+        if (this.loop) { s.loop = true; s.loopStart = this.loop.start; s.loopEnd = this.loop.end; }
+        return s;
+      });
+      const s = srcs[0];
+      s.onended = () => { if (this.src === s) { this.stopSrc(); this.playing = false; this.startPos = 0; this.el.play.textContent = '▶ Play'; } };
+      srcs.forEach((x) => x.start(t0, this.startPos));
+      this.src = s; this.extra = srcs.slice(1); this.startCtx = t0; this.playing = true;
       this.el.play.textContent = '❚❚ Pause';
     }
     pause() { this.startPos = this.position(); this.stopSrc(); this.playing = false; this.el.play.textContent = '▶ Play'; }
@@ -222,12 +233,12 @@
     }
     setTempoPct(pct) {
       const r = 1 + pct / 100;
-      if (this.playing) { this.startPos = this.position(); this.startCtx = ctx.currentTime; if (this.src) this.src.playbackRate.value = r; }
+      if (this.playing) { this.startPos = this.position(); this.startCtx = ctx.currentTime; this.eachSrc((x) => (x.playbackRate.value = r)); }
       this.rate = r; this.el.tv.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%'; this.updateBpm();
     }
     toggleLoop() {
       if (!this.buf) return;
-      if (this.loop) { const p = this.position(); this.loop = null; if (this.src) this.src.loop = false; this.startPos = p; this.startCtx = ctx.currentTime; this.el.loop.classList.remove('on'); return; }
+      if (this.loop) { const p = this.position(); this.loop = null; this.eachSrc((x) => (x.loop = false)); this.startPos = p; this.startCtx = ctx.currentTime; this.el.loop.classList.remove('on'); return; }
       const beat = this.bpm ? 60 / this.bpm : 0.5, p = this.position(), end = Math.min(this.buf.duration, p + beat * this.loopBeats);
       if (end - p < 0.1) return;
       this.loop = { start: p, end };

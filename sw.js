@@ -1,11 +1,11 @@
 /* Go Vibe Studios service worker: lets the site open offline after the first visit.
  * Network first (so a new deploy shows up right away), cached copy as the fallback.
  * Only same-origin GET requests are handled; API calls and downloads are never touched. */
-const CACHE = 'govibe-v4';
+const CACHE = 'govibe-v5';
 const PRECACHE = [
   'index.html', 'editor.html', 'video.html', 'games.html', 'create.html', 'dj.html', 'lessons.html', 'privacy.html', 'terms.html',
   'css/style.css',
-  'js/store.js', 'js/editor.js', 'js/video.js', 'js/games.js', 'js/create.js', 'js/dj.js','js/beat.js','js/automix.js', 'js/lessons.js', 'js/pwa.js',
+  'js/store.js', 'js/editor.js', 'js/video.js', 'js/games.js', 'js/create.js', 'js/dj.js','js/beat.js','js/automix.js','js/stems.js','js/stems-worker.js', 'js/lessons.js', 'js/pwa.js',
   'icons/favicon.svg', 'icons/icon-192.png', 'manifest.webmanifest'
 ];
 

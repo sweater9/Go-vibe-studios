@@ -393,6 +393,46 @@ def test_dj_extras(browser, base):
     ctx.close()
 
 
+def test_stems(browser, base):
+    print("stem splitter")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "dj.html?gvtest")
+    r = pg.evaluate("""async () => { const { decks, ctx } = __dj, sr = 22050, n = sr * 8, o = {};
+      const b = ctx.createBuffer(2, n, sr), L = b.getChannelData(0), R = b.getChannelData(1);
+      let seed = 1; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) * 2 - 1;
+      for (let i = 0; i < n; i++) {
+        const t = i / sr, bass = 0.4 * Math.sin(2 * Math.PI * 60 * t), voc = 0.25 * (Math.sin(2 * Math.PI * 1000 * t) + 0.5 * Math.sin(2 * Math.PI * 2000 * t)), gtr = 0.3 * Math.sin(2 * Math.PI * 330 * t);
+        const hit = (i % (sr / 2)) < sr * 0.02 ? 0.8 * rnd() : 0;
+        L[i] = bass + voc + gtr + hit; R[i] = bass + voc + hit;
+      }
+      decks[0].setBuffer(b, 'synthetic.wav', { bpm: null, key: null });
+      const t0 = performance.now(); const ok = await __stems.split(0); o.ok = ok; o.ms = performance.now() - t0;
+      const S = decks[0].stems; if (!S) return o;
+      const en = (buf, f) => { const d = buf.getChannelData(0); let re = 0, im = 0; for (let i = 2000; i < n - 2000; i++) { const a = 2 * Math.PI * f * i / sr; re += d[i] * Math.cos(a); im += d[i] * Math.sin(a); } return (re * re + im * im) / n; };
+      o.e60 = ['bass', 'vocals', 'drums', 'music'].map((k) => en(S[k], 60)); o.e1000 = ['bass', 'vocals', 'drums', 'music'].map((k) => en(S[k], 1000)); o.e330 = ['bass', 'vocals', 'drums', 'music'].map((k) => en(S[k], 330));
+      let err = 0, ref = 0; const sum = (i, c) => ['bass', 'vocals', 'drums', 'music'].reduce((a, k) => a + S[k].getChannelData(Math.min(c, S[k].numberOfChannels - 1))[i], 0);
+      for (let i = 2000; i < n - 2000; i++) { const e = sum(i, 0) - L[i]; err += e * e; ref += L[i] * L[i]; }
+      o.recon = Math.sqrt(err / ref);
+      const d = decks[0]; d.play(); await new Promise((r) => setTimeout(r, 400)); o.srcs = 1 + d.extra.length; o.playing = d.playing;
+      d.sg.vocals.gain.value = 0; o.pos = d.position(); d.pause();
+      o.channels = ['vocals', 'bass', 'drums', 'music'].map((k) => S[k].numberOfChannels);
+      return o; }""")
+    check("stem splitter finishes", r["ok"] is True, str(r))
+    if r.get("ok"):
+        e60, e1k, e330 = r["e60"], r["e1000"], r["e330"]   # order: bass, vocals, drums, music
+        check("bass stem holds the 60 Hz tone", e60[0] > 5 * max(e60[1], e60[2], e60[3]), str(e60))
+        check("vocals stem holds the centred 1 kHz tone, not music", e1k[1] > 3 * e1k[3] and e1k[1] > 3 * e1k[2], str(e1k))
+        check("music stem holds the left-only 330 Hz tone, not vocals", e330[3] > 3 * e330[1], str(e330))
+        check("stems add back up to the original (error < 2%)", r["recon"] < 0.02, str(r["recon"]))
+        check("playback uses 4 synced sources and keeps running", r["srcs"] == 4 and r["playing"] and 0.2 < r["pos"] < 1.5, str(r))
+        check("stem channel layout (mono vocals/bass, stereo drums/music)", r["channels"] == [1, 1, 2, 2], str(r["channels"]))
+    pg.goto(base + "dj.html?gvtest")
+    check("stem buttons absent until split, split button present", pg.locator("[data-r=stembox] button").count() == 2)
+    check("stems: no errors", not errs, str(errs))
+    ctx.close()
+
+
 # ---------------------------------------------------------------- lessons
 def test_lessons(browser, base):
     print("lessons")
@@ -484,7 +524,7 @@ def main():
     test_static()
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor_games, test_create, test_dj, test_dj_extras, test_lessons, test_video, test_offline):
+        for t in (test_pages, test_a11y, test_editor_games, test_create, test_dj, test_dj_extras, test_stems, test_lessons, test_video, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip
