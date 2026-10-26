@@ -45,6 +45,8 @@
       </label>
       <div class="row time" style="justify-content:space-between"><span>A</span><span>B</span></div>
       <p class="status km" id="keymatch" role="status"></p>
+      <canvas id="mmeter" class="meter" role="img" aria-label="Master level meter, left and right" width="240" height="40"></canvas>
+      <div class="row time" style="justify-content:space-between;margin-top:4px"><label class="row" style="gap:6px"><input type="checkbox" id="lim" checked> Limiter</label><span id="limred"></span></div>
       <label class="ctl" style="min-width:0;margin-top:12px">Master volume
         <input type="range" id="master" min="0" max="100" value="80">
       </label>
@@ -54,6 +56,14 @@
       </div>
       <h2 style="margin-top:18px">Pads</h2>
       <div class="pads" id="pads"></div>
+      <h2 style="margin-top:18px">Controller</h2>
+      <div class="row"><button class="btn" id="midibtn">Connect MIDI</button><button class="btn" id="helpbtn">⌨ Shortcuts</button></div>
+      <p class="status" id="midistatus" role="status"></p>
+      <details class="gridtools" id="midilearn"><summary>MIDI mapping</summary>
+        <label class="ctl" style="min-width:0;margin-top:6px">Control<select id="mact" class="mini"></select></label>
+        <div class="row" style="margin-top:6px"><button class="btn" id="mlearn">Learn</button><button class="btn" id="mclear">Clear</button><button class="btn danger" id="mreset">Clear all</button></div>
+        <p class="status" id="mlist"></p>
+      </details>
       <h2 style="margin-top:18px">Record</h2>
       <div class="row">
         <button class="btn primary" id="rec">● Record mix</button>
@@ -118,6 +128,7 @@
 <script src="js/dj.js"></script>
 <script src="js/stems.js"></script>
 <script src="js/automix.js"></script>
+<script src="js/controls.js"></script>
 <script src="js/beat.js"></script>
 <script src="js/pwa.js"></script>
 </body>

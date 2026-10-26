@@ -76,3 +76,9 @@ Each deck has **Split stems**. It separates the loaded track into vocals, drums,
 ## Beat grid and zoomed waveform
 
 Each deck refines its BPM to 0.01 and finds where beat 1 falls (checked on synthetic tracks: tempo within 0.05 BPM, first beat within about 12 ms). That powers: a zoomed, frequency-coloured waveform (bass purple, mids cyan, highs white) with beat and bar lines; beat jump (±1, ±4); Snap (hot cues and loops land on the beat); a grid editor (±10 ms nudge and "Beat 1 here"); **Sync** that matches tempo and, when both decks play, lines up the beats; and Automix that starts the next track on the same point in the beat. The detector assumes a steady tempo, so live-drummer or tempo-changing tracks may drift. If the grid is off, use the nudge or "Beat 1 here". It does not find bars (which beat is the "one") or handle half/double-time.
+
+## Shortcuts, MIDI, meters and limiter
+
+- **Keyboard** (press `?` on the DJ page for the full list): Q/P play, A/L cue, Z/M sync, E/I loop, 1–4 and 7–0 hot cues, `[` `]` `\` crossfader, B beat maker, R record, X/C/V/N pads. Shortcuts pause while you type in a text box.
+- **MIDI**: Chrome and Edge on a computer (Web MIDI). Click *Connect MIDI*, pick a control under *MIDI mapping*, press *Learn*, then move or press the control on your device. Any knob, fader or button can be mapped to crossfader, volumes, EQs, filters, effects, tempo, transport, hot cues, jumps, beat maker and record. Mappings are stored in this browser. Tested with simulated MIDI messages only, not with physical hardware.
+- **Meters and limiter**: master L/R meter with peak hold, a level strip on each deck, and a master limiter (compressor + soft clipper) that keeps the output, and recordings, below full scale. Switch it off with the *Limiter* checkbox.

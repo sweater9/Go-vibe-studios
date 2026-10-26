@@ -9,7 +9,17 @@
   /* ---------- master chain ---------- */
   const master = ctx.createGain(); master.gain.value = 0.8;
   const recDest = ctx.createMediaStreamDestination();
-  master.connect(ctx.destination); master.connect(recDest);
+  // master -> (limiter: compressor + soft clipper) -> outBus -> speakers, recorder, meters
+  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -1.5; comp.knee.value = 3; comp.ratio.value = 20; comp.attack.value = 0.002; comp.release.value = 0.12;
+  const shaper = ctx.createWaveShaper(), curve = new Float32Array(4097);
+  for (let i = 0; i < curve.length; i++) { const x = i / 2048 - 1, a = Math.abs(x); curve[i] = Math.sign(x) * (a <= 0.7 ? a : 0.7 + 0.28 * Math.tanh((a - 0.7) / 0.28)); }
+  shaper.curve = curve; shaper.oversample = '2x';
+  const outBus = ctx.createGain();
+  comp.connect(shaper); shaper.connect(outBus); outBus.connect(ctx.destination); outBus.connect(recDest);
+  const split = ctx.createChannelSplitter(2), anL = ctx.createAnalyser(), anR = ctx.createAnalyser(); anL.fftSize = anR.fftSize = 1024;
+  outBus.connect(split); split.connect(anL, 0); split.connect(anR, 1);
+  function setLimiter(on) { master.disconnect(); master.connect(on ? comp : outBus); }
+  setLimiter(true);
 
   /* ---------- BPM detection (onset autocorrelation) ---------- */
   function detectBPM(buf) {
@@ -112,6 +122,7 @@
       this.lp.connect(this.dly); this.dly.connect(this.fb); this.fb.connect(this.dly); this.dly.connect(this.echoWet); this.echoWet.connect(this.vol);
       this.lp.connect(this.conv); this.conv.connect(this.revWet); this.revWet.connect(this.vol);
       this.vol.connect(this.xf); this.xf.connect(master);
+      this.an = ctx.createAnalyser(); this.an.fftSize = 512; this.vol.connect(this.an); this._lv = new Float32Array(512);
       this.stems = null; this.extra = []; this.sg = {};
       ['vocals', 'drums', 'bass', 'music'].forEach((k) => { const g = ctx.createGain(); g.connect(this.low); this.sg[k] = g; });
       this.loopBeats = 4; this.hot = [null, null, null, null]; this.key = null;
@@ -122,6 +133,7 @@
       this.root.innerHTML = `
         <h2>Deck ${n} <span class="bpm" data-r="bpm">— BPM</span> <span class="bpm" data-r="key" title="Musical key (Camelot)"></span></h2>
         <div class="tname" data-r="name">No track loaded</div>
+        <canvas class="dmeter" data-r="meter" aria-hidden="true"></canvas>
         <canvas class="wave" data-r="wave" role="img" aria-label="Deck ${n} waveform. Click to move the playhead."></canvas>
         <canvas class="zoom" data-r="zoom" role="img" aria-label="Deck ${n} zoomed waveform with beat grid. Click to jump."></canvas>
         <div class="row" style="margin-top:6px;align-items:center" role="group" aria-label="Beat jump and zoom">
@@ -171,7 +183,7 @@
           <label class="ctl">Vol<input type="range" min="0" max="100" value="90" data-r="vol"></label>
         </div>`;
       const q = (k) => this.root.querySelector('[data-r="' + k + '"]');
-      this.el = {}; ['bpm', 'key', 'zoom', 'jm4', 'jm1', 'jp1', 'jp4', 'zspan', 'snap', 'gm', 'gp', 'gh', 'ginfo', 'lbeats', 'hot1', 'hot2', 'hot3', 'hot4', 'hotclr', 'filt', 'echo', 'rev', 'name', 'wave', 'pos', 'dur', 'play', 'cue', 'loop', 'load', 'file', 'tv', 'tempo', 'reset', 'low', 'mid', 'high', 'vol'].forEach((k) => (this.el[k] = q(k)));
+      this.el = {}; ['bpm', 'key', 'meter', 'zoom', 'jm4', 'jm1', 'jp1', 'jp4', 'zspan', 'snap', 'gm', 'gp', 'gh', 'ginfo', 'lbeats', 'hot1', 'hot2', 'hot3', 'hot4', 'hotclr', 'filt', 'echo', 'rev', 'name', 'wave', 'pos', 'dur', 'play', 'cue', 'loop', 'load', 'file', 'tv', 'tempo', 'reset', 'low', 'mid', 'high', 'vol'].forEach((k) => (this.el[k] = q(k)));
       this.g = this.el.wave.getContext('2d'); this.gz = this.el.zoom.getContext('2d');
       const e = this.el;
       e.load.onclick = () => e.file.click();
@@ -231,6 +243,7 @@
         this.peaks[b] = m;
       }
     }
+    level() { this.an.getFloatTimeDomainData(this._lv); let m = 0; for (let i = 0; i < this._lv.length; i++) { const v = Math.abs(this._lv[i]); if (v > m) m = v; } return m; }
     beatFrac(t) { if (!this.grid) return null; const x = ((t == null ? this.position() : t) - this.grid.t0) / this.grid.period; return ((x % 1) + 1) % 1; }
     snapTime(t) { if (!this.grid || !this.el.snap.checked) return t; const k = Math.round((t - this.grid.t0) / this.grid.period); return Math.max(0, Math.min(this.buf.duration, this.grid.t0 + k * this.grid.period)); }
     jump(n) { if (!this.buf) return; const per = this.grid ? this.grid.period : (this.bpm ? 60 / this.bpm : 0.5); this.seek(Math.max(0, Math.min(this.buf.duration - 0.05, this.position() + n * per))); }
@@ -378,7 +391,7 @@
   /* ---------- sampler pads (synthesized, no files) ---------- */
   function env(g, t, a, d, peak) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); }
   function noise(len) { const b = ctx.createBuffer(1, Math.floor(ctx.sampleRate * len), ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; const s = ctx.createBufferSource(); s.buffer = b; return s; }
-  window.GVAudio = { ctx, master, env, noise };   // shared with js/beat.js
+  window.GVAudio = { ctx, master, env, noise, anL, anR, comp, setLimiter, outBus };   // shared with js/beat.js
   const PADS = {
     Kick(t) { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.3); env(g, t, 0.005, 0.4, 1); o.connect(g).connect(master); o.start(t); o.stop(t + 0.5); },
     Clap(t) { const n = noise(0.3), f = ctx.createBiquadFilter(), g = ctx.createGain(); f.type = 'bandpass'; f.frequency.value = 1500; env(g, t, 0.003, 0.2, 0.9); n.connect(f).connect(g).connect(master); n.start(t); n.stop(t + 0.3); },

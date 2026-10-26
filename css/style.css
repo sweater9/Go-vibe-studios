@@ -144,3 +144,8 @@ footer a:hover { color: var(--text); }
 
 canvas.zoom { width: 100%; height: 84px; display: block; margin-top: 8px; background: #07070f; border-radius: 10px; border: 1px solid var(--line); cursor: pointer; touch-action: none; }
 .gridtools { margin-top: 8px; font-size: 13px; color: var(--muted); } .gridtools summary { cursor: pointer; }
+
+canvas.meter { width: 100%; height: 40px; display: block; background: #07070f; border-radius: 8px; border: 1px solid var(--line); margin-top: 10px; }
+canvas.dmeter { width: 100%; height: 8px; display: block; background: #07070f; border-radius: 4px; margin-bottom: 8px; }
+.keytbl { width: 100%; border-collapse: collapse; font-size: 14px; } .keytbl td { padding: 4px 8px; border-bottom: 1px solid var(--line); }
+kbd { background: var(--panel-2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 6px; padding: 1px 7px; font: 13px ui-monospace, monospace; }

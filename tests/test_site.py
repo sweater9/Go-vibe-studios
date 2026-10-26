@@ -477,6 +477,75 @@ def test_grid(browser, base):
     ctx.close()
 
 
+def test_controls(browser, base):
+    print("keyboard, MIDI, meters, limiter")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "dj.html?gvtest")
+    pg.evaluate("""() => { const { decks, ctx } = __dj, sr = 22050, mk = (amp) => { const b = ctx.createBuffer(2, sr * 20, sr);
+      for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] = amp * Math.sin(2 * Math.PI * 440 * i / sr); } return b; };
+      window.__mk = mk; decks[0].setBuffer(mk(0.3), 'a.wav', { bpm: null, key: null }); decks[1].setBuffer(mk(0.3), 'b.wav', { bpm: null, key: null }); }""")
+    pg.keyboard.press("q")
+    check("Q plays deck A", pg.evaluate("__dj.decks[0].playing"))
+    pg.keyboard.press("q")
+    check("Q again pauses deck A", pg.evaluate("__dj.decks[0].playing") is False)
+    pg.keyboard.press("p")
+    check("P plays deck B", pg.evaluate("__dj.decks[1].playing"))
+    pg.keyboard.press("p")
+    pg.evaluate("__dj.decks[0].seek(4)")
+    pg.keyboard.press("1")
+    check("1 sets hot cue 1 on deck A", pg.evaluate("__dj.decks[0].hot[0] !== null"))
+    pg.keyboard.press("]"); pg.keyboard.press("]")
+    check("] moves the crossfader towards B", pg.input_value("#xf") == "60")
+    pg.keyboard.press("\\")
+    check("backslash centres the crossfader", pg.input_value("#xf") == "50")
+    pg.fill("#bname", "qpe")
+    check("typing in a text box does not trigger shortcuts", pg.evaluate("!__dj.decks[0].playing && !__dj.decks[1].playing") and pg.input_value("#bname") == "qpe")
+    pg.keyboard.press("?")
+    pg.locator("#bname").blur()
+    pg.keyboard.press("?")
+    check("? opens the shortcut list and focuses Close", not pg.locator("#helpmodal").evaluate("e => e.classList.contains('hidden')") and pg.evaluate("document.activeElement.id") == "helpclose")
+    pg.keyboard.press("q")
+    check("shortcuts are paused while the dialog is open", pg.evaluate("!__dj.decks[0].playing"))
+    pg.keyboard.press("Escape")
+    check("Escape closes the list", pg.locator("#helpmodal").evaluate("e => e.classList.contains('hidden')"))
+    # MIDI
+    pg.evaluate("__ctl.learn('xf')"); pg.evaluate("__ctl.handle([0xB0, 21, 10])")
+    pg.evaluate("__ctl.learn('a.play')"); pg.evaluate("__ctl.handle([0x90, 36, 100])")
+    pg.evaluate("__ctl.learn('b.tempo')"); pg.evaluate("__ctl.handle([0xB1, 5, 64])")
+    pg.evaluate("__ctl.handle([0xB0, 21, 127])")
+    check("MIDI knob moves the crossfader", pg.input_value("#xf") == "100")
+    pg.evaluate("__ctl.handle([0xB0, 21, 0])")
+    check("MIDI knob at 0 moves it back", pg.input_value("#xf") == "0")
+    pg.evaluate("__ctl.handle([0x90, 36, 100])")
+    check("MIDI note presses play on deck A", pg.evaluate("__dj.decks[0].playing"))
+    pg.evaluate("__ctl.handle([0x80, 36, 0])"); pg.evaluate("__ctl.handle([0x90, 36, 0])")
+    check("note-off does nothing", pg.evaluate("__dj.decks[0].playing"))
+    pg.evaluate("__ctl.handle([0x90, 36, 90])")
+    pg.evaluate("__ctl.handle([0xB1, 5, 127])")
+    check("MIDI tempo fader on channel 2 reaches +16%", pg.evaluate("document.querySelectorAll('[data-r=tempo]')[1].value") == "16")
+    pg.reload()
+    check("MIDI mapping survives a reload", len(pg.evaluate("Object.keys(JSON.parse(localStorage.getItem('govibe.midimap')))")) == 3)
+    pg.goto(base + "dj.html?gvtest")
+    pg.click("#midibtn")
+    pg.wait_for_timeout(500)
+    check("Connect MIDI gives a clear message either way", len(pg.inner_text("#midistatus")) > 10, pg.inner_text("#midistatus"))
+    # meters + limiter
+    pg.evaluate("""() => { const d = __dj.decks[0]; const sr = 22050, b = __dj.ctx.createBuffer(2, sr * 20, sr); for (let c = 0; c < 2; c++) { const x = b.getChannelData(c); for (let i = 0; i < x.length; i++) x[i] = 4 * Math.sin(2 * Math.PI * 440 * i / sr); } d.setBuffer(b, 'loud.wav', { bpm: null, key: null }); document.getElementById('xf').value = 0; __dj.applyXf(); d.play(); }""")
+    pg.wait_for_timeout(500)
+    on = pg.evaluate("__ctl.peak()")
+    pg.uncheck("#lim"); pg.wait_for_timeout(300)
+    off = pg.evaluate("__ctl.peak()")
+    pg.check("#lim"); pg.wait_for_timeout(300)
+    lit = pg.evaluate("(() => { const c = document.getElementById('mmeter'), p = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < p.length; i += 4) if (p[i] > 150 || p[i + 1] > 150) n++; return n; })()")
+    check("limiter keeps a +12 dB signal below full scale", max(on) < 0.95, str(on))
+    check("with the limiter off the same signal goes over full scale", max(off) > 1.5, str(off))
+    check("the master meter draws", lit > 300, str(lit))
+    check("limiter note appears while limiting", "limiting" in pg.inner_text("#limred"), pg.inner_text("#limred"))
+    check("controls: no errors", not errs, str(errs))
+    ctx.close()
+
+
 # ---------------------------------------------------------------- lessons
 def test_lessons(browser, base):
     print("lessons")
@@ -568,7 +637,7 @@ def main():
     test_static()
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor_games, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_lessons, test_video, test_offline):
+        for t in (test_pages, test_a11y, test_editor_games, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_lessons, test_video, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

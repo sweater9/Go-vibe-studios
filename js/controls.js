@@ -1,0 +1,120 @@
+/* Go Vibe Studios — keyboard shortcuts, MIDI controllers and level meters for the DJ page */
+(() => {
+  const A = window.GVAudio; if (!A) return;
+  const { decks } = A, $ = (id) => document.getElementById(id);
+  const click = (el) => el && el.click();
+
+  /* ---------- actions (shared by keyboard and MIDI) ---------- */
+  const ACT = [];
+  const add = (id, label, kind, run, key) => ACT.push({ id, label, kind, run, key });
+  const slider = (el) => (v) => { const lo = +el.min, hi = +el.max; el.value = lo + v * (hi - lo); el.dispatchEvent(new Event('input', { bubbles: true })); };
+  const xfStep = (d) => { const x = $('xf'); x.value = Math.max(0, Math.min(100, +x.value + d)); x.dispatchEvent(new Event('input', { bubbles: true })); };
+  add('xf', 'Crossfader', 'slider', slider($('xf')));
+  add('master', 'Master volume', 'slider', slider($('master')));
+  decks.forEach((d, i) => {
+    const n = d.name, p = n.toLowerCase(), K = i ? ['p', 'l', 'm', 'i', '7', '8', '9', '0'] : ['q', 'a', 'z', 'e', '1', '2', '3', '4'];
+    [['vol', 'volume'], ['low', 'bass EQ'], ['mid', 'mid EQ'], ['high', 'treble EQ'], ['filt', 'filter'], ['echo', 'echo'], ['rev', 'reverb'], ['tempo', 'tempo']].forEach(([k, l]) => add(p + '.' + k, 'Deck ' + n + ' ' + l, 'slider', slider(d.el[k])));
+    add(p + '.play', 'Deck ' + n + ' play / pause', 'button', () => click(d.el.play), K[0]);
+    add(p + '.cue', 'Deck ' + n + ' cue', 'button', () => click(d.el.cue), K[1]);
+    add(p + '.sync', 'Deck ' + n + ' sync to the other deck', 'button', () => click($(i ? 'syncB' : 'syncA')), K[2]);
+    add(p + '.loop', 'Deck ' + n + ' loop on / off', 'button', () => click(d.el.loop), K[3]);
+    for (let h = 1; h <= 4; h++) add(p + '.hot' + h, 'Deck ' + n + ' hot cue ' + h, 'button', () => click(d.el['hot' + h]), K[3 + h]);
+    [['jm4', '−4 beats'], ['jm1', '−1 beat'], ['jp1', '+1 beat'], ['jp4', '+4 beats']].forEach(([k, l]) => add(p + '.' + k, 'Deck ' + n + ' jump ' + l, 'button', () => click(d.el[k])));
+  });
+  add('xfl', 'Crossfader towards A', 'button', () => xfStep(-5), '[');
+  add('xfr', 'Crossfader towards B', 'button', () => xfStep(5), ']');
+  add('xfc', 'Crossfader to centre', 'button', () => { $('xf').value = 50; $('xf').dispatchEvent(new Event('input', { bubbles: true })); }, '\\');
+  add('beat', 'Beat maker start / stop', 'button', () => click($('bplay')), 'b');
+  add('rec', 'Record mix', 'button', () => click($('rec')), 'r');
+  ['Kick', 'Clap', 'Horn', 'Riser'].forEach((nm, i) => add('pad' + i, 'Pad ' + nm, 'button', () => click(document.querySelectorAll('#pads .pad')[i]), ['x', 'c', 'v', 'n'][i]));
+  add('help', 'Show keyboard shortcuts', 'button', () => openHelp(), '?');
+
+  /* ---------- help dialog ---------- */
+  const modal = document.createElement('div'); modal.className = 'modal hidden'; modal.id = 'helpmodal'; modal.setAttribute('role', 'dialog'); modal.setAttribute('aria-modal', 'true'); modal.setAttribute('aria-labelledby', 'helptitle');
+  const box = document.createElement('div'); box.className = 'box'; box.style.maxWidth = '560px'; box.style.maxHeight = '85vh'; box.style.overflow = 'auto';
+  box.innerHTML = '<h2 id="helptitle">Keyboard shortcuts</h2><p class="status">Shortcuts are off while you type in a text box. MIDI controllers can be mapped to any control in the Controller section.</p><table class="keytbl"></table><div class="row" style="margin-top:12px"><button class="btn primary" id="helpclose">Close</button></div>';
+  modal.appendChild(box); document.body.appendChild(modal);
+  const tbl = box.querySelector('table');
+  ACT.filter((a) => a.key).forEach((a) => { const tr = document.createElement('tr'); tr.innerHTML = '<td></td><td><kbd></kbd></td>'; tr.cells[0].textContent = a.label; tr.cells[1].firstChild.textContent = a.key === '\\' ? '\\' : a.key.toUpperCase(); tbl.appendChild(tr); });
+  let lastFocus = null;
+  function openHelp() { lastFocus = document.activeElement; modal.classList.remove('hidden'); $('helpclose').focus(); }
+  function closeHelp() { modal.classList.add('hidden'); if (lastFocus && lastFocus.focus) lastFocus.focus(); }
+  $('helpclose').onclick = closeHelp; $('helpbtn').onclick = openHelp;
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeHelp(); });
+
+  addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) return closeHelp();
+    if (e.ctrlKey || e.metaKey || e.altKey || !modal.classList.contains('hidden')) return;
+    const t = e.target;
+    if (t.matches && t.matches('input:not([type=range]):not([type=checkbox]), textarea, select, [contenteditable]')) return;
+    if (t.tagName === 'BUTTON' && (e.key === ' ' || e.key === 'Enter')) return;
+    const k = e.key.length === 1 ? e.key.toLowerCase() : e.key, a = ACT.find((x) => x.key === k);
+    if (a) { e.preventDefault(); a.run(); }
+  });
+
+  /* ---------- MIDI ---------- */
+  const MK = 'govibe.midimap';
+  let map = {}; try { map = JSON.parse(localStorage.getItem(MK)) || {}; } catch (_) {}
+  const saveMap = () => { try { localStorage.setItem(MK, JSON.stringify(map)); } catch (_) {} };
+  let learning = null; const down = {};
+  const say = (t) => { $('midistatus').textContent = t; };
+  const sel = $('mact'); ACT.forEach((a) => sel.add(new Option(a.label + (a.kind === 'slider' ? ' (knob / fader)' : ' (button)'), a.id)));
+  function listMap() {
+    const rows = Object.entries(map).map(([k, id]) => { const a = ACT.find((x) => x.id === id), [t, ch, n] = k.split(':'); return (a ? a.label : id) + ' ← ' + (t === 'n' ? 'note ' : 'CC ') + n + ' (ch ' + (+ch + 1) + ')'; });
+    $('mlist').textContent = rows.length ? rows.join('; ') : 'Nothing mapped yet. Pick a control, press Learn, then move or press the control on your device.';
+  }
+  listMap();
+  const keyOf = (d) => { const st = d[0] & 0xf0, ch = d[0] & 0x0f; if (st === 0x90 && d[2] > 0) return 'n:' + ch + ':' + d[1]; if (st === 0xb0) return 'c:' + ch + ':' + d[1]; return null; };
+  function handle(d) {
+    const st = d[0] & 0xf0, key = keyOf(d); if (!key) return;
+    if (learning) {
+      Object.keys(map).forEach((k) => { if (map[k] === learning) delete map[k]; });
+      map[key] = learning; saveMap(); const a = ACT.find((x) => x.id === learning); learning = null; $('mlearn').textContent = 'Learn'; listMap(); say('Mapped ' + a.label + '.'); return;
+    }
+    const a = ACT.find((x) => x.id === map[key]); if (!a) return;
+    if (a.kind === 'slider') { if (st === 0xb0) a.run(d[2] / 127); return; }
+    if (st === 0xb0) { const was = down[key]; down[key] = d[2] >= 64; if (down[key] && !was) a.run(); } else a.run();
+  }
+  $('mlearn').onclick = () => { if (learning) { learning = null; $('mlearn').textContent = 'Learn'; return say('Learning cancelled.'); } learning = sel.value; $('mlearn').textContent = 'Waiting…'; say('Now move or press the control on your MIDI device.'); };
+  $('mclear').onclick = () => { Object.keys(map).forEach((k) => { if (map[k] === sel.value) delete map[k]; }); saveMap(); listMap(); };
+  $('mreset').onclick = () => { map = {}; saveMap(); listMap(); say('All mappings cleared.'); };
+  let access = null;
+  function attach() {
+    const names = []; access.inputs.forEach((inp) => { inp.onmidimessage = (m) => handle(m.data); names.push(inp.name); });
+    say(names.length ? 'Connected: ' + names.join(', ') + '.' : 'MIDI is on but no device was found. Plug one in.');
+  }
+  $('midibtn').onclick = async () => {
+    if (!navigator.requestMIDIAccess) return say('This browser does not support MIDI. Use Chrome or Edge on a computer.');
+    try { access = await navigator.requestMIDIAccess(); access.onstatechange = attach; attach(); }
+    catch (_) { say('MIDI access was blocked. Allow it in the browser prompt or site settings.'); }
+  };
+
+  /* ---------- meters + limiter ---------- */
+  const lim = $('lim'); lim.onchange = () => A.setLimiter(lim.checked);
+  const tb = new Float32Array(1024), peak = (an) => { an.getFloatTimeDomainData(tb); let m = 0; for (let i = 0; i < tb.length; i++) { const v = Math.abs(tb[i]); if (v > m) m = v; } return m; };
+  const frac = (p) => Math.max(0, Math.min(1, (20 * Math.log10(p + 1e-6) + 60) / 60));
+  const col = (p) => (p > 0.89 ? '#fb7185' : p > 0.25 ? '#fbbf24' : '#34d399');
+  const hold = [0, 0], holdT = [0, 0], shown = [0, 0], dshown = [0, 0];
+  const mm = $('mmeter'), g = mm.getContext('2d');
+  (function frame() {
+    const now = performance.now(), pk = [peak(A.anL), peak(A.anR)];
+    const W = mm.width, H = mm.height; g.clearRect(0, 0, W, H);
+    pk.forEach((p, i) => {
+      shown[i] = Math.max(p, shown[i] * 0.9); if (p >= hold[i] || now - holdT[i] > 1200) { hold[i] = p; holdT[i] = now; }
+      const y = 4 + i * 17, w = frac(shown[i]) * (W - 40);
+      g.fillStyle = '#16162a'; g.fillRect(4, y, W - 40, 12);
+      g.fillStyle = col(shown[i]); g.fillRect(4, y, w, 12);
+      g.fillStyle = '#e8e8f5'; g.fillRect(4 + frac(hold[i]) * (W - 40) - 1, y, 2, 12);
+      g.fillStyle = pk[i] >= 0.985 ? '#fb7185' : '#2a2a44'; g.fillRect(W - 30, y, 26, 12);
+    });
+    const red = A.comp.reduction; $('limred').textContent = lim.checked && red < -1 ? 'limiting ' + red.toFixed(0) + ' dB' : '';
+    decks.forEach((d, i) => {
+      const c = d.el.meter; if (c.width !== c.clientWidth) { c.width = c.clientWidth || 200; c.height = 8; }
+      const p = d.level(); dshown[i] = Math.max(p, dshown[i] * 0.9); const x = c.getContext('2d');
+      x.clearRect(0, 0, c.width, 8); x.fillStyle = col(dshown[i]); x.fillRect(0, 0, frac(dshown[i]) * c.width, 8);
+    });
+    requestAnimationFrame(frame);
+  })();
+
+  if (/[?&]gvtest\b/.test(location.search)) window.__ctl = { handle, ACT, learn: (id) => { learning = id; }, get map() { return map; }, peak: () => [peak(A.anL), peak(A.anR)] };   // test hook
+})();
