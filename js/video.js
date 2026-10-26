@@ -12,6 +12,7 @@
 
   let clips = [], texts = [], music = null;
   let tl = 0, playing = false, active = -1, aspect = '16:9';
+  const prevCv = document.createElement('canvas'), pg2 = prevCv.getContext('2d'); let havePrev = false, prevFor = -1, ovolv = 1;
   let exporting = false, exportDone = null, exportCancelled = false, scrubbing = false;
 
   /* ---------- audio graph: clips + music -> bus -> (speakers, recorder) ---------- */
@@ -50,7 +51,7 @@
       if (!isFinite(v.duration) || v.duration <= 0) throw new Error('bad');
     } catch (_) { v.remove(); URL.revokeObjectURL(url); say('Could not read "' + file.name + '". Try MP4 (H.264) or WebM.'); return; }
     ctx.createMediaElementSource(v).connect(origGain);
-    clips.push({ name: file.name, url, v, dur: v.duration, in: 0, out: v.duration });
+    clips.push({ name: file.name, url, v, dur: v.duration, in: 0, out: v.duration, fi: 0, fo: 0, trans: 'cut', tdur: 0.6 });
     if (active < 0) activate(0, 0, false);
     refresh(); say('Added ' + file.name + '.');
   }
@@ -97,15 +98,33 @@
     const block = lh * lines.length, y0 = t.pos === 'top' ? H * 0.12 : t.pos === 'middle' ? H / 2 - block / 2 + lh / 2 : H * 0.88 - block + lh / 2;
     lines.forEach((ln, k) => { g.strokeText(ln, W / 2, y0 + k * lh, W * 0.92); g.fillText(ln, W / 2, y0 + k * lh, W * 0.92); });
   }
+  /* Video layer with per clip fades and the transition into this clip. The last frame of the previous clip is kept in prevCv. */
+  function fit(c, x, y) { const [W, H] = ASPECT[aspect], s = Math.min(W / c.v.videoWidth, H / c.v.videoHeight), w = c.v.videoWidth * s, h = c.v.videoHeight * s; g.drawImage(c.v, (W - w) / 2 + (x || 0), (H - h) / 2 + (y || 0), w, h); }
+  function clipLevels(c, i) {
+    const tin = Math.max(0, c.v.currentTime - c.in), tleft = Math.max(0, c.out - c.v.currentTime); let a = 1;
+    if (c.fi > 0 && tin < c.fi) a = Math.min(a, tin / c.fi); if (c.fo > 0 && tleft < c.fo) a = Math.min(a, tleft / c.fo);
+    let p = 1; const tr = i > 0 && c.trans !== 'cut' && c.tdur > 0 && tin < c.tdur; if (tr) p = tin / c.tdur;
+    return { tin, tleft, a, p, tr };
+  }
   function draw() {
     const [W, H] = ASPECT[aspect];
-    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
-    g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
-    const c = clips[active];
+    if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; havePrev = false; }
+    g.globalAlpha = 1; g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+    const c = clips[active]; let audio = 1;
     if (c && c.v.videoWidth) {
-      const s = Math.min(W / c.v.videoWidth, H / c.v.videoHeight), w = c.v.videoWidth * s, h = c.v.videoHeight * s;
-      g.drawImage(c.v, (W - w) / 2, (H - h) / 2, w, h);
+      const L = clipLevels(c, active); audio = L.a;
+      const usePrev = L.tr && havePrev && prevFor === active - 1 && prevCv.width === W && prevCv.height === H, p = L.p;
+      if (L.tr && !usePrev) { g.globalAlpha = Math.min(L.a, p); fit(c); audio = Math.min(audio, p); }
+      else if (L.tr && c.trans === 'fade') { g.drawImage(prevCv, 0, 0); g.globalAlpha = Math.min(L.a, p); fit(c); audio = Math.min(audio, p); }
+      else if (L.tr && c.trans === 'dip') { if (p < 0.5) { g.globalAlpha = 1 - p * 2; g.drawImage(prevCv, 0, 0); audio = 0; } else { g.globalAlpha = Math.min(L.a, p * 2 - 1); fit(c); audio = Math.min(audio, p * 2 - 1); } }
+      else if (L.tr && c.trans === 'wipe') { g.drawImage(prevCv, 0, 0); g.save(); g.beginPath(); g.rect(0, 0, W * p, H); g.clip(); g.globalAlpha = L.a; fit(c); g.restore(); audio = Math.min(audio, 0.3 + 0.7 * p); }
+      else if (L.tr && c.trans === 'slide') { g.drawImage(prevCv, -W * p, 0); g.globalAlpha = L.a; fit(c, W * (1 - p), 0); audio = Math.min(audio, 0.3 + 0.7 * p); }
+      else { g.globalAlpha = L.a; fit(c); }
+      g.globalAlpha = 1;
+      /* keep the last frame of this clip for the next transition */
+      if (active < clips.length - 1 && L.tleft < 0.2) { if (prevCv.width !== W || prevCv.height !== H) { prevCv.width = W; prevCv.height = H; } pg2.drawImage(cv, 0, 0); havePrev = true; prevFor = active; }
     }
+    origGain.gain.value = ovolv * audio;
     texts.forEach((t) => { if (tl >= t.start && tl <= t.end) drawText(t); });
   }
   (function frame() {
@@ -144,7 +163,12 @@
         active = clips.indexOf(was); if (active < 0) { active = clips.length ? 0 : -1; tl = 0; if (active >= 0) activate(0, 0, false); }
         refresh(); if (clips.length) seek(Math.min(tl, total()));
       }));
-      list.appendChild(d);
+      const fx = document.createElement('div'); fx.className = 'mini'; fx.style.marginTop = '8px';
+      fx.innerHTML = '<label class="ctl">Fade in (s)<input type="number" class="fi" step="0.1" min="0" max="5"></label><label class="ctl">Fade out (s)<input type="number" class="fo" step="0.1" min="0" max="5"></label>' + (i > 0 ? '<label class="ctl">Transition in<select class="tr"><option value="cut">Cut</option><option value="fade">Crossfade</option><option value="dip">Dip to black</option><option value="wipe">Wipe</option><option value="slide">Slide</option></select></label><label class="ctl">Length (s)<input type="number" class="td" step="0.1" min="0.1" max="3"></label>' : '');
+      const fi = fx.querySelector('.fi'), fo = fx.querySelector('.fo'), tr = fx.querySelector('.tr'), td = fx.querySelector('.td');
+      fi.value = c.fi; fo.value = c.fo; fi.onchange = () => { c.fi = clamp(+fi.value || 0, 0, Math.min(5, len(c) / 2)); fi.value = c.fi; }; fo.onchange = () => { c.fo = clamp(+fo.value || 0, 0, Math.min(5, len(c) / 2)); fo.value = c.fo; };
+      if (tr) { tr.value = c.trans; td.value = c.tdur; tr.onchange = () => { c.trans = tr.value; }; td.onchange = () => { c.tdur = clamp(+td.value || 0.6, 0.1, Math.min(3, len(c))); td.value = c.tdur; }; }
+      d.appendChild(fx); list.appendChild(d);
     });
     const tl2 = $('textlist'); tl2.innerHTML = '';
     texts.forEach((t, i) => {
@@ -172,7 +196,7 @@
   }
   $('musicfile').onchange = () => $('musicfile').files[0] && loadMusic($('musicfile').files[0]);
   $('mvol').oninput = () => (musicGain.gain.value = $('mvol').value / 100);
-  $('ovol').oninput = () => (origGain.gain.value = $('ovol').value / 100);
+  $('ovol').oninput = () => { ovolv = $('ovol').value / 100; };
 
   /* ---------- export (real time) ---------- */
   const TYPES = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
@@ -202,5 +226,5 @@
   $('export').onclick = exportVideo;
   $('cancel').onclick = () => { exportCancelled = true; finish(); };
 
-  if (/[?&]gvtest\b/.test(location.search)) window.__ve = { addFile, loadMusic, exportVideo, seek, play, pause, ctx, get state() { return { clips: clips.map((c) => ({ dur: c.dur, in: c.in, out: c.out })), texts: texts.length, tl, total: total(), playing }; } };
+  if (/[?&]gvtest\b/.test(location.search)) window.__ve = { addFile, loadMusic, exportVideo, seek, play, pause, ctx, get state() { return { clips: clips.map((c) => ({ dur: c.dur, in: c.in, out: c.out, fi: c.fi, fo: c.fo, trans: c.trans })), texts: texts.length, tl, total: total(), playing }; } };
 })();

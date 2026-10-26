@@ -38,7 +38,7 @@ Push to GitHub, then connect the repo to Cloudflare Pages, GitHub Pages or Verce
 
 ## Security and deployment files
 
-- `_headers`: security headers applied by Cloudflare (Content-Security-Policy, nosniff, no referrer, camera/microphone/location disabled, no framing of the site). All scripts are same-origin with no inline scripts. Two deliberate looseness points: `style-src 'unsafe-inline'` (a few inline styles) and `connect-src https:` (visitors can enter their own proxy URL on the Create page).
+- `_headers`: security headers applied by Cloudflare (Content-Security-Policy, nosniff, no referrer, camera and location disabled, microphone only for this site, no framing of the site). All scripts are same-origin with no inline scripts. Two deliberate looseness points: `style-src 'unsafe-inline'` (a few inline styles) and `connect-src https:` (visitors can enter their own proxy URL on the Create page).
 - `.assetsignore`: keeps `worker/` and this README out of the published site.
 - Test hooks (`window.__dj`, `__ve`, `__gv`, `__lessons`) exist only when the page URL contains `?gvtest`.
 
@@ -101,6 +101,10 @@ Each deck refines its BPM to 0.01 and finds where beat 1 falls (checked on synth
 
 ## Audio converter and BPM and key finder
 - **Converter** (`convert.html`): decode, optionally resample or mix to mono, write WAV (16 bit) or MP3 (lamejs, LGPL, shipped unmodified in `js/vendor/` with `NOTICE.txt`; encoding runs in `js/convert-worker.js`). Batch conversion with a ZIP download. MP3 supports sample rates up to 48000 Hz.
+- **Voice recorder** (`record.html`, `js/record.js`, `js/rec-worklet.js`): microphone capture through an AudioWorklet, level meter, countdown, takes with WAV or MP3 download, hand-off to the editor or the Studio. The microphone permission is granted to this origin only (`Permissions-Policy: microphone=(self)`).
+- **Multitrack Studio** (`studio.html`): `js/studio-core.js` (project model, scheduling, offline render, WAV and MP3 writers), `js/synth.js` (built in instruments and drums), `js/studio.js` (timeline, mixer, transport, projects), `js/studio-roll.js` (piano roll and step grid), `js/studio-io.js` (autosave to IndexedDB and ZIP backup). 4/4 time only. Projects are stored in the browser; use the backup ZIP to move them.
+- **Mastering** (`master.html`, `js/master-dsp.js`, `js/master-worker.js`): ITU BS.1770 K weighted loudness with gating, 4 times oversampled true peak, shelves, glue compressor, stereo width and a look ahead limiter, run in a worker. Verified against pyloudnorm in the tests.
+- **Video editor** upgrades: per clip fade in and out, and transitions into a clip (crossfade, dip to black, wipe, slide) built from the last frame of the previous clip. Export is still real time through MediaRecorder.
 - **BPM and key finder** (`bpm.html`): uses `js/analyze.js`, the same detection code as the DJ console (tempo, beat grid refinement, key with Camelot code), with CSV export and tap tempo. Estimates only.
 
 ## Audio Editor upgrades
