@@ -199,6 +199,7 @@
   /* ---------- sampler pads (synthesized, no files) ---------- */
   function env(g, t, a, d, peak) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); }
   function noise(len) { const b = ctx.createBuffer(1, Math.floor(ctx.sampleRate * len), ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; const s = ctx.createBufferSource(); s.buffer = b; return s; }
+  window.GVAudio = { ctx, master, env, noise };   // shared with js/beat.js
   const PADS = {
     Kick(t) { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.3); env(g, t, 0.005, 0.4, 1); o.connect(g).connect(master); o.start(t); o.stop(t + 0.5); },
     Clap(t) { const n = noise(0.3), f = ctx.createBiquadFilter(), g = ctx.createGain(); f.type = 'bandpass'; f.frequency.value = 1500; env(g, t, 0.003, 0.2, 0.9); n.connect(f).connect(g).connect(master); n.start(t); n.stop(t + 0.3); },
@@ -206,6 +207,8 @@
     Riser(t) { const n = noise(2), f = ctx.createBiquadFilter(), g = ctx.createGain(); f.type = 'bandpass'; f.Q.value = 3; f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(8000, t + 2); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.7, t + 1.9); g.gain.linearRampToValueAtTime(0.0001, t + 2.05); n.connect(f).connect(g).connect(master); n.start(t); n.stop(t + 2.1); }
   };
   Object.keys(PADS).forEach((k) => { const b = document.createElement('button'); b.className = 'pad'; b.textContent = k; b.onclick = () => { ctx.resume(); PADS[k](ctx.currentTime + 0.01); }; $('pads').appendChild(b); });
+
+  window.GVAudio.decks = decks;
 
   /* ---------- record mix ---------- */
   let rec = null, chunks = [], recT0 = 0, recTimer = 0;

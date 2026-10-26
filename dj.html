@@ -33,7 +33,7 @@
 
 <main id="main" tabindex="-1" class="wrap" style="max-width:1200px">
   <h1>DJ <span class="grad">Mixer</span></h1>
-  <p class="lead">Load two tracks from your device, match their tempo, blend with the crossfader and record your mix.</p>
+  <p class="lead">Load two tracks from your device, match their tempo, blend with the crossfader, add your own beat and record your mix.</p>
 
   <div class="djgrid">
     <section class="deck panel" id="deck0"></section>
@@ -64,10 +64,25 @@
 
     <section class="deck panel" id="deck1"></section>
   </div>
+  <section class="panel" id="beat" style="margin-top:16px" aria-labelledby="beattitle">
+    <h2 id="beattitle">Beat maker</h2>
+    <p class="status">Click the squares to build a 16-step pattern. It plays through the mixer, so it is included in your recording.</p>
+    <div class="row" style="align-items:flex-end;margin:10px 0">
+      <button class="btn primary" id="bplay">▶ Play beat</button>
+      <label class="ctl">BPM <input type="number" id="bbpm" min="60" max="200" value="120" style="width:80px"></label>
+      <label class="ctl">Swing <input type="range" id="bswing" min="0" max="60" value="0" aria-label="Swing"></label>
+      <label class="ctl">Beat volume <input type="range" id="bvol" min="0" max="100" value="80" aria-label="Beat volume"></label>
+      <button class="btn" id="bmatch">Match deck A tempo</button>
+      <button class="btn" id="bclear">Clear</button>
+    </div>
+    <div class="row" id="bpresets" style="margin-bottom:10px"><span class="time">Presets:</span></div>
+    <div id="bgrid" class="bgrid" role="group" aria-label="Step sequencer"></div>
+  </section>
   <p class="status" style="margin-top:14px">Tip: tempo sync matches speed only. Line up the beats yourself by nudging the tempo slider or clicking the waveform. Load only music you have the right to use.</p>
 </main>
 <footer>Go Vibe Studios · all processing happens in your browser · <nav aria-label="Footer" class="fnav"><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
 <script src="js/dj.js"></script>
+<script src="js/beat.js"></script>
 <script src="js/pwa.js"></script>
 </body>
 </html>

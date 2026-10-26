@@ -118,3 +118,13 @@ footer a:hover { color: var(--text); }
 .key.sel, .pad:active { background: #6d4de0; }
 .skip { background: #6d4de0; }
 .card h2 { margin: 0; font-size: 18px; }
+
+/* beat maker */
+.bgrid { display: grid; gap: 6px; }
+.brow { display: grid; grid-template-columns: 64px repeat(16, 1fr); gap: 4px; align-items: center; }
+.brow > span { font-size: 13px; color: var(--muted, #a8a8c0); }
+.bstep { height: 36px; min-width: 0; padding: 0; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); cursor: pointer; }
+.bstep:nth-of-type(4n+1) { border-color: #5a5a80; }
+.bstep[aria-pressed="true"] { background: #6d4de0; border-color: #6d4de0; }
+.bstep.now { outline: 2px solid #22d3ee; outline-offset: 1px; }
+@media (max-width: 700px) { .brow { grid-template-columns: 44px repeat(16, 1fr); gap: 2px; } .bstep { height: 32px; border-radius: 5px; } }

@@ -53,6 +53,10 @@ Push to GitHub, then connect the repo to Cloudflare Pages, GitHub Pages or Verce
 - Only add embedded games whose owners allow embedding, and check their terms.
 - The music generator keeps users' API keys in their browser only; the optional proxy does not store or log them.
 
+## Beat maker
+
+The DJ page has a 16-step, 6-track beat maker (kick, snare, clap, hats, bass) with presets, BPM, swing and volume. Sounds are synthesized in the browser and routed through the mixer, so they are included in mix recordings.
+
 ## Polish: branding, offline app, legal pages, accessibility, tests
 
 - **Branding**: favicon, touch icons and a 1200×630 share image in `icons/`; every page has description, Open Graph and Twitter meta. The meta URLs use `https://go-vibe-studios.sweater-9arc.workers.dev/`. **If you add a custom domain, replace that base URL in every `*.html`, and in `manifest.webmanifest` if needed.**
