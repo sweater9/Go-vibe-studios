@@ -384,6 +384,8 @@ def test_dj_extras(browser, base):
     pg.wait_for_function("() => __am.S.tr !== null", timeout=20000)
     mid = pg.evaluate("({ b: __dj.decks[1].playing, name: __dj.decks[1].el.name.textContent, bpm: __dj.decks[1].liveBpm })")
     check("transition starts deck B with the next track, tempo matched", mid["b"] and mid["name"] == "two.wav" and abs(mid["bpm"] - 120) < 1.5, str(mid))
+    al = pg.evaluate("(() => { const a = __dj.decks[0].beatFrac(), b = __dj.decks[1].beatFrac(); let d = a - b; d -= Math.round(d); return Math.abs(d); })()")
+    check("incoming track starts on the same point in the beat", al < 0.15, str(al))
     pg.wait_for_function("() => __am.S.tr === null && __am.S.idx === 1", timeout=15000)
     end = pg.evaluate("({ a: __dj.decks[0].playing, xf: +document.getElementById('xf').value, low: __dj.decks[1].low.gain.value })")
     check("after the transition A stops, crossfader is on B, bass restored", end["a"] is False and end["xf"] == 100 and end["low"] == 0, str(end))
@@ -430,6 +432,48 @@ def test_stems(browser, base):
     pg.goto(base + "dj.html?gvtest")
     check("stem buttons absent until split, split button present", pg.locator("[data-r=stembox] button").count() == 2)
     check("stems: no errors", not errs, str(errs))
+    ctx.close()
+
+
+def test_grid(browser, base):
+    print("beat grid, zoom waveform, jump, phase sync")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "dj.html?gvtest")
+    r = pg.evaluate("""async () => { const { decks, ctx, detectGrid, detectBPM } = __dj, o = {};
+      const mk = (bpm, off, secs, sr = 22050) => { const b = ctx.createBuffer(1, Math.round(sr * secs), sr), d = b.getChannelData(0), beat = sr * 60 / bpm;
+        for (let t = off * sr; t < d.length; t += beat) { const i0 = Math.round(t); for (let k = 0; k < 400 && i0 + k < d.length; k++) d[i0 + k] += Math.sin(k / 6) * Math.exp(-k / 80); } return b; };
+      const dev = (g, truth, off) => { const per = 60 / truth, x = ((g.t0 - off) / per); return Math.abs(x - Math.round(x)) * per; };
+      const cases = [[120, 0.13, 40], [128, 0.2, 40], [126.37, 0.31, 150]];
+      o.grid = cases.map(([bpm, off, secs]) => { const b = mk(bpm, off, secs), g = detectGrid(b, detectBPM(b)); return { bpmErr: Math.abs(g.bpm - bpm), phaseErr: dev(g, bpm, off) }; });
+      const A = decks[0], B = decks[1];
+      A.setBuffer(mk(120, 0, 40), 'a'); B.setBuffer(mk(124, 0.2, 40), 'b');
+      o.info = A.el.ginfo.textContent;
+      // snap + jump + nudge
+      A.seek(5.2); A.hotCue(0); o.snapped = A.hot[0]; A.hot[0] = null;
+      A.el.snap.checked = false; A.seek(5.2); A.hotCue(1); o.unsnapped = A.hot[1]; A.el.snap.checked = true;
+      A.seek(10); A.el.jp4.click(); o.jumped = A.position(); A.el.jm1.click(); o.jumpedBack = A.position();
+      const t0 = A.grid.t0; A.el.gp.click(); o.nudge = A.grid.t0 - t0; A.el.gm.click();
+      A.seek(3.1); A.el.gh.click(); o.beat1 = A.grid.t0; A.grid.t0 = t0;
+      // phase sync: A follows B while both play
+      A.seek(3.1); B.seek(10); A.play(); B.play(); await new Promise((r) => setTimeout(r, 200));
+      __dj.sync(0, 1); await new Promise((r) => setTimeout(r, 150));
+      let d = A.beatFrac() - B.beatFrac(); d -= Math.round(d); o.phase = Math.abs(d); o.tempo = [A.liveBpm, B.liveBpm];
+      A.pause(); B.pause();
+      // zoom canvas has colour in it
+      A.seek(5); await new Promise((r) => setTimeout(r, 200));
+      const c = A.el.zoom, px = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let lit = 0; for (let i = 3; i < px.length; i += 4) if (px[i] > 0) lit++;
+      o.lit = lit; o.zoomSize = [c.width, c.height];
+      return o; }""")
+    for (bpm, off, secs), g in zip([(120, .13, 40), (128, .2, 40), (126.37, .31, 150)], r["grid"]):
+        check(f"grid for {bpm} BPM (offset {off}s, {secs}s long): tempo within 0.05, first beat within 12 ms", g["bpmErr"] < 0.05 and g["phaseErr"] < 0.012, str(g))
+    check("grid info shown", "BPM, beat 1 at" in r["info"], r["info"])
+    check("hot cue snaps to the beat, and not when Snap is off", abs(r["snapped"] - 5.0) < 0.02 and abs(r["unsnapped"] - 5.2) < 0.05, f"{r['snapped']} / {r['unsnapped']}")
+    check("beat jump +4 / -1", abs(r["jumped"] - 12) < 0.05 and abs(r["jumpedBack"] - 11.5) < 0.05, f"{r['jumped']} {r['jumpedBack']}")
+    check("grid nudge and 'Beat 1 here'", abs(r["nudge"] - 0.01) < 1e-6 and abs(r["beat1"] - 3.1) < 0.05, f"{r['nudge']} {r['beat1']}")
+    check("sync lines up the beats (within 8% of a beat) and matches tempo", r["phase"] < 0.08 and abs(r["tempo"][0] - r["tempo"][1]) < 0.05, str((r["phase"], r["tempo"])))
+    check("zoomed waveform is drawn", r["lit"] > 2000, str((r["lit"], r["zoomSize"])))
+    check("grid: no errors", not errs, str(errs))
     ctx.close()
 
 
@@ -524,7 +568,7 @@ def main():
     test_static()
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor_games, test_create, test_dj, test_dj_extras, test_stems, test_lessons, test_video, test_offline):
+        for t in (test_pages, test_a11y, test_editor_games, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_lessons, test_video, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

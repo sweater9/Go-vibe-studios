@@ -1,7 +1,7 @@
 /* Go Vibe Studios — track queue + Automix (tempo match, bass swap, crossfade) */
 (() => {
   const A = window.GVAudio; if (!A) return;
-  const { ctx, decks, detectBPM, detectKey, applyXf, fmt } = A, $ = (id) => document.getElementById(id);
+  const { ctx, decks, detectBPM, detectGrid, detectKey, applyXf, fmt } = A, $ = (id) => document.getElementById(id);
   const say = (t) => { $('amstatus').textContent = t; };
   const queue = [];                       // { name, buf, bpm, key }
   const S = { on: false, idx: -1, active: 0, tr: null, timer: 0 };   // idx = queue index playing on deck S.active
@@ -22,7 +22,7 @@
   }
   paint();
 
-  async function addBuffer(buf, name) { queue.push({ name, buf, bpm: detectBPM(buf), key: detectKey(buf) }); paint(); }
+  async function addBuffer(buf, name) { const b0 = detectBPM(buf), grid = b0 ? detectGrid(buf, b0) : null; queue.push({ name, buf, bpm: grid ? grid.bpm : b0, key: detectKey(buf), grid }); paint(); }
   $('amadd').onclick = () => $('amfile').click();
   $('amfile').onchange = async () => {
     const files = [...$('amfile').files]; $('amfile').value = '';
@@ -37,7 +37,7 @@
   /* ---------- playback control ---------- */
   function load(deckIdx, qi, matchTo) {
     const d = decks[deckIdx], q = queue[qi];
-    d.setBuffer(q.buf, q.name, { bpm: q.bpm, key: q.key });
+    d.setBuffer(q.buf, q.name, { bpm: q.bpm, key: q.key, grid: q.grid });
     d.el.low.value = 0; d.low.gain.value = 0;
     let pct = 0;
     if (matchTo && matchTo.liveBpm && q.bpm) { const p = (matchTo.liveBpm / q.bpm - 1) * 100; if (Math.abs(p) <= 8) pct = +p.toFixed(1); }
@@ -60,7 +60,8 @@
   function beginTransition(len) {
     const out = decks[S.active], inc = decks[1 - S.active], ni = S.idx + 1;
     load(1 - S.active, ni, out);
-    inc.seek(0); inc.play();
+    let s0 = 0; if (out.grid && inc.grid) s0 = inc.grid.t0 + out.beatFrac() * inc.grid.period;   // start on the same point in the beat
+    inc.seek(s0); inc.play();
     S.tr = { t0: ctx.currentTime, len, from: S.active, to: 1 - S.active, ni };
     say('Mixing into "' + queue[ni].name + '"…');
   }

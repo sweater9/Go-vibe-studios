@@ -72,3 +72,7 @@ Per deck: filter (sweep low-pass / high-pass, double-click to reset), echo (sync
 ## Stem splitter (beta)
 
 Each deck has **Split stems**. It separates the loaded track into vocals, drums, bass and music, which you can mute or unmute live and download as WAV. This is classic signal processing in a Web Worker, **not an AI model**: bass by frequency, drums by harmonic/percussive median filtering, vocals as the centre-panned harmonic part. The four stems add back up to the original, but expect bleed (kick in the vocals, guitars in the vocals, and so on). Mono recordings split poorly. Limit: tracks up to 5 minutes (memory); a 4-minute track takes about 20 s on a desktop. Real AI separation would need a model download or a paid API.
+
+## Beat grid and zoomed waveform
+
+Each deck refines its BPM to 0.01 and finds where beat 1 falls (checked on synthetic tracks: tempo within 0.05 BPM, first beat within about 12 ms). That powers: a zoomed, frequency-coloured waveform (bass purple, mids cyan, highs white) with beat and bar lines; beat jump (±1, ±4); Snap (hot cues and loops land on the beat); a grid editor (±10 ms nudge and "Beat 1 here"); **Sync** that matches tempo and, when both decks play, lines up the beats; and Automix that starts the next track on the same point in the beat. The detector assumes a steady tempo, so live-drummer or tempo-changing tracks may drift. If the grid is off, use the nudge or "Beat 1 here". It does not find bars (which beat is the "one") or handle half/double-time.
