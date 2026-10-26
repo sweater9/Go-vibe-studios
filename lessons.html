@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Learn to DJ — Go Vibe Studios</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .lesson h2 { display:flex; gap:10px; align-items:center; }
+  .lesson ul { color: var(--muted); line-height: 1.6; padding-left: 20px; margin: 8px 0; }
+  .lesson p { color: var(--muted); line-height: 1.55; margin: 8px 0; }
+  .lesson b { color: var(--text); }
+  .done-row { margin-top: 10px; }
+  .keys { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-top: 10px; max-width: 520px; }
+  .key { padding: 10px 0; text-align: center; border-radius: 10px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); cursor: pointer; font-family: inherit; font-size: 13px; }
+  .key.sel { background: var(--accent); border-color: transparent; font-weight: 700; }
+  .key.ok { border-color: var(--good); color: var(--good); }
+  .stars { font-size: 26px; letter-spacing: 4px; }
+  .progress { height: 8px; border-radius: 99px; background: var(--panel-2); overflow: hidden; max-width: 360px; margin-top: 10px; }
+  .progress i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .3s; }
+</style>
+</head>
+<body>
+<nav class="nav">
+  <a class="brand" href="index.html">Go <span>Vibe</span> Studios</a>
+  <a class="link" href="index.html">Home</a>
+  <a class="link" href="create.html">Create</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link active" href="lessons.html">Learn</a>
+  <a class="link" href="games.html">Play</a>
+</nav>
+
+<main class="wrap" style="max-width:860px">
+  <h1>Learn to <span class="grad">DJ</span></h1>
+  <p class="lead">Five short lessons plus two practice tools. Practise on the <a href="dj.html">DJ Mixer</a> with your own music, or with tracks you make on the <a href="create.html">Create</a> page.</p>
+  <div class="progress"><i id="bar"></i></div>
+  <p class="status" id="ptext"></p>
+
+  <section class="panel lesson" data-lesson="bpm">
+    <h2>1. What BPM means</h2>
+    <p><b>BPM</b> is beats per minute: the speed of the track. House is often around 120–130 BPM, hip hop 80–100, drum and bass about 170–175.</p>
+    <p>Two tracks sound good together when their BPMs are close. Large gaps are why DJs change the tempo of one track to match the other.</p>
+    <div class="done-row"><label class="row time"><input type="checkbox" data-done="bpm"> Mark as done</label></div>
+  </section>
+
+  <section class="panel lesson" data-lesson="beatmatch">
+    <h2>2. Beatmatching</h2>
+    <p>Start the new track and listen to it with the playing track. If the new track's beats keep landing early, it is too fast: <b>slow it down</b>. If they keep landing late, it is too slow: <b>speed it up</b>. Make small moves, then listen for a few bars before moving again.</p>
+    <p>Try it in the trainer below. You will hear a low click (the playing track) and a high click (your new track). Match them by ear, then check your score.</p>
+    <div class="row" style="margin-top:10px">
+      <button class="btn primary" id="tstart">▶ Start round</button>
+      <button class="btn" id="tstop" disabled>■ Stop</button>
+      <button class="btn" id="tcheck" disabled>Check my match</button>
+    </div>
+    <label class="ctl" style="margin-top:12px;min-width:0;max-width:420px">Your tempo adjustment: <b id="pv">0.0%</b>
+      <input type="range" id="padj" min="-10" max="10" step="0.1" value="0" disabled>
+    </label>
+    <p class="stars" id="stars"></p>
+    <p class="status" id="tmsg">Press "Start round". Headphones help: the low click is in your left ear, the high click in your right.</p>
+    <div class="done-row"><label class="row time"><input type="checkbox" data-done="beatmatch"> Mark as done</label></div>
+  </section>
+
+  <section class="panel lesson" data-lesson="phrasing">
+    <h2>3. Phrasing: when to start the next track</h2>
+    <p>Most dance music is in groups of four beats, and those groups form <b>phrases</b> of 8, 16 or 32 beats. You can often hear a phrase start when something changes: a new sound comes in, or the drums drop out.</p>
+    <ul>
+      <li>Start the new track right as a phrase begins on the playing track.</li>
+      <li>Count in fours: "1 2 3 4, 2 2 3 4, 3 2 3 4…" so you know where you are.</li>
+      <li>Use the <b>Cue</b> and <b>Loop 4</b> buttons on the mixer to set up and practise the start.</li>
+    </ul>
+    <div class="done-row"><label class="row time"><input type="checkbox" data-done="phrasing"> Mark as done</label></div>
+  </section>
+
+  <section class="panel lesson" data-lesson="eq">
+    <h2>4. Blending with EQ</h2>
+    <p>Two basslines at once sound muddy. A simple transition:</p>
+    <ul>
+      <li>Turn the new track's <b>Low</b> all the way down, then bring its volume up with the playing track.</li>
+      <li>At a phrase change, swap: turn the playing track's Low down and the new track's Low up.</li>
+      <li>Use the <b>Mid</b> and <b>High</b> knobs to keep vocals from clashing.</li>
+      <li>Move the crossfader across, then take the old track out.</li>
+    </ul>
+    <div class="done-row"><label class="row time"><input type="checkbox" data-done="eq"> Mark as done</label></div>
+  </section>
+
+  <section class="panel lesson" data-lesson="keys">
+    <h2>5. Harmonic mixing (keys)</h2>
+    <p>Tracks in related musical keys sound smoother together. DJs label keys on the <b>Camelot wheel</b>: a number (1–12) and a letter (A = minor, B = major). Tap a key to see what mixes well with it.</p>
+    <p class="status">Safe moves: the same key, one number up or down with the same letter, or the same number with the other letter. Your tracks' keys come from a key-detection tool, which this site does not have yet.</p>
+    <div class="keys" id="keys"></div>
+    <p class="status" id="kmsg"></p>
+    <div class="done-row"><label class="row time"><input type="checkbox" data-done="keys"> Mark as done</label></div>
+  </section>
+</main>
+<footer>Go Vibe Studios</footer>
+<script src="js/lessons.js"></script>
+</body>
+</html>
