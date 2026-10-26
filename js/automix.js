@@ -22,7 +22,12 @@
   }
   paint();
 
-  async function addBuffer(buf, name) { const b0 = detectBPM(buf), grid = b0 ? detectGrid(buf, b0) : null; queue.push({ name, buf, bpm: grid ? grid.bpm : b0, key: detectKey(buf), grid }); paint(); }
+  async function addBuffer(buf, name, pre) {
+    if (pre) queue.push({ name, buf, bpm: pre.bpm, key: pre.key, grid: pre.grid ? { ...pre.grid } : null });
+    else { const b0 = detectBPM(buf), grid = b0 ? detectGrid(buf, b0) : null; queue.push({ name, buf, bpm: grid ? grid.bpm : b0, key: detectKey(buf), grid }); }
+    paint();
+  }
+  A.queueAdd = (buf, name, pre) => { addBuffer(buf, name, pre); say(queue.length + ' track' + (queue.length === 1 ? '' : 's') + ' in the queue.'); };
   $('amadd').onclick = () => $('amfile').click();
   $('amfile').onchange = async () => {
     const files = [...$('amfile').files]; $('amfile').value = '';

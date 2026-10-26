@@ -551,6 +551,118 @@ def test_controls(browser, base):
     ctx.close()
 
 
+def make_wav(path, bpm, secs=24, sr=22050, tone=220.0):
+    import math, wave
+    n = int(sr * secs); beat = sr * 60 / bpm; frames = bytearray()
+    for i in range(n):
+        ph = (i % beat) / sr
+        v = 0.25 * math.sin(2 * math.pi * tone * i / sr) + 0.6 * math.exp(-ph * 20) * math.sin(2 * math.pi * (60 + 100 * math.exp(-ph * 30)) * ph)
+        frames += struct.pack("<h", int(max(-1, min(1, v)) * 30000))
+    with wave.open(path, "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr); w.writeframes(bytes(frames))
+
+
+def test_console(browser, base):
+    print("console: knobs, tabs, jog, bend, WAV recording, library")
+    import tempfile
+    errs = []
+    ctx, pg = new_page(browser, errs, viewport={"width": 1400, "height": 1000})
+    pg.goto(base + "dj.html?gvtest")
+    # knobs and faders
+    k = pg.locator("#strip0 .knob").first; box = k.bounding_box()
+    pg.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2); pg.mouse.down(); pg.mouse.move(box["x"] + box["width"] / 2, box["y"] - 20, steps=5); pg.mouse.up()
+    up = pg.evaluate("+document.querySelector('#strip0 [data-r=high]').value")
+    check("dragging a knob up raises its value and the EQ", up > 0 and pg.evaluate("__dj.decks[0].high.gain.value") == up, str(up))
+    k.dblclick()
+    check("double-click resets a knob", pg.evaluate("+document.querySelector('#strip0 [data-r=high]').value") == 0)
+    pg.evaluate("document.querySelector('#strip0 [data-r=high]').focus()"); pg.keyboard.press("ArrowDown")
+    check("knobs work from the keyboard", pg.evaluate("+document.querySelector('#strip0 [data-r=high]').value") < 0)
+    d0 = pg.evaluate("document.querySelector('#deck1 .fxrow .kn:nth-child(2) .kval').getAttribute('d')")
+    pg.evaluate("document.querySelector('#deck1 [data-r=echo]').value = 70"); pg.wait_for_timeout(200)
+    d1 = pg.evaluate("document.querySelector('#deck1 .fxrow .kn:nth-child(2) .kval').getAttribute('d')")
+    check("knob redraws when its value is set from code (MIDI, automix)", d0 != d1, f"{d0!r} {d1!r}")
+    # tabs
+    pg.focus("#tab-lib"); pg.keyboard.press("ArrowRight")
+    check("arrow keys move between tabs", pg.get_attribute("#tab-am", "aria-selected") == "true" and pg.locator("#pane-am").is_visible() and not pg.locator("#pane-lib").is_visible())
+    pg.click("#tab-lib")
+    # jog scratch + bend
+    pg.evaluate("""() => { const { decks, ctx } = __dj, sr = 22050, b = ctx.createBuffer(2, sr * 30, sr); for (let c = 0; c < 2; c++) { const d = b.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] = 0.3 * Math.sin(2 * Math.PI * 330 * i / sr); }
+      decks[0].setBuffer(b, 'tone.wav', { bpm: null, key: null }); decks[0].seek(5); }""")
+    pg.evaluate("window.scrollTo(0, 400)"); pg.wait_for_timeout(100)
+    jb = pg.locator("#deck0 [data-r=jog]").bounding_box(); cx, cy, R = jb["x"] + jb["width"] / 2, jb["y"] + jb["height"] / 2, jb["width"] / 2
+    import math
+    pg.mouse.move(cx + R * 0.8, cy); pg.mouse.down()
+    mid = pg.evaluate("[__dj.decks[0].scratching, __dj.decks[0].playing]")
+    for a in range(0, 91, 10):
+        pg.mouse.move(cx + R * 0.8 * math.cos(math.radians(a)), cy + R * 0.8 * math.sin(math.radians(a))); pg.wait_for_timeout(30)
+    pg.mouse.up()
+    pos = pg.evaluate("__dj.decks[0].position()")
+    check("scratch: dragging a quarter turn clockwise moves 1/4 of a revolution (0.45 s) forward", mid == [True, False] and abs(pos - 5.45) < 0.12 and pg.evaluate("__dj.decks[0].scratching") is False, str((mid, pos)))
+    pg.mouse.move(cx + R * 0.8, cy); pg.mouse.down()
+    for a in range(0, -91, -10):
+        pg.mouse.move(cx + R * 0.8 * math.cos(math.radians(a)), cy + R * 0.8 * math.sin(math.radians(a))); pg.wait_for_timeout(30)
+    pg.mouse.up()
+    check("scratch: dragging anticlockwise goes backwards", abs(pg.evaluate("__dj.decks[0].position()") - 5.0) < 0.12, str(pg.evaluate("__dj.decks[0].position()")))
+    pg.evaluate("__dj.decks[0].play()")
+    pg.mouse.move(cx + R * 0.8, cy); pg.mouse.down(); pg.mouse.move(cx, cy + R * 0.8, steps=6); pg.mouse.up()
+    check("deck resumes playing after a scratch if it was playing", pg.evaluate("__dj.decks[0].playing"))
+    pg.locator("#deck0 [data-r=nudgep]").scroll_into_view_if_needed(); pg.locator("#deck0 [data-r=nudgep]").hover(); pg.mouse.down(); pg.wait_for_timeout(120)
+    held = pg.evaluate("[__dj.decks[0].bendF, __dj.decks[0].src.playbackRate.value]")
+    pg.mouse.up(); pg.wait_for_timeout(120)
+    check("holding Bend speeds the deck up by 6% and release restores it", abs(held[0] - 1.06) < 1e-6 and abs(held[1] - 1.06) < 0.001 and pg.evaluate("__dj.decks[0].bendF") == 1 and abs(pg.evaluate("__dj.decks[0].src.playbackRate.value") - 1) < 0.001, str(held))
+    pg.evaluate("__dj.decks[0].pause()")
+    # WAV recording
+    pg.evaluate("document.querySelectorAll('#pads .pad')[0].click()")
+    pg.click("#rec"); pg.wait_for_timeout(300)
+    for _ in range(3):
+        pg.click("#pads .pad >> nth=0"); pg.wait_for_timeout(450)
+    pg.click("#rec"); pg.wait_for_selector("#recdl:not(.hidden)", timeout=8000)
+    w = pg.evaluate("""async () => { const a = document.getElementById('recdl'), u = new Uint8Array(await (await fetch(a.href)).arrayBuffer()), v = new DataView(u.buffer);
+      let pk = 0; for (let i = 44; i < u.length; i += 2) pk = Math.max(pk, Math.abs(v.getInt16(i, true)));
+      return { name: a.download, riff: String.fromCharCode(...u.slice(0, 4)), ch: v.getUint16(22, true), sr: v.getUint32(24, true), bits: v.getUint16(34, true), secs: v.getUint32(40, true) / 4 / v.getUint32(24, true), pk }; }""")
+    check("WAV recording: valid 16-bit stereo file with the mix in it", w["name"] == "govibe-mix.wav" and w["riff"] == "RIFF" and w["ch"] == 2 and w["bits"] == 16 and 1.3 < w["secs"] < 3.5 and w["pk"] > 2000, str(w))
+    pg.select_option("#recfmt", "webm"); pg.click("#rec"); pg.wait_for_timeout(300); pg.click("#pads .pad >> nth=0"); pg.wait_for_timeout(500); pg.click("#rec")
+    pg.wait_for_function("() => document.getElementById('recdl').download.endsWith('webm')", timeout=8000) if False else pg.wait_for_timeout(800)
+    check("compressed recording still works", (pg.get_attribute("#recdl", "download") or "").endswith((".webm", ".ogg", ".m4a")), str(pg.get_attribute("#recdl", "download")))
+    # library
+    tmp = tempfile.mkdtemp(); f1, f2 = tmp + "/Click 120.wav", tmp + "/Other 128.wav"
+    make_wav(f1, 120); make_wav(f2, 128, tone=330.0)
+    pg.set_input_files("#libfile", [f1, f2])
+    pg.wait_for_function("() => document.querySelectorAll('#libbody tr[data-id]').length === 2", timeout=30000)
+    rows = pg.evaluate("[...document.querySelectorAll('#libbody tr[data-id]')].map((r) => [r.cells[0].textContent.replace(/fits.*/, ''), r.cells[1].textContent])")
+    check("library lists added tracks with detected BPM", sorted(x[0] for x in rows) == ["Click 120.wav", "Other 128.wav"] and all(abs(float(x[1]) - (120 if "120" in x[0] else 128)) < 0.5 for x in rows), str(rows))
+    pg.reload(); pg.wait_for_function("() => document.querySelectorAll('#libbody tr[data-id]').length === 2", timeout=10000)
+    check("library survives a reload", True)
+    pg.fill("#libq", "click")
+    check("library search filters", pg.locator("#libbody tr[data-id]").count() == 1)
+    pg.fill("#libq", "")
+    pg.select_option("#libsort", "bpm")
+    check("library sorts by BPM", pg.locator("#libbody tr[data-id] td:nth-child(2)").first.inner_text().startswith("120"))
+    pg.locator("#libbody tr[data-id]", has_text="Click 120").get_by_role("button", name=re.compile("into deck B")).click()
+    pg.wait_for_function("() => __dj.decks[1].buf !== null", timeout=10000)
+    check("library loads a track into a deck with its saved analysis", pg.inner_text("#deck1 [data-r=name]") == "Click 120.wav" and abs(pg.evaluate("__dj.decks[1].bpm") - 120) < 0.5)
+    pg.evaluate("__dj.decks[1].seek(6.0)"); pg.click("#deck1 [data-r=hot1]"); pg.wait_for_timeout(600)
+    pg.reload(); pg.wait_for_function("() => document.querySelectorAll('#libbody tr[data-id]').length === 2", timeout=10000)
+    pg.locator("#libbody tr[data-id]", has_text="Click 120").get_by_role("button", name=re.compile("into deck B")).click()
+    pg.wait_for_function("() => __dj.decks[1].buf !== null", timeout=10000)
+    check("hot cues are remembered with the track", abs((pg.evaluate("__dj.decks[1].hot[0]") or -1) - 6.0) < 0.3, str(pg.evaluate("__dj.decks[1].hot")))
+    pg.locator("#libbody tr[data-id]", has_text="Other 128").get_by_role("button", name=re.compile("Automix queue")).click()
+    pg.wait_for_function("() => __am.queue.length === 1", timeout=10000)
+    check("library can queue a track for Automix", True)
+    f3 = tmp + "/Direct 100.wav"; make_wav(f3, 100)
+    pg.set_input_files("#deck0 [data-r=file]", f3)
+    pg.wait_for_function("() => document.querySelectorAll('#libbody tr[data-id]').length === 3", timeout=30000)
+    check("a file loaded into a deck is remembered in the library", pg.evaluate("__dj.decks[0].libId") is not None)
+    pg.click("#deck0 [data-r=hot2]"); pg.wait_for_timeout(500)
+    pg.set_input_files("#deck0 [data-r=file]", f3); pg.wait_for_timeout(1500)
+    check("reloading the same file restores its saved cues", pg.evaluate("__dj.decks[0].hot[1]") is not None)
+    pg.locator("#libbody tr[data-id]", has_text="Direct 100").get_by_role("button", name=re.compile("^Remove")).click()
+    pg.wait_for_function("() => document.querySelectorAll('#libbody tr[data-id]').length === 2", timeout=10000)
+    check("library tracks can be removed", True)
+    check("console: no errors", not [e for e in errs if "Failed to load resource" not in e], str(errs))
+    ctx.close()
+
+
 # ---------------------------------------------------------------- lessons
 def test_lessons(browser, base):
     print("lessons")
@@ -642,7 +754,7 @@ def main():
     test_static()
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor_games, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_lessons, test_video, test_offline):
+        for t in (test_pages, test_a11y, test_editor_games, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_lessons, test_video, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

@@ -134,3 +134,15 @@ canvas.vmeter { width: 12px; height: 100%; background: #05060a; border-radius: 3
   .knob { width: 52px; height: 52px; }
 }
 @media (prefers-reduced-motion: reduce) { .platter { transition: none; } }
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.dpane.dropping { outline: 2px dashed var(--c); outline-offset: -4px; }
+.libwrap { max-height: 320px; overflow: auto; border: 1px solid var(--edge); border-radius: 10px; background: #0c0d11; }
+.libtbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+.libtbl th { position: sticky; top: 0; background: #151720; text-align: left; font-size: 12px; letter-spacing: .6px; color: var(--lab); padding: 8px 10px; }
+.libtbl td { padding: 6px 10px; border-top: 1px solid #1b1d25; font-variant-numeric: tabular-nums; }
+.libname { max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.libmatch { margin-left: 8px; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: #0d3b2a; color: #6ee7b7; }
+.libact { white-space: nowrap; text-align: right; } .libact .btn { margin-left: 4px; }
+.libempty { color: var(--lab); padding: 16px 10px !important; }
+@media (max-width: 700px) { .libname { max-width: 150px; } .libtbl th:nth-child(3), .libtbl td:nth-child(3), .libtbl th:nth-child(4), .libtbl td:nth-child(4) { display: none; } }

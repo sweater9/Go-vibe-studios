@@ -125,7 +125,7 @@
       this.an = ctx.createAnalyser(); this.an.fftSize = 512; this.vol.connect(this.an); this._lv = new Float32Array(512);
       this.stems = null; this.extra = []; this.sg = {};
       ['vocals', 'drums', 'bass', 'music'].forEach((k) => { const g = ctx.createGain(); g.connect(this.low); this.sg[k] = g; });
-      this.loopBeats = 4; this.hot = [null, null, null, null]; this.key = null;
+      this.loopBeats = 4; this.bendF = 1; this.scratching = false; this.hot = [null, null, null, null]; this.key = null;
       this.build();
     }
     build() {
@@ -207,11 +207,11 @@
       e.tempo.oninput = () => this.setTempoPct(+e.tempo.value);
       e.jm4.onclick = () => this.jump(-4); e.jm1.onclick = () => this.jump(-1); e.jp1.onclick = () => this.jump(1); e.jp4.onclick = () => this.jump(4);
       e.gm.onclick = () => this.nudgeGrid(-0.01); e.gp.onclick = () => this.nudgeGrid(0.01);
-      e.gh.onclick = () => { if (!this.buf || !this.grid) return; this.grid.t0 = this.position(); this.gridInfo(); };
+      e.gh.onclick = () => { if (!this.buf || !this.grid) return; this.grid.t0 = this.position(); this.gridInfo(); this.changed(); };
       e.zoom.addEventListener('pointerdown', (ev) => { if (!this.buf) return; const r = e.zoom.getBoundingClientRect(); this.seek(Math.max(0, Math.min(this.buf.duration, this.position() + ((ev.clientX - r.left) / r.width - 0.5) * +e.zspan.value))); });
       e.lbeats.onchange = () => { this.loopBeats = +e.lbeats.value; if (this.loop) { this.toggleLoop(); this.toggleLoop(); } };
       [1, 2, 3, 4].forEach((k) => (e['hot' + k].onclick = () => this.hotCue(k - 1)));
-      e.hotclr.onclick = () => { this.hot = [null, null, null, null]; this.paintHot(); };
+      e.hotclr.onclick = () => { this.hot = [null, null, null, null]; this.paintHot(); this.changed(); };
       e.filt.oninput = () => this.setFilter(+e.filt.value);
       e.echo.oninput = () => (this.echoWet.gain.value = Math.pow(e.echo.value / 100, 1.3) * 0.9);
       e.rev.oninput = () => (this.revWet.gain.value = Math.pow(e.rev.value / 100, 1.3) * 1.1);
@@ -232,10 +232,11 @@
       try {
         say('Decoding ' + file.name + '…');
         this.setBuffer(await ctx.decodeAudioData(await file.arrayBuffer()), file.name);
+        if (window.GVAudio && GVAudio.onFile) GVAudio.onFile(this, file);
       } catch (_) { say('Could not read that file.'); }
     }
     setBuffer(buf, name, pre) {
-      this.stopSrc(); this.playing = false; this.buf = buf; this.stems = null; Object.values(this.sg).forEach((g) => (g.gain.value = 1)); this.startPos = 0; this.cue = 0; this.loop = null; this.hot = [null, null, null, null]; this.paintHot();
+      this.stopSrc(); this.playing = false; this.buf = buf; this.stems = null; this.libId = null; Object.values(this.sg).forEach((g) => (g.gain.value = 1)); this.startPos = 0; this.cue = 0; this.loop = null; this.hot = [null, null, null, null]; this.paintHot();
       this.el.loop.classList.remove('on'); this.el.play.textContent = '▶ Play'; this.el.play.classList.remove('on');
       this.el.name.textContent = name; this.el.dur.textContent = fmt(buf.duration);
       this.computePeaks(); this.computeBands();
@@ -260,7 +261,8 @@
     beatFrac(t) { if (!this.grid) return null; const x = ((t == null ? this.position() : t) - this.grid.t0) / this.grid.period; return ((x % 1) + 1) % 1; }
     snapTime(t) { if (!this.grid || !this.el.snap.checked) return t; const k = Math.round((t - this.grid.t0) / this.grid.period); return Math.max(0, Math.min(this.buf.duration, this.grid.t0 + k * this.grid.period)); }
     jump(n) { if (!this.buf) return; const per = this.grid ? this.grid.period : (this.bpm ? 60 / this.bpm : 0.5); this.seek(Math.max(0, Math.min(this.buf.duration - 0.05, this.position() + n * per))); }
-    nudgeGrid(dt) { if (!this.grid) return; this.grid.t0 += dt; this.gridInfo(); }
+    nudgeGrid(dt) { if (!this.grid) return; this.grid.t0 += dt; this.gridInfo(); this.changed(); }
+    changed() { if (window.GVAudio && GVAudio.onChange) GVAudio.onChange(this); }
     gridInfo() { this.el.ginfo.textContent = this.grid ? this.grid.bpm.toFixed(2) + ' BPM, beat 1 at ' + this.grid.t0.toFixed(3) + ' s' : 'No grid (BPM not detected)'; }
     setFilter(v) {
       const t = ctx.currentTime;
@@ -270,7 +272,7 @@
     syncFx() { this.dly.delayTime.value = Math.min(1.9, 60 / (this.liveBpm || 120) * 0.5); }
     hotCue(i) {
       if (!this.buf) return;
-      if (this.hot[i] == null) this.hot[i] = this.snapTime(this.position()); else this.seek(this.hot[i]);
+      if (this.hot[i] == null) { this.hot[i] = this.snapTime(this.position()); this.changed(); } else this.seek(this.hot[i]);
       this.paintHot();
     }
     paintHot() { this.hot.forEach((v, i) => { const b = this.el['hot' + (i + 1)]; b.classList.toggle('on', v != null); b.title = v != null ? 'Jump to ' + fmt(v) : 'Set hot cue here'; }); }
@@ -315,9 +317,13 @@
     updateBpm() { this.el.bpm.textContent = this.bpm ? this.liveBpm.toFixed(1) + ' BPM' : '— BPM'; this.syncFx(); }
     position() {
       if (!this.buf) return 0;
-      let p = this.playing ? this.startPos + (ctx.currentTime - this.startCtx) * this.rate : this.startPos;
+      let p = this.playing ? this.startPos + (ctx.currentTime - this.startCtx) * this.rate * this.bendF : this.startPos;
       if (this.loop && this.playing && p >= this.loop.end) p = this.loop.start + ((p - this.loop.start) % (this.loop.end - this.loop.start));
       return Math.min(p, this.buf.duration);
+    }
+    bend(f) {                                  // temporary pitch bend (nudge) while a button is held
+      if (this.playing) { this.startPos = this.position(); this.startCtx = ctx.currentTime; }
+      this.bendF = f; this.eachSrc((x) => (x.playbackRate.value = this.rate * f));
     }
     eachSrc(fn) { if (this.src) fn(this.src); this.extra.forEach(fn); }
     stopSrc() { const all = [this.src, ...this.extra].filter(Boolean); this.src = null; this.extra = []; all.forEach((s) => { s.onended = null; try { s.stop(); } catch (_) {} s.disconnect(); }); }
@@ -327,7 +333,7 @@
       const list = this.stems ? Object.keys(this.sg).map((k) => [this.stems[k], this.sg[k]]) : [[this.buf, this.low]];
       const t0 = ctx.currentTime + (this.stems ? 0.03 : 0);
       const srcs = list.map(([b, dst]) => {
-        const s = ctx.createBufferSource(); s.buffer = b; s.playbackRate.value = this.rate; s.connect(dst);
+        const s = ctx.createBufferSource(); s.buffer = b; s.playbackRate.value = this.rate * this.bendF; s.connect(dst);
         if (this.loop) { s.loop = true; s.loopStart = this.loop.start; s.loopEnd = this.loop.end; }
         return s;
       });
@@ -345,7 +351,7 @@
     }
     setTempoPct(pct) {
       const r = 1 + pct / 100;
-      if (this.playing) { this.startPos = this.position(); this.startCtx = ctx.currentTime; this.eachSrc((x) => (x.playbackRate.value = r)); }
+      if (this.playing) { this.startPos = this.position(); this.startCtx = ctx.currentTime; this.eachSrc((x) => (x.playbackRate.value = r * this.bendF)); }
       this.rate = r; this.el.tv.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%'; this.updateBpm();
     }
     toggleLoop() {
@@ -405,7 +411,7 @@
   /* ---------- sampler pads (synthesized, no files) ---------- */
   function env(g, t, a, d, peak) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); }
   function noise(len) { const b = ctx.createBuffer(1, Math.floor(ctx.sampleRate * len), ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; const s = ctx.createBufferSource(); s.buffer = b; return s; }
-  window.GVAudio = { ctx, master, env, noise, anL, anR, comp, setLimiter, outBus };   // shared with js/beat.js
+  window.GVAudio = { ctx, master, env, noise, recDest, anL, anR, comp, setLimiter, outBus };   // shared with js/beat.js
   const PADS = {
     Kick(t) { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(40, t + 0.3); env(g, t, 0.005, 0.4, 1); o.connect(g).connect(master); o.start(t); o.stop(t + 0.5); },
     Clap(t) { const n = noise(0.3), f = ctx.createBiquadFilter(), g = ctx.createGain(); f.type = 'bandpass'; f.frequency.value = 1500; env(g, t, 0.003, 0.2, 0.9); n.connect(f).connect(g).connect(master); n.start(t); n.stop(t + 0.3); },
@@ -414,28 +420,7 @@
   };
   Object.keys(PADS).forEach((k) => { const b = document.createElement('button'); b.className = 'pad'; b.textContent = k; b.onclick = () => { ctx.resume(); PADS[k](ctx.currentTime + 0.01); }; $('pads').appendChild(b); });
 
-  window.GVAudio.decks = decks; Object.assign(window.GVAudio, { detectGrid, detectBPM, detectKey, applyXf, say, fmt });
-
-  /* ---------- record mix ---------- */
-  let rec = null, chunks = [], recT0 = 0, recTimer = 0;
-  $('rec').onclick = () => {
-    if (rec) { rec.stop(); return; }
-    if (!window.MediaRecorder) return say('Recording is not supported in this browser.');
-    ctx.resume(); chunks = [];
-    const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
-    const mime = types.find((t) => MediaRecorder.isTypeSupported(t));
-    rec = new MediaRecorder(recDest.stream, mime ? { mimeType: mime } : undefined);
-    rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
-    rec.onstop = () => {
-      clearInterval(recTimer);
-      const blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' }), ext = /mp4/.test(blob.type) ? 'm4a' : /ogg/.test(blob.type) ? 'ogg' : 'webm';
-      const a = $('recdl'); a.href = URL.createObjectURL(blob); a.download = 'govibe-mix.' + ext; a.classList.remove('hidden');
-      $('rec').textContent = '● Record mix'; $('rec').classList.remove('rec-on'); $('rectime').textContent = ''; say('Mix recorded. Use "Download mix".'); rec = null;
-    };
-    rec.start(); recT0 = Date.now(); $('recdl').classList.add('hidden');
-    $('rec').textContent = '■ Stop recording'; $('rec').classList.add('rec-on');
-    recTimer = setInterval(() => ($('rectime').textContent = fmt((Date.now() - recT0) / 1000)), 250);
-  };
+  window.GVAudio.decks = decks; Object.assign(window.GVAudio, { keysMatch, detectGrid, detectBPM, detectKey, applyXf, say, fmt });
 
   if (/[?&]gvtest\b/.test(location.search)) window.__dj = { decks, detectGrid, detectBPM, detectKey, keysMatch, ctx, sync, applyXf };   // test hook: only exposed with ?gvtest
 })();
