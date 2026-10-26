@@ -1,0 +1,6 @@
+name = "govibe-proxy"
+main = "proxy.js"
+compatibility_date = "2026-01-01"
+
+# [vars]
+# ALLOWED_ORIGIN = "https://your-site.pages.dev"

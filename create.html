@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Create music — Go Vibe Studios</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="nav">
+  <a class="brand" href="index.html">Go <span>Vibe</span> Studios</a>
+  <a class="link" href="index.html">Home</a>
+  <a class="link active" href="create.html">Create</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="games.html">Play</a>
+  <a class="link soon">DJ<span class="tag">soon</span></a>
+</nav>
+
+<main class="wrap">
+  <h1>Create <span class="grad">music</span> from a prompt</h1>
+  <p class="lead">Describe the music you want. Generation runs on your own Replicate account, so this site never pays for it and never sees your key.</p>
+
+  <div class="panel">
+    <label class="ctl" style="min-width:0">Prompt
+      <textarea id="prompt" rows="3" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:10px 12px;border-radius:10px;font:inherit;width:100%" placeholder="e.g. upbeat lo-fi hip hop, warm piano, vinyl crackle, 85 BPM"></textarea>
+    </label>
+    <div class="row" style="margin-top:12px; align-items:flex-end">
+      <label class="ctl">Model
+        <select id="model" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"></select>
+      </label>
+      <label class="ctl">Length: <b id="durv">30 s</b>
+        <input type="range" id="dur" min="5" max="30" value="30">
+      </label>
+      <span style="flex:1"></span>
+      <button class="btn" id="keybtn">🔑 API key</button>
+      <button class="btn primary" id="gen">Generate</button>
+    </div>
+    <p class="status" id="status"></p>
+  </div>
+
+  <div class="panel hidden" id="result">
+    <h2>Result</h2>
+    <audio id="player" controls style="width:100%"></audio>
+    <div class="row" style="margin-top:12px">
+      <a class="btn" id="dl" download="govibe-track.wav">Download</a>
+      <button class="btn primary" id="toedit">Open in Audio Editor</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Good to know</h2>
+    <p class="status">Each generation is billed by Replicate to the account that owns the key. Check the model's license on its Replicate page before using tracks commercially. Your key is stored only in this browser.</p>
+  </div>
+</main>
+
+<div class="modal hidden" id="keymodal">
+  <div class="box" style="max-width:520px">
+    <h2>Connect your Replicate account</h2>
+    <p class="status">Create a key at replicate.com/account/api-tokens and paste it here. It stays in this browser and is sent only to Replicate (or to the proxy you set below, which forwards it and does not store it).</p>
+    <label class="ctl" style="min-width:0">API token
+      <input type="password" id="key" autocomplete="off" placeholder="r8_…">
+    </label>
+    <label class="row time" style="margin-top:10px"><input type="checkbox" id="remember" checked> Remember on this device</label>
+    <label class="ctl" style="min-width:0; margin-top:10px">Proxy URL (optional — only if direct calls are blocked)
+      <input type="url" id="proxy" placeholder="https://your-worker.workers.dev">
+    </label>
+    <div class="row" style="margin-top:14px">
+      <button class="btn primary" id="keysave">Save</button>
+      <button class="btn danger" id="keyremove">Remove key</button>
+      <button class="btn" id="keyclose">Cancel</button>
+    </div>
+  </div>
+</div>
+<footer>Go Vibe Studios</footer>
+<script src="js/store.js"></script>
+<script src="js/create.js"></script>
+</body>
+</html>

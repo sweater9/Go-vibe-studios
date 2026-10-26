@@ -36,7 +36,7 @@
       drop.classList.add('hidden');
       stop();
       refresh();
-      say('Loaded ' + file.name);
+      say('Loaded ' + (file.name || 'audio'));
     } catch (e) {
       say('');
       alert('Could not read that file. Try MP3, WAV or OGG.');
@@ -48,6 +48,11 @@
   ['dragover', 'dragenter'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', (e) => loadFile(e.dataTransfer.files[0]));
+
+  // Hand-off from the Create page
+  if (new URLSearchParams(location.search).get('from') === 'create' && window.GVStore) {
+    GVStore.get('handoff').then((b) => { if (b) { b.name = 'generated track'; loadFile(b); GVStore.del('handoff'); } }).catch(() => {});
+  }
 
   /* ---------- history ---------- */
   function snapshot() { history.push(chans.map((c) => c.slice())); if (history.length > 20) history.shift(); future = []; }
