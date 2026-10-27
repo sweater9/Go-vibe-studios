@@ -44,6 +44,7 @@
         <span class="time" id="rectime"></span>
         <a class="btn hidden" id="recdl">Download mix</a>
       </div>
+      <button class="btn" id="decks4" aria-pressed="false">Show decks C and D</button>
       <button class="btn" id="perfbtn" aria-pressed="false">⤢ Full view</button>
       <button class="btn" id="themebtn">☀ Light</button>
       <button class="btn" id="midibtn">Connect MIDI</button>
@@ -53,9 +54,11 @@
   <div class="cmidi">
     <p class="status" id="midistatus" role="status"></p>
     <details class="gridtools" id="midilearn"><summary>MIDI mapping</summary>
+      <p class="status">Pick a control, press Learn, then move a knob or press a pad on your controller. Hold pads (loop rolls) release when you let go. Everything stays in this browser.</p>
       <div class="row" style="margin-top:6px;align-items:flex-end">
         <label class="ctl" style="min-width:0">Control<select id="mact" class="mini"></select></label>
         <button class="btn" id="mlearn">Learn</button><button class="btn" id="mclear">Clear</button><button class="btn danger" id="mreset">Clear all</button>
+        <button class="btn" id="msave">Save mapping file</button><button class="btn" id="mload">Load mapping file</button><input type="file" id="mfile" accept=".json,application/json" hidden aria-label="Load a MIDI mapping file">
       </div>
       <p class="status" id="mlist"></p>
     </details>
@@ -64,6 +67,8 @@
   <section class="waves" aria-label="Waveforms">
     <div class="wstrip a" id="wave0"></div>
     <div class="wstrip b" id="wave1"></div>
+    <div class="wstrip k3 hidden" id="wave2" data-deck34></div>
+    <div class="wstrip k4 hidden" id="wave3" data-deck34></div>
   </section>
 
   <div class="cgrid">
@@ -74,7 +79,7 @@
         <canvas id="mmeter" class="meter" role="img" aria-label="Master level meter, left and right" width="240" height="40"></canvas>
         <div class="row time" style="justify-content:space-between;margin-top:4px"><label class="row" style="gap:6px"><input type="checkbox" id="lim" checked> Limiter</label><span id="limred"></span></div>
       </div>
-      <div class="mx-ch"><div class="strip a" id="strip0"></div><div class="strip b" id="strip1"></div></div>
+      <div class="mx-ch"><div class="strip a" id="strip0"></div><div class="strip b" id="strip1"></div><div class="strip k3 hidden" id="strip2" data-deck34></div><div class="strip k4 hidden" id="strip3" data-deck34></div></div>
       <div class="xfwrap">
         <span class="xl">A</span>
         <input type="range" id="xf" class="xfader" min="0" max="100" value="50" aria-label="Crossfader">
@@ -88,6 +93,10 @@
     </section>
 
     <section class="dpane b" id="deck1" aria-label="Deck B"></section>
+  </div>
+  <div class="cgrid2 hidden" data-deck34>
+    <section class="dpane k3" id="deck2" aria-label="Deck C"></section>
+    <section class="dpane k4" id="deck3" aria-label="Deck D"></section>
   </div>
 
   <section class="tools" aria-label="Tools">
@@ -171,6 +180,7 @@
 </main>
 <footer>GoVibe Mix · all processing happens in your browser · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
 <script src="js/store.js"></script>
+<script src="js/fx.js"></script>
 <script src="js/knobs.js"></script>
 <script src="js/analyze.js"></script>
 <script src="js/dj.js"></script>

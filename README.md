@@ -10,7 +10,7 @@ Free browser tools for music lovers, content creators, DJs and music makers. No 
 
 - **Create** (`create.html`): AI music from a prompt using the visitor's own Replicate key (Stable Audio 2.5 and MusicGen). The key is stored only in the visitor's browser. Generated tracks can be downloaded or opened in the Audio Editor.
 - **Proxy** (`worker/`): optional Cloudflare Worker for when the browser blocks direct calls to Replicate (CORS). It does not store or log keys. See `worker/README.md`.
-- **DJ Mixer** (`dj.html`): two decks with 3-band EQ, tempo (±16%), cue, 4-beat loop, BPM detection, tempo sync, equal-power crossfader, synthesized sampler pads and mix recording (WebM/Ogg). Load your own files; BPM detection is approximate (within about 1 BPM on clear beats) and sync matches tempo only, not beat phase.
+- **DJ Mixer** (`dj.html`): two decks (four with *Show decks C and D*) with 3-band EQ, tempo (±16%), cue, 4-beat loop, BPM detection, tempo sync, equal-power crossfader, synthesized sampler pads and mix recording (WebM/Ogg). Load your own files; BPM detection is approximate (within about 1 BPM on clear beats) and sync matches tempo only, not beat phase.
 
 ## Phase 3
 
@@ -65,7 +65,7 @@ The DJ page has a 16-step, 6-track beat maker (kick, snare, clap, hats, bass) wi
 
 ## DJ extras
 
-Per deck: filter (sweep low-pass / high-pass, double-click to reset), echo (synced to the deck's tempo), reverb, 4 hot cues, loop lengths of 1–16 beats, and musical-key detection (Camelot notation, with a "keys work together / clash" hint between the decks). Queue & Automix plays a list of tracks in turn, matching tempo (within ±8%), swapping the bass and crossfading. Key detection is an estimate and can be off on dense or atypical music. There is no beat grid, because the BPM detector finds tempo but not where the beats fall.
+Per deck: filter (sweep low-pass / high-pass, double-click to reset), echo (synced to the deck's tempo), reverb, 8 hot cues (shift and click, or *Clear one*, removes one), loop lengths of 1–16 beats, loop rolls of 1/8, 1/4, 1/2 and 1 beat (hold a pad to loop, let go and the track carries on where it would have been), an effect unit built on the same engine as the Studio mixer (chorus, beat synced delay, reverb, saturation, compressor, with one amount knob), a crossfader assign switch per channel (left, right or off), beat grid tools (1 ms nudges, half and double tempo, tap tempo), and musical-key detection (Camelot notation, with a "keys work together / clash" hint between the decks). Queue & Automix plays a list of tracks in turn, matching tempo (within ±8%), swapping the bass and crossfading. Key detection is an estimate and can be off on dense or atypical music. There is no beat grid, because the BPM detector finds tempo but not where the beats fall.
 
 ## Stem splitter (beta)
 
@@ -85,7 +85,7 @@ Each deck refines its BPM to 0.01 and finds where beat 1 falls (checked on synth
 
 - **Look**: a DJ-console layout: stacked waveforms on top, two decks with jog wheels and vertical tempo faders, a centre mixer with rotary EQ knobs, channel faders with LED meters, a crossfader, master knob and sampler pads, and tabs underneath (Library, Automix, Beat maker). Knobs are real range inputs underneath (keyboard and screen-reader friendly): drag up/down, mouse wheel, double-click to reset, hold Shift to fine-tune.
 - **Jog wheel**: drag to scratch (forwards and backwards; one full turn is 1.8 s of audio). If the deck was playing it resumes on release. *Bend* buttons nudge pitch by 6% while held. Scratching is a granular approximation, not a vinyl simulation, and needs the full mix (not stems).
-- **Library**: tracks you add, or load into a deck with "Remember tracks I load" ticked, are stored in this browser (IndexedDB) with BPM, key, beat grid and hot cues. Search, sort (including best match for deck A/B), load to a deck, queue for Automix, remove. Reloading the same file restores its cues. Drag audio files onto a deck or the Library. Browsers can clear site storage; nothing is uploaded.
+- **Library**: tracks you add, or load into a deck with "Remember tracks I load" ticked, are stored in this browser (IndexedDB) with BPM, key, beat grid and hot cues. Search, sort (including best match for each deck), load to a deck, queue for Automix, remove. Reloading the same file restores its cues. Drag audio files onto a deck or the Library. Browsers can clear site storage; nothing is uploaded.
 - **WAV recording**: *Record mix* captures the master output (after the limiter) as 16-bit stereo WAV via an AudioWorklet, or compressed audio if you choose it (or if the browser lacks AudioWorklet). WAV recording stops at 30 minutes (memory).
 
 ## Full view, light console, ratings and notes
@@ -112,3 +112,8 @@ Each deck refines its BPM to 0.01 and finds where beat 1 falls (checked on synth
 
 ## Audio Editor upgrades
 Pitch shift that keeps the length (WSOLA time stretch plus resampling; good for small shifts, artefacts grow past a few semitones), 3 band EQ (RBJ shelves and peak at 120 Hz, 1 kHz, 8 kHz), noise gate (quietens parts under a threshold; it is not noise removal), low rumble removal (80 Hz high pass) and MP3 export through `js/convert-worker.js`. A 3 minute stereo pitch shift takes about 3.5 s and freezes the page meanwhile.
+
+### DJ: four decks, playlists and controller files
+- **Decks C and D** are hidden until you press *Show decks C and D* (the choice is remembered). SYNC on any deck matches the deck that is playing. Everything goes through the same master, limiter and mix recorder.
+- **Playlists** live in the Library tab: create one, add tracks from a track's row, reorder with the arrows, queue a whole playlist in Automix. They are saved in this browser and included in the library backup.
+- **MIDI**: any control, including each deck's effect amount, the eight hot cues and the hold pads for loop rolls, can be learned from a controller. *Save mapping file* and *Load mapping file* move a mapping between browsers. Controller support is tested with simulated messages, not with every physical device.

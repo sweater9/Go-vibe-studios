@@ -19,6 +19,8 @@
 .waves { display: grid; gap: 6px; margin-top: 10px; }
 .wstrip { --c: var(--a); display: flex; gap: 10px; align-items: stretch; padding: 8px; border-radius: 10px; background: #0a0b0f; border: 1px solid #23252e; }
 .wstrip.b, .dpane.b, .strip.b { --c: var(--b); }
+.wstrip.k3, .dpane.k3, .strip.k3 { --c: #34d399; }
+.wstrip.k4, .dpane.k4, .strip.k4 { --c: #c084fc; }
 .dpane.a, .strip.a { --c: var(--a); }
 .wbadge { width: 28px; display: grid; place-items: center; font-weight: 800; border-radius: 6px; background: var(--c); color: #0b0b0e; }
 .wcol { flex: 1; min-width: 0; display: grid; gap: 4px; }
@@ -195,3 +197,17 @@ html[data-theme=light] .strip.a .sname { color: #9a3412; } html[data-theme=light
 @media (max-width: 700px) { .libtbl th:nth-child(6), .libtbl td:nth-child(6) { display: table-cell; } .libtbl th:nth-child(7), .libtbl td:nth-child(7) { display: none; } }
 .hbreak { background: #151720; color: var(--lab); font-size: 12px; letter-spacing: .6px; font-weight: 600; }
 html[data-theme=light] .hbreak { background: #e4e7f0; }
+
+/* decks C and D, loop rolls, effect unit, crossfader assign, eight hot cues */
+.cgrid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; align-items: start; }
+@media (max-width: 1150px) { .cgrid2 { grid-template-columns: minmax(0, 1fr); } }
+.mx-ch { grid-template-columns: repeat(2, 1fr); }
+.hotrow { flex-wrap: wrap; }
+.hotpad { min-width: 34px; height: 38px; }
+.hotpad.on.h5 { background: #a21caf; } .hotpad.on.h6 { background: #0e7490; } .hotpad.on.h7 { background: #a16207; } .hotpad.on.h8 { background: #475569; }
+.rollrow { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+.rollrow .rollpad { flex: 1; min-height: 38px; font-weight: 700; touch-action: none; user-select: none; }
+.rollrow .rollpad.on, .btn.on[data-r=hotdel] { background: var(--c); color: #0b0b0e; border-color: var(--c); }
+.fxunit { margin-top: 10px; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 10px; background: #0f1015; border: 1px solid #22252e; }
+html[data-theme=light] .fxunit { background: #e4e7f0; border-color: var(--edge); }
+.xfas { max-width: 92px; }

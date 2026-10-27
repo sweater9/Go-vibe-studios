@@ -12,13 +12,14 @@
   add('xf', 'Crossfader', 'slider', slider($('xf')));
   add('master', 'Master volume', 'slider', slider($('master')));
   decks.forEach((d, i) => {
-    const n = d.name, p = n.toLowerCase(), K = i ? ['p', 'l', 'm', 'i', '7', '8', '9', '0'] : ['q', 'a', 'z', 'e', '1', '2', '3', '4'];
-    [['vol', 'volume'], ['low', 'bass EQ'], ['mid', 'mid EQ'], ['high', 'treble EQ'], ['filt', 'filter'], ['echo', 'echo'], ['rev', 'reverb'], ['tempo', 'tempo']].forEach(([k, l]) => add(p + '.' + k, 'Deck ' + n + ' ' + l, 'slider', slider(d.el[k])));
+    const n = d.name, p = n.toLowerCase(), K = i === 1 ? ['p', 'l', 'm', 'i', '7', '8', '9', '0'] : i === 0 ? ['q', 'a', 'z', 'e', '1', '2', '3', '4'] : [];
+    [['vol', 'volume'], ['low', 'bass EQ'], ['mid', 'mid EQ'], ['high', 'treble EQ'], ['filt', 'filter'], ['echo', 'echo'], ['rev', 'reverb'], ['fxamt', 'effect amount'], ['tempo', 'tempo']].forEach(([k, l]) => add(p + '.' + k, 'Deck ' + n + ' ' + l, 'slider', slider(d.el[k])));
     add(p + '.play', 'Deck ' + n + ' play / pause', 'button', () => click(d.el.play), K[0]);
     add(p + '.cue', 'Deck ' + n + ' cue', 'button', () => click(d.el.cue), K[1]);
-    add(p + '.sync', 'Deck ' + n + ' sync to the other deck', 'button', () => click($(i ? 'syncB' : 'syncA')), K[2]);
+    add(p + '.sync', 'Deck ' + n + ' sync to the other deck', 'button', () => click($('sync' + n)), K[2]);
     add(p + '.loop', 'Deck ' + n + ' loop on / off', 'button', () => click(d.el.loop), K[3]);
-    for (let h = 1; h <= 4; h++) add(p + '.hot' + h, 'Deck ' + n + ' hot cue ' + h, 'button', () => click(d.el['hot' + h]), K[3 + h]);
+    for (let h = 1; h <= A.CUES; h++) add(p + '.hot' + h, 'Deck ' + n + ' hot cue ' + h, 'button', () => click(d.el['hot' + h]), K[3 + h]);
+    [['r8', '1/8'], ['r4', '1/4'], ['r2', '1/2'], ['r1', '1 beat']].forEach(([k, l]) => add(p + '.roll' + k, 'Deck ' + n + ' loop roll ' + l + ' (hold)', 'hold', (on) => (on ? d.rollStart(+d.el[k].dataset.beats, d.el[k]) : d.rollEnd(d.el[k]))));
     [['jm4', '−4 beats'], ['jm1', '−1 beat'], ['jp1', '+1 beat'], ['jp4', '+4 beats']].forEach(([k, l]) => add(p + '.' + k, 'Deck ' + n + ' jump ' + l, 'button', () => click(d.el[k])));
   });
   add('xfl', 'Crossfader towards A', 'button', () => xfStep(-5), '[');
@@ -60,7 +61,7 @@
   const saveMap = () => { try { localStorage.setItem(MK, JSON.stringify(map)); } catch (_) {} };
   let learning = null; const down = {};
   const say = (t) => { $('midistatus').textContent = t; };
-  const sel = $('mact'); ACT.forEach((a) => sel.add(new Option(a.label + (a.kind === 'slider' ? ' (knob / fader)' : ' (button)'), a.id)));
+  const sel = $('mact'); ACT.forEach((a) => sel.add(new Option(a.label + (a.kind === 'slider' ? ' (knob / fader)' : a.kind === 'hold' ? ' (pad, hold)' : ' (button)'), a.id)));
   function listMap() {
     const rows = Object.entries(map).map(([k, id]) => { const a = ACT.find((x) => x.id === id), [t, ch, n] = k.split(':'); return (a ? a.label : id) + ' ← ' + (t === 'n' ? 'note ' : 'CC ') + n + ' (ch ' + (+ch + 1) + ')'; });
     $('mlist').textContent = rows.length ? rows.join('; ') : 'Nothing mapped yet. Pick a control, press Learn, then move or press the control on your device.';
@@ -68,18 +69,32 @@
   listMap();
   const keyOf = (d) => { const st = d[0] & 0xf0, ch = d[0] & 0x0f; if (st === 0x90 && d[2] > 0) return 'n:' + ch + ':' + d[1]; if (st === 0xb0) return 'c:' + ch + ':' + d[1]; return null; };
   function handle(d) {
-    const st = d[0] & 0xf0, key = keyOf(d); if (!key) return;
+    const st = d[0] & 0xf0, off = st === 0x80 || (st === 0x90 && d[2] === 0), key = off ? 'n:' + (d[0] & 15) + ':' + d[1] : keyOf(d); if (!key) return;
+    if (off) { const h = ACT.find((x) => x.id === map[key]); if (h && h.kind === 'hold') h.run(false); return; }
     if (learning) {
       Object.keys(map).forEach((k) => { if (map[k] === learning) delete map[k]; });
       map[key] = learning; saveMap(); const a = ACT.find((x) => x.id === learning); learning = null; $('mlearn').textContent = 'Learn'; listMap(); say('Mapped ' + a.label + '.'); return;
     }
     const a = ACT.find((x) => x.id === map[key]); if (!a) return;
     if (a.kind === 'slider') { if (st === 0xb0) a.run(d[2] / 127); return; }
+    if (a.kind === 'hold') { if (st === 0xb0) { const now = d[2] >= 64; if (now !== !!down[key]) { down[key] = now; a.run(now); } } else a.run(true); return; }
     if (st === 0xb0) { const was = down[key]; down[key] = d[2] >= 64; if (down[key] && !was) a.run(); } else a.run();
   }
   $('mlearn').onclick = () => { if (learning) { learning = null; $('mlearn').textContent = 'Learn'; return say('Learning cancelled.'); } learning = sel.value; $('mlearn').textContent = 'Waiting…'; say('Now move or press the control on your MIDI device.'); };
   $('mclear').onclick = () => { Object.keys(map).forEach((k) => { if (map[k] === sel.value) delete map[k]; }); saveMap(); listMap(); };
   $('mreset').onclick = () => { map = {}; saveMap(); listMap(); say('All mappings cleared.'); };
+  /* save and load the mapping as a small file, so it can move between browsers and be shared */
+  const MAPKIND = 'govibe-dj-midi-map';
+  function mapFile() { return new Blob([JSON.stringify({ app: 'go-vibe-studios', kind: MAPKIND, version: 1, map }, null, 1)], { type: 'application/json' }); }
+  function applyMapData(data) {
+    if (!data || data.kind !== MAPKIND || !data.map || typeof data.map !== 'object') throw new Error('This is not a GoVibe Mix MIDI mapping file.');
+    const next = {}; let n = 0, skipped = 0;
+    Object.entries(data.map).forEach(([k, id]) => { if (/^[nc]:\d{1,2}:\d{1,3}$/.test(k) && ACT.some((x) => x.id === id)) { next[k] = id; n++; } else skipped++; });
+    map = next; saveMap(); listMap(); return { n, skipped };
+  }
+  $('msave').onclick = () => { if (!Object.keys(map).length) return say('Nothing is mapped yet.'); const a = document.createElement('a'); a.href = URL.createObjectURL(mapFile()); a.download = 'govibe-midi-mapping.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); say('Mapping saved as a file.'); };
+  $('mload').onclick = () => $('mfile').click();
+  $('mfile').onchange = async () => { const f = $('mfile').files[0]; $('mfile').value = ''; if (!f) return; try { const r = applyMapData(JSON.parse(await f.text())); say('Loaded ' + r.n + ' mapping' + (r.n === 1 ? '' : 's') + (r.skipped ? ' (' + r.skipped + ' skipped)' : '') + '.'); } catch (e) { say(e instanceof SyntaxError ? 'That file is not valid JSON.' : e.message); } };
   let access = null;
   function attach() {
     const names = []; access.inputs.forEach((inp) => { inp.onmidimessage = (m) => handle(m.data); names.push(inp.name); });
@@ -96,7 +111,7 @@
   const tb = new Float32Array(1024), peak = (an) => { an.getFloatTimeDomainData(tb); let m = 0; for (let i = 0; i < tb.length; i++) { const v = Math.abs(tb[i]); if (v > m) m = v; } return m; };
   const frac = (p) => Math.max(0, Math.min(1, (20 * Math.log10(p + 1e-6) + 60) / 60));
   const col = (p) => (p > 0.89 ? '#fb7185' : p > 0.25 ? '#fbbf24' : '#34d399');
-  const hold = [0, 0], holdT = [0, 0], shown = [0, 0], dshown = [0, 0];
+  const hold = [0, 0], holdT = [0, 0], shown = [0, 0], dshown = decks.map(() => 0);
   const mm = $('mmeter'), g = mm.getContext('2d'), SEG = 30;
   const segCol = (f, lit) => (f > 0.9 ? (lit ? '#ff4d6d' : '#3a1a22') : f > 0.72 ? (lit ? '#fbbf24' : '#3a3118') : (lit ? '#34d399' : '#14301f'));
   (function frame() {
@@ -120,5 +135,5 @@
     requestAnimationFrame(frame);
   })();
 
-  if (/[?&]gvtest\b/.test(location.search)) window.__ctl = { handle, ACT, learn: (id) => { learning = id; }, get map() { return map; }, peak: () => [peak(A.anL), peak(A.anR)] };   // test hook
+  if (/[?&]gvtest\b/.test(location.search)) window.__ctl = { handle, ACT, applyMapData, mapFile, learn: (id) => { learning = id; }, get map() { return map; }, peak: () => [peak(A.anL), peak(A.anR)] };   // test hook
 })();

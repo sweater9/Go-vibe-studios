@@ -381,6 +381,162 @@ def test_dj_extras(browser, base):
     ctx.close()
 
 
+def test_dj_four(browser, base):
+    print("dj: four decks, loop rolls, effect unit, grid tools, MIDI mapping files, playlists")
+    import tempfile
+    errs = []
+    ctx, pg = new_page(browser, errs, viewport={"width": 1500, "height": 1000}, accept_downloads=True)
+    pg.goto(base + "dj.html?gvtest"); pg.wait_for_function("() => window.__dj && window.__ctl && window.__lib", timeout=10000)
+    ev = lambda js, *a: pg.evaluate(js, *a) if a else pg.evaluate(js)
+    check("decks C and D start hidden, and the button shows them", not pg.is_visible("#deck2") and not pg.is_visible("#strip3") and pg.get_attribute("#decks4", "aria-pressed") == "false")
+    pg.click("#decks4")
+    check("Show decks C and D reveals both decks with their waveforms and channel strips", pg.is_visible("#deck2") and pg.is_visible("#deck3") and pg.is_visible("#wave3") and pg.is_visible("#strip2") and pg.get_attribute("#decks4", "aria-pressed") == "true")
+    check("there are four decks named A, B, C and D with eight hot cue pads each", ev("__dj.decks.map((d) => d.name).join('')") == "ABCD" and pg.locator("#deck2 .hotpad").count() == 8)
+    mk = """(bpm, secs = 40) => { const c = __dj.ctx, sr = 22050, b = c.createBuffer(1, sr * secs, sr), d = b.getChannelData(0), beat = Math.round(sr * 60 / bpm);
+        for (let i = 0; i < d.length; i += beat) for (let k = 0; k < 400 && i + k < d.length; k++) d[i + k] = Math.sin(k / 6) * Math.exp(-k / 80); return b; }"""
+    ev("() => { const mk = %s; window.__mk = mk; __dj.decks.forEach((d, i) => d.setBuffer(mk(120 + i * 4), 'deck' + i + '.wav')); }" % mk)
+    check("every deck loads a track and finds its tempo", ev("__dj.decks.map((d) => Math.round(d.bpm))") == [120, 124, 128, 132], str(ev("__dj.decks.map((d) => d.bpm)")))
+    # crossfader assignment
+    ev("() => { const x = document.getElementById('xf'); x.value = 100; __dj.applyXf(); }")
+    g = ev("__dj.decks.map((d) => +d.xf.gain.value.toFixed(3))")
+    check("crossfader fully right: A silent, B full, C and D off the crossfader stay at full level", g[0] == 0 and g[1] == 1 and g[2] == 1 and g[3] == 1, str(g))
+    pg.select_option("#strip2 [data-r=xfas]", "L"); pg.select_option("#strip3 [data-r=xfas]", "R")
+    g = ev("__dj.decks.map((d) => +d.xf.gain.value.toFixed(3))")
+    check("assigning C to the left and D to the right makes the crossfader act on them", g[2] == 0 and g[3] == 1, str(g))
+    ev("() => { const x = document.getElementById('xf'); x.value = 50; __dj.applyXf(); }")
+    g = ev("__dj.decks.map((d) => +d.xf.gain.value.toFixed(3))")
+    check("at the centre the equal power curve gives 0.707 on both sides", abs(g[2] - 0.707) < 0.002 and abs(g[3] - 0.707) < 0.002, str(g))
+    pg.select_option("#strip2 [data-r=xfas]", "T"); pg.select_option("#strip3 [data-r=xfas]", "T")
+    # hot cues
+    ev("() => { const d = __dj.decks[2]; d.seek(7.0); d.hotCue(4); d.seek(11.0); d.hotCue(7); }")
+    check("hot cues 5 and 8 can be set", abs(ev("__dj.decks[2].hot[4]") - 7) < 0.3 and abs(ev("__dj.decks[2].hot[7]") - 11) < 0.3 and pg.evaluate("document.querySelector('#deck2 [data-r=hot5]').classList.contains('on')"))
+    pg.click("#deck2 [data-r=hot5]", modifiers=["Shift"])
+    check("shift and click clears one hot cue and leaves the others", ev("__dj.decks[2].hot[4]") is None and ev("__dj.decks[2].hot[7]") is not None)
+    pg.click("#deck2 [data-r=hotdel]"); pg.click("#deck2 [data-r=hot8]")
+    check("Clear one mode clears the next pad pressed", ev("__dj.decks[2].hot[7]") is None and pg.get_attribute("#deck2 [data-r=hotdel]", "aria-pressed") == "true")
+    pg.click("#deck2 [data-r=hotdel]"); check("Clear one switches off again", pg.get_attribute("#deck2 [data-r=hotdel]", "aria-pressed") == "false")
+    # grid tools
+    ev("() => { const d = __dj.decks[0]; d.grid.t0 = 0.1; }")
+    pg.click("#deck0 .gridtools summary"); t0 = ev("__dj.decks[0].grid.t0"); pg.click("#deck0 [data-r=gp1]")
+    check("grid nudge works in 1 ms steps", abs(ev("__dj.decks[0].grid.t0") - t0 - 0.001) < 1e-6)
+    pg.click("#deck0 [data-r=ghalf]")
+    check("Half tempo halves the BPM and the grid spacing", abs(ev("__dj.decks[0].grid.bpm") - 60) < 0.05 and abs(ev("__dj.decks[0].grid.period") - 1.0) < 0.002 and abs(ev("__dj.decks[0].bpm") - 60) < 0.05, str(ev("__dj.decks[0].grid")))
+    pg.click("#deck0 [data-r=gdbl]"); pg.click("#deck0 [data-r=gdbl]")
+    check("Double tempo twice gives 240 BPM and a third press is refused beyond 240", abs(ev("__dj.decks[0].grid.bpm") - 240) < 0.1)
+    pg.click("#deck0 [data-r=gdbl]"); check("tempo beyond 240 BPM is refused", abs(ev("__dj.decks[0].grid.bpm") - 240) < 0.1 and "outside" in pg.inner_text("#status"))
+    r = ev("""() => { const d = __dj.decks[1], real = performance.now; let t = 1000; performance.now = () => t; d.taps = []; for (let i = 0; i < 6; i++) { d.tap(); t += 461.5; } performance.now = real; return [d.grid.bpm, d.bpm]; }""")
+    check("tap tempo averages the taps (461.5 ms is 130 BPM)", abs(r[0] - 130) < 0.3 and abs(r[1] - 130) < 0.3, str(r))
+    ev("() => __dj.decks[0].setGridBpm(120)")
+    # loop roll
+    r = ev("""async () => { const d = __dj.decks[0], w = (ms) => new Promise((r) => setTimeout(r, ms)), o = {}; d.seek(10); d.play(); await w(300);
+      const p0 = d.position(); d.rollStart(0.25); o.len = d.loop.end - d.loop.start; await w(1200); const inside = d.position() >= d.loop.start - 0.01 && d.position() <= d.loop.end + 0.01; const t1 = performance.now();
+      d.rollEnd(); o.inside = inside; o.loopAfter = d.loop; o.playing = d.playing; o.moved = d.position() - p0; d.pause(); return o; }""")
+    check("a roll loops a quarter beat (0.125 s at 120 BPM) while held", abs(r["len"] - 0.125) < 0.005 and r["inside"], str(r))
+    check("letting go carries on where the track would have been (about 1.2 s later), not where the loop was", r["loopAfter"] is None and r["playing"] and 1.1 < r["moved"] < 1.9, str(r))
+    pg.click("#deck0 [data-r=play]"); pg.wait_for_timeout(300)
+    box = pg.locator("#deck0 [data-r=r2]").bounding_box(); pg.mouse.move(box["x"] + 5, box["y"] + 5); pg.mouse.down(); pg.wait_for_timeout(250)
+    check("holding a roll pad with the mouse loops and lights the pad", ev("__dj.decks[0].loop !== null") and pg.get_attribute("#deck0 [data-r=r2]", "aria-pressed") == "true")
+    pg.mouse.up(); pg.wait_for_timeout(200)
+    check("releasing the pad ends the loop", ev("__dj.decks[0].loop === null") and pg.get_attribute("#deck0 [data-r=r2]", "aria-pressed") == "false")
+    pg.locator("#deck0 [data-r=r4]").focus(); pg.keyboard.down("Space"); pg.wait_for_timeout(200)
+    check("a roll pad also works from the keyboard (hold Space)", ev("__dj.decks[0].loop !== null"))
+    pg.keyboard.up("Space"); pg.wait_for_timeout(150); check("and lets go on key up", ev("__dj.decks[0].loop === null"))
+    ev("() => __dj.decks[0].pause()")
+    ev("() => __dj.decks[0].rollStart(1)"); check("a roll does nothing while the deck is stopped", ev("__dj.decks[0].loop === null"))
+    # effect unit on the shared engine
+    r = ev("""async () => { const d = __dj.decks[3], w = (ms) => new Promise((r) => setTimeout(r, ms)), o = {}; const tb = __dj.ctx.createBuffer(1, 22050 * 30, 22050), tx = tb.getChannelData(0); for (let i = 0; i < tx.length; i++) tx[i] = 0.4 * Math.sin(2 * Math.PI * 220 * i / 22050);
+      d.setBuffer(tb, 'tone.wav'); d.setGridBpm(132); d.seek(2); d.play(); await w(500); o.dry = d.level();
+      d.setFx('reverb'); o.type = d.fxSlot && d.fxSlot.type; d.el.fxamt.value = 0; d.fxAmount(); await w(400); o.bypass = d.level();
+      d.el.fxamt.value = 60; d.fxAmount(); await w(400); o.wet = d.level(); d.setFx('delay'); o.delayBpm = d.fxOpts.bpm; d.setFx('chorus'); d.setFx('sat'); d.setFx('comp'); d.setFx(''); o.none = d.fxSlot; await w(300); o.after = d.level(); d.pause(); return o; }""")
+    check("an effect unit can be chosen on a deck and is built by the shared effects engine", r["type"] == "reverb", str(r))
+    check("with the amount at zero the effect is transparent", r["dry"] > 0.02 and abs(r["bypass"] - r["dry"]) / r["dry"] < 0.5, str(r))
+    check("switching through every effect and back to none leaves the sound intact", r["none"] is None and r["after"] > 0.02 and abs(r["delayBpm"] - 132) < 0.5, str(r))
+    # sync for C
+    ev("() => { const a = __dj.decks[0]; a.setBuffer(__mk(120), 'a.wav'); const c = __dj.decks[2]; c.setBuffer(__mk(126), 'c.wav'); a.play(); }")
+    pg.click("#syncC"); pg.wait_for_timeout(200)
+    check("SYNC on deck C matches the tempo of the deck that is playing", abs(ev("__dj.decks[2].liveBpm") - 120) < 0.3, str(ev("__dj.decks[2].liveBpm")))
+    ev("() => __dj.decks[0].pause()")
+    # hiding decks stops them
+    ev("() => __dj.decks[3].play()"); pg.click("#decks4")
+    check("hiding decks C and D pauses them", not ev("__dj.decks[3].playing") and not pg.is_visible("#deck3"))
+    pg.reload(); pg.wait_for_function("() => window.__dj", timeout=10000)
+    check("after a reload decks C and D are hidden again", not pg.is_visible("#deck2"))
+    ev("() => { window.__mk = %s; }" % mk)
+    pg.click("#decks4"); pg.reload(); pg.wait_for_function("() => window.__dj", timeout=10000)
+    check("the choice to show them is remembered", pg.is_visible("#deck2")); pg.click("#decks4")
+    # MIDI hold pads and mapping files
+    pg.wait_for_function("() => window.__ctl && window.__lib", timeout=10000); ev("() => { window.__mk = %s; }" % mk)
+    ev("() => { __dj.decks[0].setBuffer(__mk(120), 'a.wav'); __dj.decks[0].seek(5); __dj.decks[0].play(); __ctl.learn('a.rollr4'); }")
+    ev("() => __ctl.handle([0x90, 60, 100])"); check("MIDI learn maps a pad to a loop roll", ev("__ctl.map['n:0:60']") == "a.rollr4")
+    pg.wait_for_timeout(300); ev("() => __ctl.handle([0x90, 60, 100])"); pg.wait_for_timeout(200)
+    check("pressing the mapped pad starts the roll", ev("__dj.decks[0].loop !== null"))
+    ev("() => __ctl.handle([0x80, 60, 0])"); pg.wait_for_timeout(150)
+    check("releasing the pad (note off) ends it", ev("__dj.decks[0].loop === null"))
+    ev("() => __ctl.handle([0x90, 60, 100])"); pg.wait_for_timeout(150); ev("() => __ctl.handle([0x90, 60, 0])"); pg.wait_for_timeout(150)
+    check("a note on with velocity 0 also counts as a release", ev("__dj.decks[0].loop === null"))
+    ev("() => { __ctl.learn('c.fxamt'); __ctl.handle([0xb0, 21, 5]); }")
+    ev("() => __dj.decks[0].pause()")
+    check("every deck has controller actions, including effect amounts and eight hot cues", ev("__ctl.ACT.filter((a) => a.id.startsWith('d.')).length") > 20 and ev("__ctl.ACT.some((a) => a.id === 'd.hot8')") and ev("__ctl.ACT.some((a) => a.id === 'c.rollr1')"))
+    with pg.expect_download(timeout=10000) as dl: pg.click("#midilearn summary") if False else (pg.evaluate("document.getElementById('midilearn').open = true"), pg.click("#msave"))
+    raw = open(dl.value.path()).read(); import json as _j; data = _j.loads(raw)
+    check("Save mapping file writes the mapping as JSON", data["kind"] == "govibe-dj-midi-map" and data["map"].get("n:0:60") == "a.rollr4" and data["map"].get("c:0:21") == "c.fxamt", raw[:200])
+    ev("() => document.getElementById('mreset').click()"); check("Clear all empties the mapping", ev("Object.keys(__ctl.map).length") == 0)
+    tmpf = tempfile.mkdtemp() + "/map.json"; open(tmpf, "w").write(raw); pg.set_input_files("#mfile", tmpf); pg.wait_for_timeout(400)
+    check("Load mapping file restores it", ev("__ctl.map['n:0:60']") == "a.rollr4" and "Loaded 2" in pg.inner_text("#midistatus"), pg.inner_text("#midistatus"))
+    bad = tempfile.mkdtemp() + "/bad.json"; open(bad, "w").write('{"kind":"govibe-dj-midi-map","map":{"n:0:61":"nothing.here","zz":"a.play","n:1:9":"a.play"}}'); pg.set_input_files("#mfile", bad); pg.wait_for_timeout(400)
+    check("a file with unknown controls or bad keys keeps only the valid ones", list(ev("__ctl.map").items()) == [("n:1:9", "a.play")] and "2 skipped" in pg.inner_text("#midistatus"), pg.inner_text("#midistatus"))
+    open(bad, "w").write('{"hello":1}'); pg.set_input_files("#mfile", bad); pg.wait_for_timeout(400)
+    check("a file that is not a mapping is refused and the mapping is left alone", "not a GoVibe" in pg.inner_text("#midistatus") and ev("Object.keys(__ctl.map).length") == 1)
+    # playlists
+    tmp = tempfile.mkdtemp(); fa, fb, fc = tmp + "/Alpha 120.wav", tmp + "/Bravo 124.wav", tmp + "/Charlie 128.wav"
+    make_wav(fa, 120); make_wav(fb, 124, tone=330.0); make_wav(fc, 128, tone=440.0)
+    pg.set_input_files("#libfile", [fa, fb, fc]); pg.wait_for_function("() => document.querySelectorAll('#libbody tr[data-id]').length === 3", timeout=40000)
+    pg.fill("#plname", "Warm up"); pg.click("#pladd")
+    check("New playlist creates it and shows it", ev("__lib.lists().map((l) => l.name)") == ["Warm up"] and pg.input_value("#libpl") == ev("__lib.lists()[0].id") and pg.locator("#libbody tr[data-id]").count() == 0)
+    pg.fill("#plname", "Warm up"); pg.click("#pladd"); check("a second playlist with the same name is refused", ev("__lib.lists().length") == 1 and "already a playlist" in pg.inner_text("#libstatus"))
+    pg.select_option("#libpl", ""); 
+    for nm in ("Charlie", "Alpha", "Bravo"):
+        pg.locator("#libbody tr[data-id]", has_text=nm).locator("select.libaddpl").select_option(label="Warm up")
+    check("tracks are added to a playlist from the track row, in the order added", ev("__lib.lists()[0].ids.length") == 3 and ev("__lib.lists()[0].ids.map((id) => __lib.recs.find((r) => r.id === id).name.split(' ')[0])") == ["Charlie", "Alpha", "Bravo"])
+    pg.locator("#libbody tr[data-id]", has_text="Alpha").locator("select.libaddpl").select_option(label="Warm up ✓"); check("adding a track twice is refused politely", ev("__lib.lists()[0].ids.length") == 3 and "already in" in pg.inner_text("#libstatus"))
+    pg.select_option("#libpl", ev("__lib.lists()[0].id"))
+    names = lambda: pg.evaluate("[...document.querySelectorAll('#libbody tr[data-id] td.libname')].map((c) => c.textContent.split(' ')[0])")
+    check("viewing a playlist shows only its tracks in playlist order", names() == ["Charlie", "Alpha", "Bravo"], str(names()))
+    pg.locator("#libbody tr[data-id]", has_text="Bravo").get_by_role("button", name=re.compile("Move .* earlier")).click()
+    check("the up arrow moves a track earlier", names() == ["Charlie", "Bravo", "Alpha"], str(names()))
+    pg.locator("#libbody tr[data-id]", has_text="Charlie").get_by_role("button", name=re.compile("Move .* later")).click()
+    check("the down arrow moves a track later", names() == ["Bravo", "Charlie", "Alpha"], str(names()))
+    pg.locator("#libbody tr[data-id]", has_text="Charlie").get_by_role("button", name=re.compile("Take .* out of the playlist")).click()
+    check("taking a track out of the playlist keeps it in the library", names() == ["Bravo", "Alpha"] and len(ev("__lib.recs")) == 3)
+    pg.click("#plq"); pg.wait_for_function("() => document.querySelectorAll('#amlist li .nm').length === 2", timeout=20000)
+    qn = pg.evaluate("[...document.querySelectorAll('#amlist li .nm')].map((l) => l.textContent)")
+    check("Queue playlist adds its tracks to Automix in order", [x.split(' ')[1] for x in qn] == ["Bravo", "Alpha"], str(qn))
+    pg.reload(); pg.wait_for_function("() => document.querySelectorAll('#libbody tr[data-id]').length === 3", timeout=20000)
+    check("playlists survive a reload", ev("__lib.lists().length") == 1 and pg.locator("#libpl option").count() == 2)
+    zipd = ev("""async () => { const z = await __lib.exportZip(), f = new File([z], 'b.zip'); const ents = await GVZip.read(f); const j = JSON.parse(await (await ents.find((e) => e.name === 'library.json').blob()).text()); return j.playlists; }""")
+    check("the library backup carries the playlists", zipd and zipd[0]["name"] == "Warm up" and len(zipd[0]["ids"]) == 2, str(zipd))
+    ev("() => { const l = __lib.lists()[0]; document.getElementById('libpl').value = l.id; }")
+    pg.select_option("#libpl", ev("__lib.lists()[0].id")); pg.click("#pldel")
+    check("Delete playlist removes it but not the tracks", ev("__lib.lists().length") == 0 and pg.input_value("#libpl") == "" and pg.locator("#libbody tr[data-id]").count() == 3)
+    check("with decks C and D hidden the library offers only decks A and B", pg.get_by_role("button", name=re.compile("into deck C")).count() == 0)
+    pg.click("#decks4")
+    check("showing decks C and D adds load buttons for them", pg.get_by_role("button", name=re.compile("into deck D")).count() == 3)
+    pg.locator("#libbody tr[data-id]", has_text="Alpha").get_by_role("button", name=re.compile("Load .* into deck C")).click()
+    pg.wait_for_function("() => __dj.decks[2].buf !== null && __dj.decks[2].libId", timeout=15000)
+    check("the library loads tracks into deck C (decks C and D are shown)", pg.inner_text("#deck2 [data-r=name]").startswith("Alpha"))
+    ev("() => { const d = __dj.decks[2]; d.seek(4); d.hotCue(6); }"); pg.wait_for_timeout(600)
+    ev("() => __lib.loadTo(3, __lib.recs.find((r) => r.name.startsWith('Alpha')))"); pg.wait_for_timeout(500)
+    check("eight hot cues are remembered with the track and come back on another deck", abs((ev("__dj.decks[3].hot[6]") or -1) - 4) < 0.3, str(ev("__dj.decks[3].hot")))
+    axe = os.environ.get("AXE_PATH") or os.path.join(ROOT, "node_modules/axe-core/axe.min.js")
+    if os.path.exists(axe):
+        c3 = browser.new_context(bypass_csp=True, viewport={"width": 1500, "height": 1100}); p3 = c3.new_page(); p3.goto(base + "dj.html?gvtest"); p3.wait_for_function("() => window.__dj", timeout=10000)
+        p3.click("#decks4"); p3.evaluate("document.getElementById('midilearn').open = true"); p3.add_script_tag(path=axe)
+        v = p3.evaluate("axe.run(document,{runOnly:['wcag2a','wcag2aa','wcag21a','wcag21aa','best-practice']}).then(r=>r.violations.map(v=>v.id+' x'+v.nodes.length+' '+v.nodes[0].target.join(' ')))")
+        check("DJ page with four decks and the MIDI panel open: no axe violations", not v, str(v)); c3.close()
+    check("no page errors on the four deck DJ page", not errs, str(errs[:3]))
+    ctx.close()
+
+
 def test_stems(browser, base):
     print("stem splitter")
     errs = []
@@ -416,7 +572,7 @@ def test_stems(browser, base):
         check("playback uses 4 synced sources and keeps running", r["srcs"] == 4 and r["playing"] and 0.2 < r["pos"] < 1.5, str(r))
         check("stem channel layout (mono vocals/bass, stereo drums/music)", r["channels"] == [1, 1, 2, 2], str(r["channels"]))
     pg.goto(base + "dj.html?gvtest")
-    check("stem buttons absent until split, split button present", pg.locator("[data-r=stembox] button").count() == 2)
+    check("stem buttons absent until split, split button present", pg.locator("[data-r=stembox] button").count() == 4)
     check("stems: no errors", not errs, str(errs))
     ctx.close()
 
@@ -1851,7 +2007,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip
