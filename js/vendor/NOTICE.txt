@@ -5,3 +5,11 @@ It is loaded as a separate file by js/convert-worker.js, so you can replace it w
 mp4-muxer.js is mp4-muxer 5.2.2 and webm-muxer.js is webm-muxer 5.1.4, both unmodified builds by Vanilagy.
 Licence: MIT (see LICENSE-mp4-muxer.txt and LICENSE-webm-muxer.txt). Sources: https://github.com/Vanilagy/mp4-muxer and https://github.com/Vanilagy/webm-muxer
 They are loaded only when you use fast export in the Video editor, to write the finished MP4 or WebM file on your device.
+
+rnnoise-sync.js is the unmodified prebuilt WebAssembly build of RNNoise from @jitsi/rnnoise-wasm 0.2.1 (the wasm is embedded in the file).
+Packaging: Apache License 2.0 (LICENSE-rnnoise-wasm-jitsi.txt). Source: https://github.com/jitsi/rnnoise-wasm
+RNNoise itself (the noise suppression algorithm and trained model) is by Jean-Marc Valin and the Xiph.Org Foundation, with Mozilla, under the BSD 3 clause licence:
+  Copyright (c) 2017, Mozilla; (c) 2007-2017, Jean-Marc Valin; (c) 2005-2017, Xiph.Org Foundation; (c) 2003-2004, Mark Borgerding.
+  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the copyright notice, this list of conditions and the disclaimer are kept, and that the names of the copyright holders are not used to endorse derived products without permission. The software is provided "as is" without warranty.
+  Source: https://gitlab.xiph.org/xiph/rnnoise
+It is used by the Audio Editor's "Remove background noise" button, in a Web Worker on your device.

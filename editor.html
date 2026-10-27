@@ -110,6 +110,13 @@
         <button class="btn" data-op="gate">Apply noise gate</button>
         <button class="btn" data-op="rumble">Remove low rumble</button>
       </div>
+      <div class="row" style="margin-top:14px; align-items:flex-end">
+        <label class="ctl">Background noise removal: <b id="dnv">100%</b>
+          <input type="range" id="dn" min="10" max="100" step="5" value="100">
+        </label>
+        <button class="btn primary" id="denoise">Remove background noise</button>
+      </div>
+      <p class="status" id="dnstatus" role="status">Removes steady background sound such as fans, hiss, room tone and traffic from speech. It uses a small neural network (RNNoise) that runs on your device; nothing is uploaded and nothing is downloaded. It works on the selection, or the whole sound if nothing is selected.</p>
       <p class="status">The noise gate quietens the parts below the threshold, such as hiss between words. It does not remove noise that is mixed with the sound. Low rumble removal cuts everything under about 80 Hz, which helps voice recordings.</p>
     </div>
 

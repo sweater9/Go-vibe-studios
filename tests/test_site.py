@@ -1010,6 +1010,55 @@ def test_editor_dsp(browser, base):
         check("editor with the new panels: no axe violations", not (v := p2.evaluate(js)), str(v)); c2.close()
 
 
+def test_denoise(browser, base):
+    print("audio editor: background noise removal (RNNoise)")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "editor.html?gvtest"); pg.wait_for_function("() => window.__gv", timeout=10000)
+    gen = """() => { const sr = 44100, n = sr * 5, clean = new Float32Array(n), noisy = new Float32Array(n); let seed = 11; const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296 * 2 - 1; }, ph = { v: 0 };
+      for (let i = 0; i < n; i++) { const t = i / sr, g = t % 2.5, env = g < 1.5 ? Math.min(1, g / 0.05) : 0, f0 = 100 + 90 * Math.sin(t * 2.3) + 40 * Math.sin(t * 7.1); ph.v += 2 * Math.PI * f0 / sr; let v = 0;
+        for (let h = 1; h < 24; h++) v += Math.sin(h * ph.v) * Math.exp(-Math.pow((h * f0 - 800) / 900, 2)) / Math.sqrt(h); clean[i] = 0.2 * env * v; noisy[i] = clean[i] + 0.05 * rnd(); }
+      window.__clean = clean; window.__noisy = noisy; window.__sr = sr; __gv.loadBuffers([noisy.slice()], sr); }"""
+    pg.evaluate(gen)
+    meas = """() => { const sr = window.__sr, c = __gv.chans[0], rms = (a, x, y) => { let s = 0; for (let i = Math.round(x * sr); i < Math.round(y * sr); i++) s += a[i] * a[i]; return Math.sqrt(s / ((y - x) * sr)); };
+      const db = (v) => 20 * Math.log10(v + 1e-9); let dot = 0, ea = 0, eb = 0; for (let i = Math.round(0.5 * sr); i < Math.round(1.4 * sr); i++) { dot += c[i] * __clean[i]; ea += c[i] * c[i]; eb += __clean[i] * __clean[i]; }
+      return { len: c.length, gapIn: db(rms(__noisy, 1.7, 2.4)), gapOut: db(rms(c, 1.7, 2.4)), burstIn: db(rms(__noisy, 0.5, 1.4)), burstOut: db(rms(c, 0.5, 1.4)), burstClean: db(rms(__clean, 0.5, 1.4)), corr: dot / Math.sqrt(ea * eb + 1e-12) }; }"""
+    before = pg.evaluate(meas)
+    pg.click("#denoise"); pg.wait_for_function("() => /^Done/.test(document.getElementById('dnstatus').textContent)", timeout=60000)
+    m = pg.evaluate(meas)
+    check("noise removal keeps the length of the sound", m["len"] == before["len"], str(m))
+    check("the gaps between words get much quieter (at least 25 dB)", m["gapIn"] - m["gapOut"] > 25, f"{m['gapIn']:.1f} -> {m['gapOut']:.1f} dB")
+    check("the voice itself stays within 2 dB of the clean original", abs(m["burstOut"] - m["burstClean"]) < 2.0, f"{m['burstOut']:.1f} vs clean {m['burstClean']:.1f} dB")
+    check("the cleaned voice lines up with the clean original (no shift)", m["corr"] > 0.9, f"correlation {m['corr']:.3f}")
+    check("the status says it is done and mentions undo", "Undo" in pg.inner_text("#dnstatus"))
+    pg.click("#undo"); pg.wait_for_timeout(200)
+    back = pg.evaluate(meas)
+    check("Undo brings the noisy original back exactly", abs(back["gapOut"] - before["gapIn"]) < 0.01 and abs(back["burstOut"] - before["burstIn"]) < 0.01, str(back))
+    pg.evaluate("() => { const r = document.getElementById('dn'); r.value = 50; r.dispatchEvent(new Event('input')); }")
+    check("the strength label follows the slider", pg.inner_text("#dnv") == "50%")
+    pg.click("#denoise"); pg.wait_for_function("() => /^Done/.test(document.getElementById('dnstatus').textContent)", timeout=60000)
+    half = pg.evaluate(meas)
+    check("half strength removes only part of the noise", 6 < half["gapIn"] - half["gapOut"] < m["gapIn"] - m["gapOut"] - 6, f"{half['gapIn']:.1f} -> {half['gapOut']:.1f} dB")
+    check("half strength says so in the status", "50% strength" in pg.inner_text("#dnstatus"))
+    pg.evaluate(gen); pg.evaluate("() => { __gv.sel = [Math.round(1.5 * __sr), Math.round(3.5 * __sr)]; }") if False else None
+    sel = pg.evaluate("""() => { const sr = __sr; try { __gv.sel = [Math.round(1.5 * sr), Math.round(5 * sr)]; } catch (e) { return 'nosel'; } return 'ok'; }""")
+    if sel == "ok":
+        pg.evaluate("() => { const r = document.getElementById('dn'); r.value = 100; r.dispatchEvent(new Event('input')); }")
+        pg.evaluate("() => { document.getElementById('dnstatus').textContent = ''; }")
+        pg.click("#denoise"); pg.wait_for_function("() => /^Done/.test(document.getElementById('dnstatus').textContent)", timeout=60000)
+        sm = pg.evaluate("""() => { const c = __gv.chans[0]; let same = true; for (let i = 0; i < 1.4 * __sr; i += 7) if (c[i] !== __noisy[i]) same = false; const rms = (a, x, y) => { let s = 0; for (let i = Math.round(x * __sr); i < Math.round(y * __sr); i++) s += a[i] * a[i]; return Math.sqrt(s / ((y - x) * __sr)); };
+          return { same, inGap: 20 * Math.log10(rms(c, 1.7, 2.4) + 1e-9) - 20 * Math.log10(rms(__noisy, 1.7, 2.4)) }; }""")
+        check("with a selection only the selected part is cleaned", sm["same"] and sm["inGap"] < -20, str(sm))
+    stereo = pg.evaluate("""async () => { const sr = 48000, n = sr * 2; const a = new Float32Array(n), b = new Float32Array(n); let s = 3; for (let i = 0; i < n; i++) { s = (s * 1664525 + 1013904223) >>> 0; const r = s / 4294967296 * 2 - 1; a[i] = 0.05 * r; b[i] = 0.05 * r; }
+      __gv.loadBuffers([a, b], sr); return __gv.chans.length; }""")
+    pg.evaluate("() => { __gv.sel = [0, 0]; document.getElementById('dnstatus').textContent = ''; }")
+    pg.click("#denoise"); pg.wait_for_function("() => /^Done/.test(document.getElementById('dnstatus').textContent)", timeout=60000)
+    st = pg.evaluate("""() => { const rms = (a) => Math.sqrt(a.reduce((s, v) => s + v * v, 0) / a.length); return [__gv.chans.length, rms(__gv.chans[0]), rms(__gv.chans[1])]; }""")
+    check("stereo sound works at 48 kHz and steady noise is removed on both channels", stereo == 2 and st[0] == 2 and st[1] < 0.003 and st[2] < 0.003, str(st))
+    check("no page errors in noise removal", not errs, str(errs[:3]))
+    ctx.close()
+
+
 def test_record(browser, base):
     print("voice and mic recorder (fake microphone)")
     from playwright.sync_api import sync_playwright as _sp
@@ -2192,7 +2241,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

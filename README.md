@@ -111,7 +111,7 @@ Each deck refines its BPM to 0.01 and finds where beat 1 falls (checked on synth
 - **BPM and key finder** (`bpm.html`): uses `js/analyze.js`, the same detection code as the DJ console (tempo, beat grid refinement, key with Camelot code), with CSV export and tap tempo. Estimates only.
 
 ## Audio Editor upgrades
-Pitch shift that keeps the length (WSOLA time stretch plus resampling; good for small shifts, artefacts grow past a few semitones), 3 band EQ (RBJ shelves and peak at 120 Hz, 1 kHz, 8 kHz), noise gate (quietens parts under a threshold; it is not noise removal), low rumble removal (80 Hz high pass) and MP3 export through `js/convert-worker.js`. A 3 minute stereo pitch shift takes about 3.5 s and freezes the page meanwhile.
+Pitch shift that keeps the length (WSOLA time stretch plus resampling; good for small shifts, artefacts grow past a few semitones), 3 band EQ (RBJ shelves and peak at 120 Hz, 1 kHz, 8 kHz), noise gate (quietens parts under a threshold; it is not noise removal), low rumble removal (80 Hz high pass) and MP3 export through `js/convert-worker.js`. A 3 minute stereo pitch shift takes about 3.5 s and freezes the page meanwhile. Background noise removal uses RNNoise (BSD 3 clause, compiled to WebAssembly, packaged by Jitsi under Apache 2.0): it runs in a worker on your device, needs no download and works on the selection or the whole sound at an adjustable strength. It is tuned for speech, so music may lose some detail.
 
 ### DJ: four decks, playlists and controller files
 - **Decks C and D** are hidden until you press *Show decks C and D* (the choice is remembered). SYNC on any deck matches the deck that is playing. Everything goes through the same master, limiter and mix recorder.

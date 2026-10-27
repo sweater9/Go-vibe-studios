@@ -307,6 +307,40 @@
     };
   });
 
+  /* ---------- background noise removal (RNNoise in a worker, at 48 kHz) ---------- */
+  let dnBusy = false;
+  const resample = (x, from, to) => {
+    if (from === to) return Promise.resolve(x.slice());
+    const n = Math.max(1, Math.round(x.length * to / from)), oc = new OfflineAudioContext(1, n, to), b = oc.createBuffer(1, Math.max(1, x.length), from);
+    b.copyToChannel(x, 0); const s = oc.createBufferSource(); s.buffer = b; s.connect(oc.destination); s.start();
+    return oc.startRendering().then((r) => r.getChannelData(0).slice());
+  };
+  function denoiseWorker(arrs, strength, onProgress) {
+    return new Promise((res, rej) => {
+      let w; try { w = new Worker('js/rnnoise-worker.js', { type: 'module' }); } catch (e) { return rej(e); }
+      w.onmessage = (e) => { if (e.data.progress != null) return onProgress(e.data.progress); w.terminate(); if (e.data.error) rej(new Error(e.data.error)); else res(e.data.chans); };
+      w.onerror = (e) => { w.terminate(); rej(new Error(e.message || 'worker failed')); };
+      w.postMessage({ id: 1, chans: arrs, strength }, arrs.map((a) => a.buffer));
+    });
+  }
+  async function denoise() {
+    if (!chans || dnBusy) return; dnBusy = true; stop(); $('denoise').disabled = true;
+    const dn = $('dnstatus'), [a, b] = range(), strength = +$('dn').value / 100;
+    try {
+      if (b - a < 480) { dn.textContent = 'Select a longer part, or clear the selection.'; return; }
+      dn.textContent = 'Preparing…';
+      const seg = await Promise.all(chans.map((c) => resample(c.subarray(a, b), sr, 48000)));
+      const out = await denoiseWorker(seg, strength, (p) => { dn.textContent = 'Removing noise… ' + Math.round(p * 100) + '%'; });
+      const back = await Promise.all(out.map((o) => resample(o, 48000, sr)));
+      snapshot();
+      chans = chans.map((c, ci) => { const o = c.slice(), r = back[ci]; for (let i = 0; i < b - a; i++) o[a + i] = Math.max(-1, Math.min(1, i < r.length ? r[i] : c[a + i])); return o; });
+      refresh(); dn.textContent = 'Done. Background noise reduced' + (strength < 1 ? ' (' + Math.round(strength * 100) + '% strength)' : '') + '. Undo brings the original back.';
+    } catch (e) { dn.textContent = 'Could not remove noise in this browser (' + ((e && e.message) || 'unknown error') + '). A recent Chrome, Edge or Firefox is needed.'; }
+    finally { dnBusy = false; $('denoise').disabled = false; }
+  }
+  $('denoise').onclick = denoise;
+  lab('dn', 'dnv', (v) => v + '%');
+
   /* ---------- export WAV (16-bit PCM) ---------- */
   function wavBlob(arrs) {
     const nCh = arrs.length, n = arrs[0].length, bytes = n * nCh * 2;
