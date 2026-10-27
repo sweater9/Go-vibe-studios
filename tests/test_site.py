@@ -5,7 +5,7 @@ Run:  pip install playwright && playwright install chromium && python tests/test
 Optional accessibility audit: npm install --no-save axe-core   (skipped if axe-core is not installed)
 
 The site is served locally with the exact headers from _headers, so a Content-Security-Policy
-violation shows up as a console error and fails the run. Replicate is replaced by a mock.
+violation shows up as a console error and fails the run.
 Exit code is 0 only if every check passes.
 """
 import glob, http.server, json, os, re, struct, sys, threading
@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "editor", "video", "create", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -149,10 +149,6 @@ def test_a11y(browser, base):
         pg.goto(base + name + ".html")
         pg.add_script_tag(path=axe)
         check(f"{name}: no axe violations", not (v := pg.evaluate(js)), str(v))
-    pg.goto(base + "create.html")
-    pg.click("#keybtn")
-    pg.add_script_tag(path=axe)
-    check("create key dialog: no axe violations", not (v := pg.evaluate(js)), str(v))
     ctx.close()
 
 
@@ -180,78 +176,12 @@ def test_editor(browser, base):
     ctx.close()
 
 
-# ---------------------------------------------------------------- Create page against a mock Replicate
+
 def tiny_wav():
     data = b"".join(struct.pack("<h", int(8000 * ((i % 40) / 40 - .5))) for i in range(4000))
     return b"RIFF" + struct.pack("<I", 36 + len(data)) + b"WAVEfmt " + struct.pack("<IHHIIHH", 16, 1, 1, 8000, 16000, 2, 16) + b"data" + struct.pack("<I", len(data)) + data
 
 
-def test_create(browser, base):
-    print("create page (mock Replicate)")
-    errs, bodies, auth = [], [], []
-    ctx, pg = new_page(browser, errs)
-    H = {"access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*"}
-    mode = {"v": "ok"}
-
-    def api(route, req):
-        if req.method == "OPTIONS":
-            return route.fulfill(status=204, headers=H)
-        if mode["v"] == "401":
-            return route.fulfill(status=401, headers=H, content_type="application/json", body="{}")
-        if mode["v"] == "block":
-            return route.abort()
-        if req.method == "POST":
-            bodies.append((req.url.split("/models/")[1], json.loads(req.post_data)))
-            auth.append(req.headers.get("authorization"))
-            return route.fulfill(status=201, headers=H, content_type="application/json", body=json.dumps({"id": "z", "status": "processing"}))
-        return route.fulfill(headers=H, content_type="application/json", body=json.dumps({"id": "z", "status": "succeeded", "output": "https://replicate.delivery/o.wav"}))
-
-    pg.route("https://api.replicate.com/**", api)
-    pg.route("https://replicate.delivery/**", lambda r, q: r.fulfill(headers={"access-control-allow-origin": "*"}, content_type="audio/wav", body=tiny_wav()))
-    pg.goto(base + "create.html")
-    pg.fill("#prompt", "lofi beat")
-    pg.click("#gen")
-    check("generating without a key opens the key dialog", not pg.locator("#keymodal").evaluate("e => e.classList.contains('hidden')"))
-    pg.keyboard.press("Escape")
-    check("Escape closes the key dialog", pg.locator("#keymodal").evaluate("e => e.classList.contains('hidden')"))
-    pg.click("#keybtn")
-    pg.fill("#key", "r8_test")
-    pg.click("#keysave")
-    pg.click("#gen")
-    pg.wait_for_selector("#result:not(.hidden)", timeout=20000)
-    check("music request uses the right model, body and key", bodies[-1] == ("stability-ai/stable-audio-2.5/predictions", {"input": {"prompt": "lofi beat", "duration": 30}}) and auth[-1] == "Bearer r8_test", str(bodies[-1]))
-    for typ, prompt, dur, suffix in [("sfx", "door creak", 4, ""), ("loop", "forest theme", 30, ", instrumental, seamless loop, no fade in or out")]:
-        pg.select_option("#type", typ)
-        pg.fill("#prompt", prompt)
-        pg.click("#gen")
-        pg.locator("#status", has_text=re.compile("^Done")).wait_for(timeout=20000)
-        check(f"{typ} request", bodies[-1][1]["input"] == {"prompt": prompt + suffix, "duration": dur}, str(bodies[-1]))
-    pg.select_option("#type", "music")
-    pg.select_option("#model", "meta/musicgen")
-    check("MusicGen caps length at 30 s", pg.evaluate("document.getElementById('dur').max") == "30")
-    pg.click("#toedit")
-    pg.wait_for_url("**/editor.html?from=create")
-    pg.wait_for_selector("#editor:not(.hidden)", timeout=10000)
-    check("generated track opens in the editor", "0:00.50" in pg.inner_text("#info"), pg.inner_text("#info"))
-    pg.goto(base + "create.html")
-    mode["v"] = "401"
-    pg.fill("#prompt", "x")
-    pg.click("#gen")
-    pg.locator("#status", has_text="rejected").wait_for(timeout=10000)
-    check("bad key shows a clear message", True)
-    mode["v"] = "block"
-    pg.click("#gen")
-    pg.locator("#status", has_text="CORS").wait_for(timeout=10000)
-    check("blocked call explains the proxy", True)
-    pg.click("#keybtn")
-    pg.click("#keyremove")
-    check("Remove key clears storage and closes the dialog", pg.evaluate("localStorage.getItem('govibe.rkey')") is None and pg.locator("#keymodal").evaluate("e => e.classList.contains('hidden')"))
-    real = [e for e in errs if "Failed to load resource" not in e]  # the 401 / aborted calls above are deliberate
-    check("create: no script or policy errors", not real, str(real))
-    ctx.close()
-
-
-# ---------------------------------------------------------------- DJ mixer
 def test_dj(browser, base):
     print("dj mixer")
     errs = []
@@ -1831,7 +1761,7 @@ def test_home(browser, base):
     errs = []
     ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 900})
     pg.goto(base + "index.html?gvtest"); pg.wait_for_function("() => window.__home")
-    check("home lists every tool with a link", pg.locator("a.card").count() == 13 and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "create.html", "keys.html", "editor.html", "video.html", "master.html", "convert.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
+    check("home lists every tool with a link", pg.locator("a.card").count() == 12 and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "editor.html", "video.html", "master.html", "convert.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
     check("four groups with headings", pg.locator(".grp h2").count() == 4 and pg.inner_text(".grp h2 >> nth=0") == "Make")
     check("the web font loads from this site", pg.evaluate("document.fonts.check('16px \"Bricolage Grotesque\"')"))
     check("beat strip has 4 rows of 16 steps and starts with a boom bap pattern", pg.locator(".st").count() == 64 and pg.locator('.st[aria-pressed="true"]').count() == 3 + 2 + 8)
@@ -2244,7 +2174,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

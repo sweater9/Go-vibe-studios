@@ -44,19 +44,17 @@
 
   <h2>What is stored in your browser</h2>
   <ul>
-    <li><b>Your Replicate API key</b>, if you add one on the Create page. It is kept in this browser only: in local storage if you tick "Remember on this device", otherwise for the current tab only. "Remove key" deletes it.</li>
-    <li><b>Proxy address</b> (optional) and your lesson progress.</li>
+    <li>Your lesson progress and saved settings.</li>
     <li><b>Your DJ library</b>, if you add tracks or load them into a deck with "Remember tracks" ticked: the audio files and their BPM, key, beat grid and cue points are kept in this browser's storage (IndexedDB). Use the ✕ button in the Library to remove a track, or clear the site's data in your browser. MIDI mappings and saved beats are also kept here.</li>
     <li><b>Your set history</b>: tracks you play for 20 seconds or more are logged (title, BPM, key, time) in this browser's localStorage, up to 1000 entries. Clear it from the History tab. Library backups you export are files saved to your own device; we never receive them.</li>
     <li><b>Your Studio projects</b>: the tracks, notes and audio files of each project you save in the Multitrack Studio are kept in this browser's storage (IndexedDB), with the last project reopened automatically. Use the backup ZIP in the Studio to move or keep them.</li>
-    <li><b>A temporary copy of a generated track</b>, used to pass it from the Create page to the Audio Editor. It is deleted once the editor has loaded it.</li>
+    <li><b>A temporary copy of a recording or beat</b>, used to pass it to the Audio Editor. It is deleted once the editor has loaded it.</li>
     <li><b>Cached copies of the site's own files</b>, so the site can open offline.</li>
   </ul>
   <p>You can clear all of this from your browser's site settings. This site does not set cookies of its own.</p>
 
   <h2>When data leaves your device</h2>
   <ul>
-    <li><b>AI generation (Create page):</b> your prompt and API key are sent to Replicate, or to the proxy address you entered, which forwards them to Replicate. Replicate's own terms and privacy policy apply, and Replicate bills the account that owns the key. A proxy run from this project's <code>worker/</code> folder does not store or log keys, but a proxy run by anyone else is under their control, so only use one you trust.</li>
     <li><b>Hosting:</b> the site is served by Cloudflare, which processes standard web-server data such as IP addresses and the pages requested, under its own privacy policy.</li>
   </ul>
 

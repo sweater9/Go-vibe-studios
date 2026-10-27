@@ -8,15 +8,12 @@ Free browser tools for music lovers, content creators, DJs and music makers. No 
 
 ## Phase 2
 
-- **Create** (`create.html`): AI music from a prompt using the visitor's own Replicate key (Stable Audio 2.5 and MusicGen). The key is stored only in the visitor's browser. Generated tracks can be downloaded or opened in the Audio Editor.
-- **Proxy** (`worker/`): optional Cloudflare Worker for when the browser blocks direct calls to Replicate (CORS). It does not store or log keys. See `worker/README.md`.
 - **DJ Mixer** (`dj.html`): two decks (four with *Show decks C and D*) with 3-band EQ, tempo (±16%), cue, 4-beat loop, BPM detection, tempo sync, equal-power crossfader, synthesized sampler pads and mix recording (WebM/Ogg). Load your own files; BPM detection is approximate (within about 1 BPM on clear beats) and sync matches tempo only, not beat phase.
 
 ## Phase 3
 
-- **Sound effects and game loops** (on the Create page): pick a type. Sound effects use Stable Audio 2.5 with 1-15 s lengths. Game loops use 10-60 s lengths and add a "seamless loop, instrumental" hint to the prompt; the model does not guarantee a perfect loop, so trim the result in the Audio Editor if needed.
 - **Learn to DJ** (`lessons.html`): ten short lessons (BPM with a tempo change calculator, beatmatching, phrasing with a phrase trainer, EQ blending, harmonic mixing with a key trainer, cue points and loops, filters and effects, transition styles, building a set, reviewing your mixes) with quizzes (`js/quiz.js`) with progress saved in the browser, a beatmatching ear-trainer that scores how close your tempo match is, and a Camelot-wheel helper showing which keys mix well.
-- Not done: **stem separation**. It needs a hosted model and a way to upload a full-size song from the browser, and the Replicate model and upload details could not be verified, so it is left out rather than shipped untested.
+- Not done: **stem separation**. It needs a hosted model and a way to upload a full-size song from the browser, so it is left out. Nothing in this project sends your files or input to another service.
 
 ## Phase 4
 
@@ -38,8 +35,8 @@ Push to GitHub, then connect the repo to Cloudflare Pages, GitHub Pages or Verce
 
 ## Security and deployment files
 
-- `_headers`: security headers applied by Cloudflare (Content-Security-Policy, nosniff, no referrer, camera and location disabled, microphone only for this site, no framing of the site). All scripts are same-origin with no inline scripts. Two deliberate looseness points: `style-src 'unsafe-inline'` (a few inline styles) and `connect-src https:` (visitors can enter their own proxy URL on the Create page).
-- `.assetsignore`: keeps `worker/` and this README out of the published site.
+- `_headers`: security headers applied by Cloudflare (Content-Security-Policy, nosniff, no referrer, camera and location disabled, microphone only for this site, no framing of the site). All scripts are same-origin with no inline scripts. Two deliberate looseness points: `style-src 'unsafe-inline'` (a few inline styles). Network connections are limited to the site itself (`connect-src 'self' blob: data:`), so nothing can be sent elsewhere.
+- `.assetsignore`: keeps `worker` (now removed) and this README out of the published site.
 - Test hooks (`window.__dj`, `__ve`, `__gv`, `__lessons`) exist only when the page URL contains `?gvtest`.
 
 ## Roadmap
@@ -61,7 +58,7 @@ The DJ page has a 16-step, 6-track beat maker (kick, snare, clap, hats, bass) wi
 - **Installable and offline**: `manifest.webmanifest`, `sw.js` (network-first with cache fallback, cache name `govibe-v1`; bump it when you change the precache list) and `js/pwa.js`. The service worker registers only on https or localhost.
 - **Legal**: `privacy.html` and `terms.html` are plain-language drafts, not legal advice. Have them reviewed before relying on them. Contact is the GitHub Issues page.
 - **Accessibility and phones**: skip link, landmarks, visible focus, reduced-motion support, labelled dialogs and canvases, AA contrast, no sideways scroll at 390 px.
-- **Tests**: `python tests/test_site.py` (needs `pip install playwright && playwright install chromium`; optionally `npm install --no-save axe-core` for the accessibility audit). It serves the site with the real `_headers`, so CSP violations fail the run, mocks Replicate, and covers pages, editor, Create modes, DJ, lessons, video export, offline mode and phone layout. GitHub Actions runs it on every push (`.github/workflows/test.yml`).
+- **Tests**: `python tests/test_site.py` (needs `pip install playwright && playwright install chromium`; optionally `npm install --no-save axe-core` for the accessibility audit). It serves the site with the real `_headers`, so CSP violations fail the run, and covers pages, editor, DJ, lessons, video export, offline mode and phone layout. GitHub Actions runs it on every push (`.github/workflows/test.yml`).
 
 ## DJ extras
 
