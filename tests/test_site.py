@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "tuner", "metronome", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -1002,6 +1002,10 @@ def test_record(browser, base):
     check("microphone list is filled", pg.locator("#dev option").count() >= 1)
     pg.wait_for_timeout(800)
     check("level meter moves with the fake microphone tone", pg.evaluate("document.getElementById('meter').getAttribute('aria-valuenow')") != "-60" or "dB" in pg.inner_text("#lvltxt"), pg.inner_text("#lvltxt"))
+    pg.wait_for_timeout(1500)
+    lit = pg.evaluate("""() => { const c = document.getElementById('livespec'), g = c.getContext('2d'); const d = g.getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] > 150) n++; return { n, w: c.width, h: c.height }; }""")
+    check("the live spectrogram draws the microphone", lit["w"] > 100 and lit["n"] > 20, str(lit))
+    pg.select_option("#livelog", "0"); pg.wait_for_timeout(300); pg.select_option("#livelog", "1")
     pg.uncheck("#cd"); pg.click("#rec"); pg.wait_for_function("() => __rec.recording", timeout=5000); pg.wait_for_timeout(2200); pg.click("#rec")
     pg.wait_for_function("() => __rec.takes.length === 1", timeout=8000)
     d = pg.evaluate("""async () => { const t = __rec.takes[0], u = new Uint8Array(await t.blob.arrayBuffer()), v = new DataView(u.buffer); let pk = 0; for (let i = 44; i < u.length; i += 2) pk = Math.max(pk, Math.abs(v.getInt16(i, true)));
@@ -1761,7 +1765,7 @@ def test_home(browser, base):
     errs = []
     ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 900})
     pg.goto(base + "index.html?gvtest"); pg.wait_for_function("() => window.__home")
-    check("home lists every tool with a link", pg.locator("a.card").count() == 12 and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "editor.html", "video.html", "master.html", "convert.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
+    check("home lists every tool with a link", pg.locator("a.card").count() == 14 and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "tuner.html", "metronome.html", "editor.html", "video.html", "master.html", "convert.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
     check("four groups with headings", pg.locator(".grp h2").count() == 4 and pg.inner_text(".grp h2 >> nth=0") == "Make")
     check("the web font loads from this site", pg.evaluate("document.fonts.check('16px \"Bricolage Grotesque\"')"))
     check("beat strip has 4 rows of 16 steps and starts with a boom bap pattern", pg.locator(".st").count() == 64 and pg.locator('.st[aria-pressed="true"]').count() == 3 + 2 + 8)
@@ -2345,6 +2349,146 @@ def test_video_pro(browser, base):
     ctx.close()
 
 
+# ---------------------------------------------------------------- spectrogram
+def test_spectrogram(browser, base):
+    print("spectrogram: engine and audio editor view")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "editor.html?gvtest")
+    r = pg.evaluate("""() => { const sr = 48000, n = sr * 2, a = new Float32Array(n);
+      for (let i = 0; i < n; i++) a[i] = 0.5 * Math.sin(2 * Math.PI * 1000 * i / sr);
+      const s = GVSpec.compute([a], sr, 100, 4096); let best = 0, col = 50; for (let b = 1; b < s.bins; b++) if (s.db[col * s.bins + b] > s.db[col * s.bins + best]) best = b;
+      return { hz: best * sr / 4096, db: s.db[col * s.bins + best], quiet: s.db[col * s.bins + 400], cols: s.cols };
+    }""")
+    check("FFT finds a 1 kHz sine at the right bin", abs(r["hz"] - 1000) < 15, str(r))
+    check("level reads close to the true amplitude (0.5 is about minus 6 dB)", -9 < r["db"] < -4, str(r))
+    check("far away bins stay near the floor", r["quiet"] < -60, str(r))
+    pg.evaluate("""() => { const sr = 48000, n = sr * 3, a = new Float32Array(n);
+      for (let i = 0; i < n; i++) a[i] = (i < n / 2 ? 0.4 * Math.sin(2 * Math.PI * 440 * i / sr) : 0.4 * Math.sin(2 * Math.PI * 4000 * i / sr));
+      __gv.loadBuffers([a], sr); }""")
+    pg.wait_for_timeout(300)
+    check("the editor starts on the waveform", pg.evaluate("__gv.view") == "wave" and pg.get_attribute("#vwave", "aria-pressed") == "true")
+    pg.click("#vspec"); pg.wait_for_timeout(400)
+    check("the spectrogram view opens and shows its options", pg.evaluate("__gv.view") == "spec" and pg.locator("#specopt").is_visible() and pg.get_attribute("#vspec", "aria-pressed") == "true")
+    d = pg.evaluate("""() => { const s = __gv.spec; const peak = (x) => { let bh = 0, bd = -999; for (let y = 0; y < 400; y++) { const p = GVSpec.probe(s, x, y / 400, { log: true, fmax: 20000 }); if (p.db > bd) { bd = p.db; bh = p.hz; } } return bh; };
+      return { first: peak(0.2), second: peak(0.8) }; }""")
+    check("the first half peaks near 440 Hz and the second near 4000 Hz", abs(d["first"] - 440) < 60 and abs(d["second"] - 4000) < 350, str(d))
+    px = pg.evaluate("""() => { const c = document.getElementById('wave'), g = c.getContext('2d'), W = c.width, H = c.height; let lit = 0, dark = 0; const col = g.getImageData(Math.floor(W * 0.8), 0, 1, H).data; for (let y = 0; y < H; y++) { const v = col[y * 4] + col[y * 4 + 1] + col[y * 4 + 2]; if (v > 450) lit++; if (v < 80) dark++; } return { lit, dark, H }; }""")
+    check("the picture has bright pitch lines on a dark background", px["lit"] > 0 and px["dark"] > px["H"] * 0.5, str(px))
+    box = pg.locator("#wave").bounding_box()
+    pg.mouse.move(box["x"] + box["width"] * 0.8, box["y"] + box["height"] * 0.5); pg.wait_for_timeout(200)
+    check("hovering shows frequency, time and level", re.search(r"\d+ Hz · .+ · -?\d+ dB", pg.inner_text("#specinfo")) is not None, pg.inner_text("#specinfo"))
+    pg.select_option("#speclog", "0"); pg.wait_for_timeout(300)
+    d2 = pg.evaluate("""() => { const s = __gv.spec; let bh = 0, bd = -999; for (let y = 0; y < 400; y++) { const p = GVSpec.probe(s, 0.8, y / 400, { log: false, fmax: 20000 }); if (p.db > bd) { bd = p.db; bh = p.hz; } } return bh; }""")
+    check("the linear axis still maps 4 kHz correctly", abs(d2 - 4000) < 150, str(d2))
+    pg.mouse.move(box["x"] + box["width"] * 0.2, box["y"] + box["height"] * 0.5); pg.mouse.down(); pg.mouse.move(box["x"] + box["width"] * 0.5, box["y"] + box["height"] * 0.5, steps=6); pg.mouse.up()
+    check("a part can be selected on the spectrogram", "Selection" in pg.inner_text("#sel"), pg.inner_text("#sel"))
+    pg.evaluate("__gv.ops && 0"); pg.click("#vwave"); pg.wait_for_timeout(200)
+    check("back to the waveform", pg.evaluate("__gv.view") == "wave" and pg.locator("#specopt").is_hidden())
+    check("no errors in the editor", not errs, str(errs))
+    ctx.close()
+
+
+# ---------------------------------------------------------------- tuner
+def test_tuner(browser, base):
+    print("tuner: pitch detection and page (fake microphone)")
+    errs = []
+    b2 = _sp_instance.chromium.launch(args=["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", "--autoplay-policy=no-user-gesture-required"])
+    ctx = b2.new_context(permissions=["microphone"]); pg = ctx.new_page()
+    pg.on("pageerror", lambda e: errs.append(f"pageerror: {e}"))
+    pg.goto(base + "tuner.html?gvtest")
+    check("the tuner waits for permission first", pg.locator("#rig").is_hidden() and pg.locator("#allow").is_visible())
+    res = pg.evaluate("""() => { const T = __tuner, out = {}; const make = (f, rate, harm) => { const b = new Float32Array(8192); for (let i = 0; i < b.length; i++) { let v = 0; for (const [k, a] of harm || [[1, 1]]) v += a * Math.sin(2 * Math.PI * f * k * i / rate); b[i] = 0.3 * v; } return b; };
+      for (const [f, rate] of [[440, 48000], [82.41, 48000], [196, 44100], [1000, 48000], [32.7, 48000], [1318.5, 44100]]) { const r = T.detect(make(f, rate), rate); out[f] = r ? r.hz : null; }
+      out.rich = (T.detect(make(110, 48000, [[1, 0.4], [2, 1], [3, 0.7], [4, 0.3]]), 48000) || {}).hz;
+      const nz = new Float32Array(8192).map(() => (Math.random() * 2 - 1) * 0.3); const rn = T.detect(nz, 48000); out.noise = rn ? rn.clarity : 0;
+      out.silence = T.detect(new Float32Array(8192), 48000); return out; }""")
+    for f, tol in [("440", .6), ("82.41", .3), ("196", .5), ("1000", 2), ("32.7", .5), ("1318.5", 3)]:
+        check(f"detects {f} Hz", res[f] is not None and abs(res[f] - float(f)) < tol, str(res[f]))
+    check("finds the fundamental even when a harmonic is louder", res["rich"] and abs(res["rich"] - 110) < 1, str(res["rich"]))
+    check("noise is not mistaken for a note", res["noise"] < 0.8, str(res["noise"]))
+    check("silence gives no pitch", res["silence"] is None)
+    n = pg.evaluate("() => [__tuner.noteOf(440), __tuner.noteOf(445), __tuner.noteOf(82.41), __tuner.noteOf(415.3)]")
+    check("440 Hz is A4 and in tune", n[0]["name"] == "A4" and abs(n[0]["cents"]) < 0.5, str(n[0]))
+    check("445 Hz is about 20 cents sharp", n[1]["name"] == "A4" and 18 < n[1]["cents"] < 21, str(n[1]))
+    check("82.41 Hz is E2", n[2]["name"] == "E2" and abs(n[2]["cents"]) < 1, str(n[2]))
+    check("415 Hz is A flat or G sharp", n[3]["name"] == "G♯4", str(n[3]))
+    pg.click("#allow"); pg.wait_for_selector("#rig:not(.hidden)", timeout=10000)
+    pg.wait_for_timeout(600)
+    check("the level meter works", "dB" in pg.inner_text("#lvltxt") or pg.inner_text("#lvltxt") == "silence")
+    check("chromatic mode hides the string buttons", pg.locator("#strings").is_hidden())
+    pg.select_option("#inst", "guitar")
+    check("guitar shows six strings E A D G B E", pg.locator("#strings button").all_inner_texts() == ["E2", "A2", "D3", "G3", "B3", "E4"], str(pg.locator("#strings button").all_inner_texts()))
+    pg.select_option("#inst", "ukulele")
+    check("ukulele shows G C E A", pg.locator("#strings button").all_inner_texts() == ["G4", "C4", "E4", "A4"])
+    pg.evaluate("__tuner.show(445)"); pg.wait_for_timeout(300)
+    check("the display shows the note and the cents", pg.inner_text("#note") == "A4" and "+20" in pg.inner_text("#cents") and "445" in pg.inner_text("#hz"), pg.inner_text("#cents"))
+    check("the needle turns to the sharp side", "rotate(17" in pg.evaluate("document.getElementById('needle').style.transform"), pg.evaluate("document.getElementById('needle').style.transform"))
+    pg.evaluate("__tuner.show(440.2)"); pg.wait_for_timeout(900); pg.evaluate("__tuner.show(440.2)"); pg.wait_for_timeout(100)
+    check("close enough shows In tune and the green zone", pg.inner_text("#verdict") == "In tune" and "good" in pg.get_attribute("#gauge", "class"), pg.inner_text("#verdict"))
+    pg.select_option("#acc", "f"); pg.evaluate("__tuner.show(466.16)")
+    check("flats mode spells B flat", pg.inner_text("#note") == "B♭4", pg.inner_text("#note"))
+    pg.fill("#a4", "432"); pg.dispatch_event("#a4", "change")
+    check("the reference pitch changes", pg.evaluate("__tuner.a4") == 432)
+    pg.locator("#strings button").first.click(); pg.wait_for_timeout(200)
+    check("a string button plays a reference tone", pg.locator("#strings button.playing").count() == 1)
+    check("no errors on the tuner page", not errs, str(errs))
+    ctx.close(); b2.close()
+
+
+# ---------------------------------------------------------------- metronome
+def test_metronome(browser, base):
+    print("metronome")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "metronome.html?gvtest")
+    check("starts at 100 BPM with four beats", pg.input_value("#bpm") == "100" and pg.locator("#beats .dot").count() == 4)
+    check("tempo names follow the speed", pg.evaluate("[__met.tempoName(50), __met.tempoName(100), __met.tempoName(130), __met.tempoName(190)]") == ["Largo", "Andante", "Allegro", "Presto"])
+    pg.click("#up"); pg.click("#up"); pg.click("#dn")
+    check("plus and minus change the tempo by one", pg.input_value("#bpm") == "101")
+    pg.fill("#bpm", "500"); pg.dispatch_event("#bpm", "change")
+    check("tempo is limited to 300", pg.input_value("#bpm") == "300")
+    pg.fill("#bpm", "240"); pg.dispatch_event("#bpm", "change")
+    check("the slider follows the number", pg.input_value("#bpmr") == "240")
+    pg.click("#go"); pg.wait_for_timeout(2300); pg.click("#go")
+    lg = pg.evaluate("__met.log.slice()")
+    beats = [x for x in lg if x["tick"] == 0]
+    gaps = [round(beats[i + 1]["t"] - beats[i]["t"], 4) for i in range(len(beats) - 1)]
+    check("it plays about 9 beats in 2.3 seconds", 8 <= len(beats) <= 12, str(len(beats)))
+    check("beats are exactly 0.25 seconds apart at 240 BPM", gaps and all(abs(g - 0.25) < 0.0005 for g in gaps), str(gaps))
+    check("the first beat of each bar is accented", [b["lv"] for b in beats[:8]] == [3, 2, 2, 2, 3, 2, 2, 2], str([b["lv"] for b in beats[:8]]))
+    check("the button goes back to Start", pg.inner_text("#go") == "▶ Start" and not pg.evaluate("__met.running"))
+    pg.select_option("#num", "3"); pg.select_option("#sub", "2")
+    pg.evaluate("__met.log.length = 0"); pg.click("#go"); pg.wait_for_timeout(1500); pg.click("#go")
+    lg = pg.evaluate("__met.log.slice()")
+    check("3 beats per bar with eighth note subdivisions", [(x["beat"], x["tick"]) for x in lg[:6]] == [(0, 0), (0, 1), (1, 0), (1, 1), (2, 0), (2, 1)], str([(x["beat"], x["tick"]) for x in lg[:6]]))
+    sub = [round(lg[i + 1]["t"] - lg[i]["t"], 4) for i in range(0, 4, 2)]
+    check("straight eighths sit half way between beats", all(abs(x - 0.125) < 0.0005 for x in sub), str(sub))
+    pg.select_option("#swing", "0.33"); pg.evaluate("__met.log.length = 0"); pg.click("#go"); pg.wait_for_timeout(900); pg.click("#go")
+    lg = pg.evaluate("__met.log.slice()")
+    r = (lg[1]["t"] - lg[0]["t"]) / 0.25
+    check("triplet swing delays the off beat to two thirds", abs(r - 0.665) < 0.01, str(r))
+    pg.select_option("#sub", "1"); pg.select_option("#swing", "0")
+    pg.locator("#beatpick button").nth(1).click(); pg.locator("#beatpick button").nth(1).click()
+    check("pressing a beat cycles normal, soft, silent", pg.evaluate("__met.acc")[1] == 0, str(pg.evaluate("__met.acc")))
+    pg.locator("#beatpick button").nth(1).click()
+    check("and back to accent", pg.evaluate("__met.acc")[1] == 3)
+    pg.fill("#bpm", "120"); pg.dispatch_event("#bpm", "change")
+    for _ in range(4): pg.click("#tap"); pg.wait_for_timeout(500)
+    check("tap tempo finds about 120 BPM from half second taps", 108 <= int(pg.input_value("#bpm")) <= 132, pg.input_value("#bpm"))
+    pg.fill("#bpm", "240"); pg.dispatch_event("#bpm", "change"); pg.select_option("#num", "4")
+    pg.check("#tr"); pg.fill("#trstep", "10"); pg.fill("#trbars", "1"); pg.fill("#trmax", "260")
+    pg.click("#go"); pg.wait_for_timeout(3600); pg.click("#go")
+    check("the trainer raises the tempo bar by bar and stops at the goal", pg.input_value("#bpm") == "260", pg.input_value("#bpm"))
+    pg.uncheck("#tr"); pg.locator("body").click(position={"x": 5, "y": 5}); pg.keyboard.press("Space"); pg.wait_for_timeout(300)
+    check("the space bar starts it", pg.evaluate("__met.running"))
+    pg.keyboard.press("Space"); pg.wait_for_timeout(200)
+    check("and stops it", not pg.evaluate("__met.running"))
+    for k in ("wood", "beep", "hat", "click"): pg.select_option("#snd", k); pg.click("#go"); pg.wait_for_timeout(500); pg.click("#go")
+    check("every sound plays without errors", not errs, str(errs))
+    ctx.close()
+
+
 # ---------------------------------------------------------------- offline support
 def test_offline(browser, base):
     print("offline support")
@@ -2368,7 +2512,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_tuner, test_metronome, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

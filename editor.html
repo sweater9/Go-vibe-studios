@@ -43,6 +43,11 @@
   <section id="editor" class="hidden">
     <div class="panel">
       <canvas id="wave" class="wave" role="img" aria-label="Audio waveform. Drag across it to select a part, click to move the playhead."></canvas>
+      <div class="row" style="margin-top:10px">
+        <div class="seg" role="group" aria-label="View"><button class="btn sm" id="vwave" aria-pressed="true">Waveform</button><button class="btn sm" id="vspec" aria-pressed="false">Spectrogram</button></div>
+        <label class="row time hidden" id="specopt">Frequency axis <select id="speclog"><option value="1">Log (musical)</option><option value="0">Linear</option></select></label>
+        <span class="time" id="specinfo" aria-live="off"></span>
+      </div>
       <div class="row" style="margin-top:10px; justify-content:space-between">
         <span class="time" id="info">—</span>
         <span class="time" id="sel">No selection</span>
@@ -133,6 +138,7 @@
 <footer>GoVibe Mix · all processing happens in your browser · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
 <script src="js/store.js"></script>
 <script src="js/denoise.js"></script>
+<script src="js/spectrum.js"></script>
 <script src="js/editor.js"></script>
 <script src="js/pwa.js"></script>
 </body>

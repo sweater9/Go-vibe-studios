@@ -72,6 +72,13 @@
     fit();
     const W = canvas.width, H = canvas.height, n = len();
     g.clearRect(0, 0, W, H);
+    if (view === 'spec') {
+      const img = specImage(W, H); g.drawImage(img, 0, 0);
+      GVSpec.axis(g, W, H, specOpts(), sr, window.devicePixelRatio || 1);
+      if (selEnd > selStart) { g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(selStart / n * W, 0, (selEnd - selStart) / n * W, H); g.fillStyle = '#fff'; g.fillRect(selStart / n * W, 0, 1, H); g.fillRect(selEnd / n * W, 0, 1, H); }
+      if (playing) { const pos = (playOffset + (ctx.currentTime - playStartedAt) * playRate), x = Math.min(1, pos / (n / sr)) * W; g.fillStyle = '#fbbf24'; g.fillRect(x, 0, 2, H); }
+      return;
+    }
     // selection
     if (selEnd > selStart) {
       g.fillStyle = 'rgba(139,92,246,.28)';
@@ -104,6 +111,30 @@
     }
   }
   let playRate = 1;
+  /* ---------- spectrogram view ---------- */
+  let view = 'wave', specCache = null;
+  const specOpts = () => ({ log: $('speclog').value === '1', fmax: 20000 });
+  function specImage(W, H) {
+    const log = $('speclog').value;
+    if (!specCache || specCache.chans !== chans || specCache.W !== W || specCache.H !== H || specCache.log !== log) {
+      const spec = specCache && specCache.chans === chans && specCache.W === W ? specCache.spec : GVSpec.compute(chans, sr, W, 4096);
+      specCache = { chans, W, H, log, spec, img: GVSpec.image(spec, W, H, specOpts()) };
+    }
+    return specCache.img;
+  }
+  function setView(v) {
+    view = v; $('vwave').setAttribute('aria-pressed', v === 'wave'); $('vspec').setAttribute('aria-pressed', v === 'spec');
+    $('specopt').classList.toggle('hidden', v !== 'spec'); $('specinfo').textContent = '';
+    canvas.setAttribute('aria-label', v === 'spec' ? 'Spectrogram: time runs left to right, pitch runs bottom to top, brighter means louder. Drag across it to select a part, click to move the playhead.' : 'Audio waveform. Drag across it to select a part, click to move the playhead.');
+    if (chans) draw();
+  }
+  $('vwave').onclick = () => setView('wave'); $('vspec').onclick = () => setView('spec'); $('speclog').onchange = () => draw();
+  canvas.addEventListener('pointermove', (e) => {
+    if (view !== 'spec' || !chans || !specCache || dragStart !== null) return;
+    const r = canvas.getBoundingClientRect(), p = GVSpec.probe(specCache.spec, (e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height, specOpts());
+    $('specinfo').textContent = Math.round(p.hz) + ' Hz · ' + fmt(p.time) + ' · ' + Math.round(p.db) + ' dB';
+  });
+  canvas.addEventListener('pointerleave', () => { if (view === 'spec') $('specinfo').textContent = ''; });
   function refresh() {
     $('info').textContent = fmt(len() / sr) + ' · ' + chans.length + ' ch · ' + sr + ' Hz';
     $('sel').textContent = selEnd > selStart
@@ -370,5 +401,5 @@
   });
 
   // test hook: only exposed when the page URL contains ?gvtest
-  if (/[?&]gvtest\b/.test(location.search)) window.__gv = { loadBuffers: (c, rate) => { chans = c; sr = rate; history = []; future = []; selStart = selEnd = 0; editor.classList.remove('hidden'); drop.classList.add('hidden'); refresh(); }, ops, get chans() { return chans; }, set sel(v) { selStart = v[0]; selEnd = v[1]; }, wavBlob };
+  if (/[?&]gvtest\b/.test(location.search)) window.__gv = { loadBuffers: (c, rate) => { chans = c; sr = rate; history = []; future = []; selStart = selEnd = 0; editor.classList.remove('hidden'); drop.classList.add('hidden'); refresh(); }, ops, get chans() { return chans; }, get view() { return view; }, get spec() { return specCache && specCache.spec; }, setView, set sel(v) { selStart = v[0]; selEnd = v[1]; }, wavBlob };
 })();

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Metronome — GoVibe Mix</title>
+<meta name="description" content="A free metronome with tap tempo, accents, subdivisions, time signatures and a tempo trainer that speeds up as you practise. Runs in your browser with no account.">
+<link rel="canonical" href="https://govibemix.com/metronome.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Metronome — GoVibe Mix">
+<meta property="og:description" content="A free metronome with tap tempo, accents, subdivisions, time signatures and a tempo trainer that speeds up as you practise. Runs in your browser with no account.">
+<meta property="og:url" content="https://govibemix.com/metronome.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="studio.html">Studio</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+  <a class="link" href="index.html#tools">All tools</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>Metronome</h1>
+  <p class="lead">A steady beat for practice. Set the tempo, choose a time signature, shape the accents and let the trainer speed you up bar by bar. It works offline and nothing is uploaded.</p>
+
+  <div class="panel metro">
+    <div class="beats" id="beats" role="img" aria-label="Beat indicator"></div>
+    <div class="mtempo">
+      <button class="btn" id="dn" aria-label="Slower by 1 BPM">−</button>
+      <div class="mbpm"><input id="bpm" type="number" min="20" max="300" value="100" aria-label="Tempo in beats per minute"><span>BPM</span></div>
+      <button class="btn" id="up" aria-label="Faster by 1 BPM">+</button>
+    </div>
+    <div class="mname" id="tname" aria-live="off">Andante</div>
+    <input type="range" id="bpmr" min="20" max="300" value="100" aria-label="Tempo slider" style="width:100%">
+    <div class="row" style="margin-top:14px; justify-content:center">
+      <button class="btn primary recbig" id="go">▶ Start</button>
+      <button class="btn" id="tap">Tap tempo</button>
+    </div>
+    <p class="status" id="status" role="status" style="text-align:center"></p>
+  </div>
+
+  <div class="panel">
+    <h2>Rhythm</h2>
+    <div class="row" style="align-items:flex-end">
+      <label class="ctl">Beats per bar
+        <select id="num"></select>
+      </label>
+      <label class="ctl">Subdivision
+        <select id="sub"><option value="1">None</option><option value="2">Eighths</option><option value="3">Triplets</option><option value="4">Sixteenths</option></select>
+      </label>
+      <label class="ctl">Swing (with eighths)
+        <select id="swing"><option value="0">Straight</option><option value="0.17">Light</option><option value="0.33">Triplet feel</option></select>
+      </label>
+    </div>
+    <p class="status">Press a beat to cycle it between accent, normal, soft and silent.</p>
+    <div class="beatpick" id="beatpick" aria-label="Beat accents"></div>
+    <div class="row" style="margin-top:12px; align-items:flex-end">
+      <label class="ctl">Sound
+        <select id="snd"><option value="click">Click</option><option value="wood">Wood block</option><option value="beep">Beep</option><option value="hat">Hi-hat</option></select>
+      </label>
+      <label class="ctl">Volume
+        <input type="range" id="vol" min="0" max="100" value="80" aria-label="Volume">
+      </label>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Tempo trainer</h2>
+    <p class="status">Start slow and let the metronome nudge the tempo up every few bars until it reaches your goal.</p>
+    <div class="row" style="align-items:flex-end">
+      <label class="row time"><input type="checkbox" id="tr"> Speed up automatically</label>
+      <label class="ctl">Add (BPM)<input type="number" id="trstep" min="1" max="20" value="4" style="width:80px"></label>
+      <label class="ctl">Every (bars)<input type="number" id="trbars" min="1" max="32" value="4" style="width:80px"></label>
+      <label class="ctl">Stop at (BPM)<input type="number" id="trmax" min="30" max="300" value="140" style="width:90px"></label>
+    </div>
+  </div>
+
+  <div class="prose">
+    <h2>Tips</h2>
+    <ul>
+      <li>Press the space bar to start and stop when no button is focused. The up and down arrows change the tempo by one.</li>
+      <li>Tap the Tap tempo button along with a song to find its speed. For a full track, the <a href="bpm.html">BPM and key finder</a> measures it for you.</li>
+      <li>Practise a hard passage at 60 percent of the target tempo, then raise it in small steps. The trainer does this for you.</li>
+      <li>Turn on a subdivision to feel the spaces between beats. Triplets are useful for shuffles and blues.</li>
+      <li>The tempo marking under the number (Largo, Allegro and so on) is only a guide to the feel.</li>
+    </ul>
+  </div>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/metronome.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>

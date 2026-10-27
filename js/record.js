@@ -2,7 +2,7 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const MAX_SECS = 30 * 60;
-  let ctx = null, stream = null, src = null, an = null, node = null, monGain = null, mute = null;
+  let sa = null, lv = null, ctx = null, stream = null, src = null, an = null, node = null, monGain = null, mute = null;
   let rec = false, chunks = [], frames = 0, t0 = 0, timer = 0, raf = 0, peakHold = 0, takes = [], seq = 0;
   const say = (t) => { $('status').textContent = t; };
   const fmt = (s) => Math.floor(s / 60) + ':' + (s % 60).toFixed(1).padStart(4, '0');
@@ -23,13 +23,14 @@
     src = ctx.createMediaStreamSource(stream); an = ctx.createAnalyser(); an.fftSize = 1024; src.connect(an);
     if (!node) { await ctx.audioWorklet.addModule('js/rec-worklet.js'); node = new AudioWorkletNode(ctx, 'gv-rec', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] }); mute = ctx.createGain(); mute.gain.value = 0; node.connect(mute); mute.connect(ctx.destination); }
     src.connect(node);
+    if (lv) lv.stop(); sa = ctx.createAnalyser(); src.connect(sa);
     monGain = ctx.createGain(); monGain.gain.value = $('mon').checked ? 1 : 0; src.connect(monGain); monGain.connect(ctx.destination);
     const devs = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audioinput'), cur = stream.getAudioTracks()[0].getSettings().deviceId;
     const sel = $('dev'); sel.innerHTML = ''; devs.forEach((d, i) => { const o = document.createElement('option'); o.value = d.deviceId; o.textContent = d.label || 'Microphone ' + (i + 1); if (d.deviceId === cur) o.selected = true; sel.appendChild(o); });
-    $('setup').classList.add('hidden'); $('rig').classList.remove('hidden'); meter();
+    $('setup').classList.add('hidden'); $('rig').classList.remove('hidden'); meter(); lv = GVSpec.live($('livespec'), sa, { log: $('livelog').value === '1' });
     say('Microphone ready. Press Record when you are set.');
   }
-  function close() { cancelAnimationFrame(raf); if (stream) stream.getTracks().forEach((t) => t.stop()); try { src && src.disconnect(); monGain && monGain.disconnect(); } catch (_) {} stream = src = monGain = null; }
+  function close() { cancelAnimationFrame(raf); if (lv) { lv.stop(); lv = null; } if (stream) stream.getTracks().forEach((t) => t.stop()); try { src && src.disconnect(); monGain && monGain.disconnect(); } catch (_) {} stream = src = monGain = null; }
   function meter() {
     const buf = new Float32Array(an.fftSize), bar = $('lvl'), m = $('meter');
     const tick = () => {
@@ -41,6 +42,8 @@
     };
     tick();
   }
+
+  $('livelog').onchange = () => { if (lv) lv.setLog($('livelog').value === '1'); };
 
   /* ---------- recording ---------- */
   function begin() {
