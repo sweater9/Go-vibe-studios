@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "tuner", "metronome", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "tuner", "metronome", "looper", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -1765,7 +1765,7 @@ def test_home(browser, base):
     errs = []
     ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 900})
     pg.goto(base + "index.html?gvtest"); pg.wait_for_function("() => window.__home")
-    check("home lists every tool with a link", pg.locator("a.card").count() == 14 and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "tuner.html", "metronome.html", "editor.html", "video.html", "master.html", "convert.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
+    check("home lists every tool with a link", pg.locator("a.card").count() == 15 and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "tuner.html", "metronome.html", "looper.html", "editor.html", "video.html", "master.html", "convert.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
     check("four groups with headings", pg.locator(".grp h2").count() == 4 and pg.inner_text(".grp h2 >> nth=0") == "Make")
     check("the web font loads from this site", pg.evaluate("document.fonts.check('16px \"Bricolage Grotesque\"')"))
     check("beat strip has 4 rows of 16 steps and starts with a boom bap pattern", pg.locator(".st").count() == 64 and pg.locator('.st[aria-pressed="true"]').count() == 3 + 2 + 8)
@@ -2474,8 +2474,8 @@ def test_metronome(browser, base):
     pg.locator("#beatpick button").nth(1).click()
     check("and back to accent", pg.evaluate("__met.acc")[1] == 3)
     pg.fill("#bpm", "120"); pg.dispatch_event("#bpm", "change")
-    for _ in range(4): pg.click("#tap"); pg.wait_for_timeout(500)
-    check("tap tempo finds about 120 BPM from half second taps", 108 <= int(pg.input_value("#bpm")) <= 132, pg.input_value("#bpm"))
+    pg.evaluate("""() => { let t = 1000; performance.now = () => t; for (let i = 0; i < 4; i++) { document.getElementById('tap').click(); t += 500; } }""")
+    check("tap tempo finds 120 BPM from half second taps", 118 <= int(pg.input_value("#bpm")) <= 122, pg.input_value("#bpm"))
     pg.fill("#bpm", "240"); pg.dispatch_event("#bpm", "change"); pg.select_option("#num", "4")
     pg.check("#tr"); pg.fill("#trstep", "10"); pg.fill("#trbars", "1"); pg.fill("#trmax", "260")
     pg.click("#go"); pg.wait_for_timeout(3600); pg.click("#go")
@@ -2487,6 +2487,63 @@ def test_metronome(browser, base):
     for k in ("wood", "beep", "hat", "click"): pg.select_option("#snd", k); pg.click("#go"); pg.wait_for_timeout(500); pg.click("#go")
     check("every sound plays without errors", not errs, str(errs))
     ctx.close()
+
+
+# ---------------------------------------------------------------- looper
+def test_looper(browser, base):
+    print("looper (fake microphone)")
+    errs = []
+    b2 = _sp_instance.chromium.launch(args=["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", "--autoplay-policy=no-user-gesture-required"])
+    ctx = b2.new_context(permissions=["microphone"]); pg = ctx.new_page()
+    pg.on("pageerror", lambda e: errs.append(f"pageerror: {e}"))
+    pg.goto(base + "looper.html?gvtest")
+    check("the looper asks for the microphone first", pg.locator("#rig").is_hidden() and pg.locator("#allow").is_visible())
+    pg.click("#allow"); pg.wait_for_selector("#rig:not(.hidden)", timeout=10000)
+    check("no layers at the start and the buttons that need layers are off", pg.locator("#layers li").count() == 0 and pg.locator("#play").is_disabled() and pg.locator("#dlmix").is_disabled() and pg.inner_text("#rec") == "● Record loop")
+    pg.fill("#bpm", "120"); pg.dispatch_event("#bpm", "change"); pg.select_option("#bars", "1"); pg.uncheck("#cin")
+    check("loop length follows tempo and bars (4 beats at 120 BPM is 2 seconds)", "2.00 s" in pg.inner_text("#lplen") and "4 beats" in pg.inner_text("#lplen"), pg.inner_text("#lplen"))
+    pg.click("#rec"); pg.wait_for_timeout(300)
+    check("recording the first loop starts the transport", pg.evaluate("__loop.running") and pg.evaluate("__loop.pending"))
+    check("tempo and length are locked while a loop is being made", pg.locator("#bpm").is_disabled())
+    pg.wait_for_function("() => __loop.layers.length === 1", timeout=8000)
+    d = pg.evaluate("() => { const l = __loop.layers[0], c = l.buf.getChannelData(0); let pk = 0; for (let i = 0; i < c.length; i++) pk = Math.max(pk, Math.abs(c[i])); return { n: l.buf.length, want: Math.round(2 * l.buf.sampleRate), pk }; }")
+    check("the first layer is exactly one loop long", d["n"] == d["want"], str(d))
+    check("it has the microphone sound in it", d["pk"] > 0.01, str(d))
+    check("the layer appears in the list with controls", pg.locator("#layers li").count() == 1 and pg.get_by_role("button", name="Mute layer 1").count() == 1)
+    pg.click("#rec"); pg.wait_for_timeout(400)
+    check("Overdub arms for the next pass while the loop keeps playing", pg.evaluate("__loop.running && __loop.pending"))
+    pg.wait_for_function("() => __loop.layers.length === 2", timeout=9000)
+    d2 = pg.evaluate("() => __loop.layers.map((l) => l.buf.length)")
+    check("the overdub is exactly the same length, so it stays in time", d2[0] == d2[1], str(d2))
+    ph = pg.evaluate("() => { const c = __loop.ctx; return (((c.currentTime - __loop.T0) % __loop.L) + __loop.L) % __loop.L; }")
+    check("the clock phase stays inside the loop", 0 <= ph < 2.001, str(ph))
+    pk = lambda a: max(abs(x) for x in a) if len(a) else 0
+    m1 = pg.evaluate("() => { const m = __loop.mix(1); let pk = 0; for (let i = 0; i < m.length; i++) pk = Math.max(pk, Math.abs(m[i])); return [m.length, pk]; }")
+    check("the mix is one loop long and has sound", m1[0] == d2[0] and m1[1] > 0.01, str(m1))
+    m4 = pg.evaluate("() => __loop.mix(4).length")
+    check("the mix can be repeated 4 times", m4 == d2[0] * 4, str(m4))
+    pg.get_by_role("button", name="Mute layer 1").click(); pg.get_by_role("button", name="Mute layer 2").click()
+    m0 = pg.evaluate("() => { const m = __loop.mix(1); let pk = 0; for (let i = 0; i < m.length; i++) pk = Math.max(pk, Math.abs(m[i])); return pk; }")
+    check("muting every layer silences the mix", m0 == 0, str(m0))
+    pg.get_by_role("button", name="Unmute layer 2").click()
+    with pg.expect_download() as dl:
+        pg.click("#dlmix")
+    data = open(dl.value.path(), "rb").read()
+    check("the mix downloads as a valid 16 bit WAV", dl.value.suggested_filename == "Loop mix.wav" and data[:4] == b"RIFF" and data[8:12] == b"WAVE" and len(data) == 44 + d2[0] * 2, str(len(data)))
+    pg.click("#undo")
+    check("remove last layer leaves one", pg.evaluate("__loop.layers.length") == 1 and pg.locator("#layers li").count() == 1)
+    pg.click("#play"); pg.wait_for_timeout(300)
+    check("Stop ends the loop", not pg.evaluate("__loop.running") and pg.inner_text("#play") == "▶ Play")
+    pg.click("#play"); pg.wait_for_timeout(300)
+    check("Play starts it again", pg.evaluate("__loop.running"))
+    pg.click("#rec"); pg.wait_for_timeout(200); pg.click("#rec")
+    check("a pending recording can be cancelled", not pg.evaluate("__loop.pending") and pg.evaluate("__loop.layers.length") == 1)
+    pg.click("#rec"); pg.wait_for_function("() => __loop.layers.length === 2", timeout=9000)
+    check("recording again after a cancel still works", pg.evaluate("__loop.layers[1].buf.length") == d2[0])
+    pg.click("#clear")
+    check("clear removes everything and unlocks the tempo", pg.evaluate("__loop.layers.length") == 0 and not pg.locator("#bpm").is_disabled())
+    check("no errors on the looper page", not errs, str(errs))
+    ctx.close(); b2.close()
 
 
 # ---------------------------------------------------------------- offline support
@@ -2512,7 +2569,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_tuner, test_metronome, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_tuner, test_metronome, test_looper, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

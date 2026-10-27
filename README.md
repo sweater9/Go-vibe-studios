@@ -105,6 +105,7 @@ Each deck refines its BPM to 0.01 and finds where beat 1 falls (checked on synth
 - **Loop maker** (`samples.html`, `js/samples.js`): drum, bass, chord and melody loops from the Studio instruments in a chosen key and tempo, rendered offline with the tail folded back so they repeat cleanly. WAV, MIDI (format 0) and hand-off to the Studio as an editable track.
 - **Tuner** (`tuner.html`, `js/tuner.js`): pitch detection with the YIN method written from the published algorithm, gauge, instrument presets, reference tones. Nothing leaves the device.
 - **Metronome** (`metronome.html`, `js/metronome.js`): lookahead scheduling on the audio clock, accents, subdivisions, swing, tap tempo, tempo trainer.
+- **Looper** (`looper.html`, `js/looper.js`): loop station that arms the recorder worklet at exact audio clock frames, so overdubs stay in time; latency fix, per layer volume and mute, WAV mix export.
 - **Spectrogram** (`js/spectrum.js`): our own FFT and colour map, used by the Audio Editor view and the live view in the Voice recorder.
 - **Key and scale helper** (`keys.html`, `js/keys.js`, `js/theory.js`): scales and modes, chords and progressions in a key, Camelot codes and compatible keys, scale finder, playable keyboard.
 - **Desktop app** (`desktop/`): an Electron shell that bundles the site and runs it offline from a private secure `govibe://` address. See `desktop/README.md`. Tested with `desktop/test_desktop.py`; installers are not built in this repo.

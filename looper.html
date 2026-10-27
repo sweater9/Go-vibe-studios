@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Looper — GoVibe Mix</title>
+<meta name="description" content="A free loop station for your microphone: record a loop in time, layer overdubs on top, mute and mix the layers and download the result. Runs in your browser and nothing is uploaded.">
+<link rel="canonical" href="https://govibemix.com/looper.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Looper — GoVibe Mix">
+<meta property="og:description" content="A free loop station for your microphone: record a loop in time, layer overdubs, mix and download. Nothing is uploaded.">
+<meta property="og:url" content="https://govibemix.com/looper.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="studio.html">Studio</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+  <a class="link" href="index.html#tools">All tools</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>Looper</h1>
+  <p class="lead">Record a loop in time, then layer more parts on top of it. Sing, play guitar, beatbox or tap a table. Mute, mix and download the result. Everything stays on your device.</p>
+
+  <div id="setup" class="panel">
+    <h2>Start</h2>
+    <p class="status">Your browser will ask to use the microphone. Nothing is recorded until you press Record, and nothing is uploaded. Headphones are strongly recommended.</p>
+    <div class="row" style="margin-top:10px"><button class="btn primary" id="allow">Allow microphone</button></div>
+  </div>
+
+  <div id="rig" class="hidden">
+    <div class="panel">
+      <h2>Loop</h2>
+      <div class="row" style="align-items:flex-end">
+        <label class="ctl">Tempo (BPM)<input type="number" id="bpm" min="40" max="240" value="100" style="width:90px"></label>
+        <label class="ctl">Beats per bar<select id="num"><option>2</option><option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option></select></label>
+        <label class="ctl">Bars in the loop<select id="bars"><option>1</option><option>2</option><option selected>4</option><option>8</option></select></label>
+        <label class="row time"><input type="checkbox" id="cin" checked> Count in one bar</label>
+        <label class="row time"><input type="checkbox" id="met" checked> Click while looping</label>
+      </div>
+      <div class="lpbar" id="lpbar" role="progressbar" aria-label="Position in the loop" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="lpfill"></div></div>
+      <div class="row" style="margin-top:6px; justify-content:space-between"><span class="time" id="lpinfo">Ready</span><span class="time" id="lplen"></span></div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn primary recbig" id="rec">● Record loop</button>
+        <button class="btn" id="play" disabled>▶ Play</button>
+        <button class="btn" id="undo" disabled>↶ Remove last layer</button>
+        <button class="btn" id="clear" disabled>Clear all</button>
+      </div>
+      <p class="status" id="status" role="status"></p>
+    </div>
+
+    <div class="panel">
+      <h2 id="layhead">Layers</h2>
+      <p class="status" id="layempty">No layers yet. Press Record loop and play your first part.</p>
+      <ul id="layers" class="layers" aria-label="Layers"></ul>
+    </div>
+
+    <div class="panel">
+      <h2>Input</h2>
+      <div class="row" style="align-items:flex-end">
+        <label class="row time"><input type="checkbox" id="mon"> Hear myself (use headphones)</label>
+        <label class="ctl" style="min-width:260px">Latency fix: <b id="latv">0 ms</b><input type="range" id="lat" min="0" max="300" value="0" aria-label="Latency compensation in milliseconds"></label>
+      </div>
+      <p class="status">If new layers land late against the old ones, raise the latency fix until they line up. Wired headphones need less than Bluetooth.</p>
+      <div style="margin-top:10px">
+        <div class="meterbox" id="meter" role="meter" aria-label="Input level in decibels" aria-valuemin="-60" aria-valuemax="0" aria-valuenow="-60"><div class="lvlbar" id="lvl"></div></div>
+        <div class="status" id="lvltxt">silence</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Export</h2>
+      <div class="row" style="align-items:flex-end">
+        <label class="ctl">Length<select id="reps"><option value="1">One loop</option><option value="2">2 loops</option><option value="4">4 loops</option><option value="8">8 loops</option></select></label>
+        <button class="btn" id="dlmix" disabled>Download mix (WAV)</button>
+        <button class="btn" id="toed" disabled>Open mix in the Audio Editor</button>
+        <button class="btn" id="tostu" disabled>Add mix to the Studio</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="prose">
+    <h2>Tips</h2>
+    <ul>
+      <li>The first loop sets the length. Everything you add after it repeats in time with it.</li>
+      <li>Press Overdub at any moment. The new layer starts at the top of the next pass and runs for one full loop.</li>
+      <li>Start with a rhythm part such as a groove or chord strum, then add bass, melody and harmony.</li>
+      <li>Wear headphones, or the loop will feed back into the microphone and get louder with every layer.</li>
+      <li>Happy with it? Download the mix, or open it in the <a href="editor.html">Audio Editor</a> or the <a href="studio.html">Studio</a> to build a full track.</li>
+    </ul>
+  </div>
+
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/store.js"></script>
+<script src="js/looper.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>
