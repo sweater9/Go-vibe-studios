@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "editor", "video", "create", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "about", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "editor", "video", "create", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -1995,6 +1995,9 @@ def test_video(browser, base):
     cl(1).locator("input.fo").fill("1"); cl(1).locator("input.fo").dispatch_event("change")
     tot = pg.evaluate("__ve.state.total")
     pg.evaluate(f"__ve.seek({tot} - 0.1)"); pg.wait_for_timeout(500); e1 = pg.evaluate(px_at, [0.05, 0.05])
+    for _ in range(10):
+        if sum(e1) < 150: break
+        pg.evaluate(f"__ve.seek({tot} - 0.1)"); pg.wait_for_timeout(400); e1 = pg.evaluate(px_at, [0.05, 0.05])
     check("fade out: the last frames go dark", sum(e1) < 150, str(e1))
     cl(1).locator("input.fo").fill("0"); cl(1).locator("input.fo").dispatch_event("change")
     len1 = pg.evaluate("__ve.state.clips[0].out - __ve.state.clips[0].in")
