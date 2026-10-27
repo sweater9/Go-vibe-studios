@@ -4,7 +4,8 @@
 .hero h1 { font-size: clamp(36px, 6.4vw, 82px); line-height: 1; letter-spacing: -.035em; font-weight: 750; margin: 0; }
 .hero h1 .l { display: block; overflow: hidden; padding-bottom: .08em; } .hero h1 .l > span { display: block; }
 .hero h1 .l2 { color: #8f8cb8; }
-.hero .lead { margin: 20px 0 0; font-size: clamp(17px, 2.2vw, 21px); max-width: 52ch; line-height: 1.5; }
+.hero .tagline { margin: 18px 0 0; font-size: clamp(18px, 2.4vw, 24px); font-weight: 650; color: var(--text); letter-spacing: -.01em; }
+.hero .lead { margin: 10px 0 0; font-size: clamp(17px, 2.2vw, 21px); max-width: 52ch; line-height: 1.5; }
 .ctas { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 28px; }
 .cta { display: inline-flex; align-items: center; gap: 8px; padding: 13px 22px; border-radius: 999px; font-weight: 650; font-size: 16px; color: #fff; background: linear-gradient(135deg, #8b5cf6, #6d4de0); box-shadow: 0 10px 30px -10px rgba(139, 92, 246, .8); transition: transform .2s, box-shadow .2s; }
 .cta:hover { transform: translateY(-2px); box-shadow: 0 16px 36px -10px rgba(139, 92, 246, .9); }
@@ -61,7 +62,7 @@ a.tool:hover .go { transform: translateX(4px); color: #0b0b14; background: var(-
 @keyframes rise { from { transform: translateY(105%); } to { transform: none; } }
 @keyframes lightin { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
 .hero h1 .l > span { animation: rise .9s cubic-bezier(.2, .8, .2, 1) backwards; } .hero h1 .l2 > span { animation-delay: .12s; }
-.hero .lead, .ctas { animation: lightin .8s .3s cubic-bezier(.2, .8, .2, 1) backwards; } .ctas { animation-delay: .4s; }
+.hero .tagline, .hero .lead, .ctas { animation: lightin .8s .3s cubic-bezier(.2, .8, .2, 1) backwards; } .ctas { animation-delay: .4s; }
 .st { animation: lightin .5s backwards; animation-delay: calc(.5s + var(--i, 0) * 14ms); }
 @media (max-width: 860px) {
   .grp { grid-template-columns: 1fr; gap: 14px; } .grp .gh { position: static; } .grp .gh p { max-width: 50ch; }
@@ -71,6 +72,6 @@ a.tool:hover .go { transform: translateX(4px); color: #0b0b14; background: var(-
   a.tool { grid-template-columns: 44px 1fr; } .go { display: none; } .ico { width: 44px; height: 44px; border-radius: 12px; } a.tool h3 { font-size: 19px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hero h1 .l > span, .hero .lead, .ctas, .st { animation: none; } .grp::before { transition: none; transform: scaleX(1); } .roll::after { animation: none; }
+  .hero h1 .l > span, .hero .tagline, .hero .lead, .ctas, .st { animation: none; } .grp::before { transition: none; transform: scaleX(1); } .roll::after { animation: none; }
   a.tool::before, .ico, .go, .cta, .playbtn { transition: none; }
 }
