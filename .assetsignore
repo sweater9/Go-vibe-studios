@@ -5,3 +5,4 @@ README.md
 .assetsignore
 .git
 node_modules
+scripts
