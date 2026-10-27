@@ -1786,6 +1786,119 @@ def test_home(browser, base):
     check("home: tool rows are tappable (at least 44 px tall) on a phone", p3.evaluate("Math.min(...[...document.querySelectorAll('a.card')].map((a) => a.getBoundingClientRect().height))") >= 44); c3.close()
 
 
+def test_video_basics(browser, base):
+    print("video editor: volume, crop, rotate, flip, pictures, stickers, silence remover, camera, voiceover")
+    errs = []
+    ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 1000})
+    pg.goto(base + "video.html?gvtest"); pg.wait_for_function("() => window.__ve", timeout=10000)
+    ev = lambda js, *a: pg.evaluate(js, *a) if a else pg.evaluate(js)
+    MK = """async ([kind, secs, gaps]) => { const c = document.createElement('canvas'); c.width = 320; c.height = 180; const g = c.getContext('2d');
+      const ac = new AudioContext(), dest = ac.createMediaStreamDestination(), o = ac.createOscillator(), gn = ac.createGain(); o.connect(gn); gn.connect(dest); o.start();
+      if (gaps) { gn.gain.value = 0; gaps.forEach(([a, b]) => { gn.gain.setValueAtTime(1, ac.currentTime + a); gn.gain.setValueAtTime(0, ac.currentTime + b); }); }
+      const s = c.captureStream(30); dest.stream.getAudioTracks().forEach((t) => s.addTrack(t));
+      const rec = new MediaRecorder(s, { mimeType: 'video/webm;codecs=vp8,opus' }), ch = []; rec.ondataavailable = (e) => ch.push(e.data);
+      const done = new Promise((r) => (rec.onstop = r)); rec.start(100); const t0 = performance.now();
+      await new Promise((res) => { (function f() { const t = (performance.now() - t0) / 1000;
+        if (kind === 'split') { g.fillStyle = '#00b140'; g.fillRect(0, 0, 160, 180); g.fillStyle = '#e02020'; g.fillRect(160, 0, 160, 180); } else { g.fillStyle = kind; g.fillRect(0, 0, 320, 180); }
+        if (t >= secs) res(); else requestAnimationFrame(f); })(); });
+      rec.stop(); await done; o.stop(); await __ve.addFile(new File([new Blob(ch, { type: 'video/webm' })], kind.replace('#', '') + '.webm')); }"""
+    px_at = """([fx, fy]) => { const c = document.getElementById('cv'), d = c.getContext('2d').getImageData(Math.round(c.width * fx), Math.round(c.height * fy), 1, 1).data; return [d[0], d[1], d[2]]; }"""
+    look = lambda fx, fy, t=0.5: (ev("(t) => __ve.seek(t)", t), pg.wait_for_timeout(450), ev(px_at, [fx, fy]))[0:3][2]
+    rgb = lambda fx, fy, t=0.5: (ev("(t) => __ve.seek(t)", t), pg.wait_for_timeout(450), ev(px_at, [fx, fy]))[2]
+    cl = lambda i: pg.locator("#cliplist .clip").nth(i)
+    def sect(i, name):
+        d = cl(i).locator("details.vfx", has_text=name)
+        if d.get_attribute("open") is None: d.locator("summary").click()
+        return d
+    rms_wav = """async () => { pg_ = null; const b = await __ve.exportVideo(); if (!b) return -1; const ab = await __ve.ctx.decodeAudioData(await b.arrayBuffer()), d = ab.getChannelData(0); let s = 0; for (let i = 0; i < d.length; i++) s += d[i] * d[i]; return Math.sqrt(s / d.length); }"""
+    pg.select_option("#xfmt", "wav")
+    # ---------- volume and mute ----------
+    ev(MK, ["split", 2.4, None]); ev("() => { __ve.pause(); }")
+    base_rms = ev(rms_wav)
+    check("the audio export has sound", base_rms > 0.02, str(base_rms))
+    d = sect(0, "Volume"); d.locator(".cv").fill("50"); d.locator(".cv").dispatch_event("input")
+    half = ev(rms_wav)
+    check("50 percent volume halves the exported sound", 0.4 < half / base_rms < 0.6, f"{half:.4f} vs {base_rms:.4f}")
+    check("the live clip gain follows the slider", abs(ev("() => __ve.clips[0].gain.gain.value") - 0.5) < 0.01)
+    d.locator(".cm").check(); muted = ev(rms_wav)
+    check("mute silences the clip in the export", muted < 0.002, str(muted))
+    check("mute sets the live gain to zero", ev("() => __ve.clips[0].gain.gain.value") == 0)
+    d.locator(".cm").uncheck(); d.locator(".cv").fill("100"); d.locator(".cv").dispatch_event("input")
+    # ---------- crop, rotate and flip ----------
+    check("before any change the left half is green and the right half red", rgb(0.25, 0.5)[1] > 120 and rgb(0.75, 0.5)[0] > 150)
+    x = sect(0, "Crop, rotate")
+    x.locator(".xh").check(); pg.wait_for_timeout(200)
+    a, b = rgb(0.25, 0.5), rgb(0.75, 0.5)
+    check("flip left to right swaps the halves", a[0] > 150 and b[1] > 120, f"{a} {b}")
+    x.locator(".xh").uncheck(); x.locator(".xv").check(); pg.wait_for_timeout(200)
+    a, b = rgb(0.25, 0.5), rgb(0.75, 0.5)
+    check("flip top to bottom leaves a left right split alone", a[1] > 120 and b[0] > 150, f"{a} {b}")
+    x.locator(".xv").uncheck(); x.locator(".xr").select_option("90"); pg.wait_for_timeout(200)
+    top, bot, side = rgb(0.5, 0.25), rgb(0.5, 0.75), rgb(0.1, 0.5)
+    check("rotating 90 degrees right puts the green half on top, the red below, with bars at the sides", top[1] > 120 and bot[0] > 150 and sum(side) < 40, f"{top} {bot} {side}")
+    x.locator(".xr").select_option("180"); pg.wait_for_timeout(200)
+    a, b = rgb(0.25, 0.5), rgb(0.75, 0.5)
+    check("rotating 180 degrees swaps left and right", a[0] > 150 and b[1] > 120, f"{a} {b}")
+    x.locator(".xr").select_option("0"); x.locator(".xl").fill("45"); x.locator(".xl").dispatch_event("input"); pg.wait_for_timeout(200)
+    a, b, c3 = rgb(0.32, 0.5), rgb(0.25, 0.5), rgb(0.1, 0.5)
+    check("cropping 45 percent from the left leaves a thin green edge, then red, centred", a[0] > 150 and a[1] < 90 and b[1] > 120 and sum(c3) < 40, f"{a} {b} {c3}")
+    x.locator(".xl").fill("0"); x.locator(".xl").dispatch_event("input")
+    # ---------- pictures and stickers ----------
+    ev("""async () => { const c = document.createElement('canvas'); c.width = 40; c.height = 40; const g = c.getContext('2d'); g.fillStyle = '#ff00ff'; g.fillRect(0, 0, 40, 40);
+      const im = new Image(); await new Promise((r) => { im.onload = r; im.src = c.toDataURL(); }); __ve.addOverlay({ kind: 'img', img: im, name: 'logo.png', x: 50, y: 50, size: 20, start: 0, end: 1 }); }""")
+    check("a picture shows in its own list", pg.locator("#ovlist .clip").count() == 1 and "logo.png" in pg.inner_text("#ovlist"))
+    a = rgb(0.5, 0.5, 0.5)
+    check("the picture is drawn on the video during its seconds", a[0] > 200 and a[1] < 80 and a[2] > 200, str(a))
+    a = rgb(0.5, 0.5, 1.5)
+    check("it disappears after its end time", not (a[0] > 200 and a[2] > 200), str(a))
+    pg.locator("#ovlist .oe").fill("3"); pg.locator("#ovlist .oe").dispatch_event("change"); pg.locator("#ovlist .ox").fill("20"); pg.locator("#ovlist .ox").dispatch_event("change")
+    check("end time and position can be edited", ev("() => __ve.overlays[0].end") == 3 and ev("() => __ve.overlays[0].x") == 20)
+    a, b = rgb(0.2, 0.5, 1.5), rgb(0.5, 0.5, 1.5)
+    check("the picture moves with its position and stays up until the new end", a[0] > 200 and a[2] > 200 and not (b[0] > 200 and b[2] > 200), f"{a} {b}")
+    pg.click("#ovsticker"); check("a sticker is added to the list", pg.locator("#ovlist .clip").count() == 2 and ev("() => __ve.overlays[1].kind") == "emoji")
+    pg.locator("#ovlist .clip").nth(0).locator("button.danger").click(); pg.locator("#ovlist .clip").nth(0).locator("button.danger").click()
+    check("pictures and stickers can be removed", pg.locator("#ovlist .clip").count() == 0)
+    # ---------- silence remover ----------
+    ev("() => { while (__ve.clips.length) document.querySelector('#cliplist .clip button[data-a=del]').click(); }")
+    ev(MK, ["#2266aa", 3.6, [[0.0, 1.0], [2.4, 3.6]]])
+    d = sect(0, "Remove silence"); d.locator(".sf").click(); pg.wait_for_function("() => /Found|No pauses|no sound/.test(document.querySelector('#cliplist .sl').textContent)", timeout=10000)
+    txt = d.locator(".sl").inner_text()
+    check("it finds the gap in the sound", "Found 1 pause" in txt, txt)
+    check("the cut button is ready after a search", not d.locator(".sc").is_disabled())
+    T0 = ev("__ve.state.total"); d.locator(".sc").click(); pg.wait_for_function("() => __ve.clips.length === 2", timeout=15000)
+    T1 = ev("__ve.state.total")
+    check("cutting splits the clip into two parts around the pause", ev("__ve.clips.length") == 2 and pg.locator("#cliplist .clip").count() == 2)
+    check("the video is shorter by about the removed pause", 0.7 < T0 - T1 < 1.5, f"{T0:.2f} -> {T1:.2f}")
+    check("the parts keep their settings and play", ev("() => __ve.clips.every((c) => c.vol === 1 && c.gain)") and "part 1" in pg.inner_text("#cliplist"))
+    d = sect(0, "Remove silence"); d.locator(".sth").fill("-60"); d.locator(".sth").dispatch_event("input")
+    check("changing the level resets the cut button until pauses are found again", d.locator(".sc").is_disabled())
+    check("no page errors in the video basics so far", not errs, str(errs[:3]))
+    ctx.close()
+    # ---------- camera and voiceover with a fake device ----------
+    br = browser.browser_type.launch(args=["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"])
+    errs2 = []
+    c2 = br.new_context(viewport={"width": 1300, "height": 1000}, permissions=["camera", "microphone"]); p2 = c2.new_page()
+    p2.on("pageerror", lambda e: errs2.append(f"pageerror: {e}")); p2.on("console", lambda m: errs2.append(f"console: {m.text}") if m.type == "error" else None)
+    p2.goto(base + "video.html?gvtest"); p2.wait_for_function("() => window.__ve", timeout=10000)
+    p2.click("#camera"); p2.wait_for_timeout(300)
+    check("camera recording shows a live preview and a stop button", not p2.locator("#campreview").get_attribute("class").count("hidden") and "Stop" in p2.inner_text("#camera"), p2.inner_text("#camera"))
+    p2.wait_for_timeout(1800); p2.click("#camera"); p2.wait_for_function("() => __ve.clips.length === 1", timeout=15000)
+    check("the camera take becomes a clip on the timeline", "Camera recording 1" in p2.inner_text("#cliplist") and p2.evaluate("__ve.clips[0].dur") > 1)
+    check("the preview closes afterwards", "hidden" in p2.locator("#campreview").get_attribute("class") and "Record camera" in p2.inner_text("#camera"))
+    p2.click("#vorec"); p2.wait_for_timeout(1700); p2.click("#vorec"); p2.wait_for_function("() => __ve.voices.length === 1", timeout=15000)
+    v = p2.evaluate("() => ({ n: __ve.voices.length, start: __ve.voices[0].start, dur: __ve.voices[0].buf.duration })")
+    check("the voiceover is recorded and placed at the playhead", v["n"] == 1 and v["start"] == 0 and 1 < v["dur"] < 4, str(v))
+    check("it is listed with a remove button", "Voiceover 1" in p2.inner_text("#volist") and p2.locator("#volist button").count() == 1)
+    p2.select_option("#xfmt", "wav")
+    r = p2.evaluate("""async () => { const b = await __ve.exportVideo(); const ab = await __ve.ctx.decodeAudioData(await b.arrayBuffer()), d = ab.getChannelData(0); let s = 0; for (let i = 0; i < d.length; i++) s += d[i] * d[i]; return Math.sqrt(s / d.length); }""")
+    p2.evaluate("() => { __ve.clips[0].mute = true; __ve.clips[0].gain.gain.value = 0; }")
+    r2 = p2.evaluate("""async () => { const b = await __ve.exportVideo(); const ab = await __ve.ctx.decodeAudioData(await b.arrayBuffer()), d = ab.getChannelData(0); let s = 0; for (let i = 0; i < d.length; i++) s += d[i] * d[i]; return Math.sqrt(s / d.length); }""")
+    check("the voiceover is mixed into the export even when the clip is muted", r2 > 0.005, f"{r2:.4f} (with clip sound {r:.4f})")
+    p2.locator("#volist button").click(); check("a voiceover can be removed", p2.evaluate("__ve.voices.length") == 0)
+    check("no page errors in camera and voiceover", not errs2, str(errs2[:3]))
+    c2.close(); br.close()
+
+
 def test_views(browser, base):
     print("performance view, light theme, ratings and notes")
     import tempfile
@@ -2174,7 +2287,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

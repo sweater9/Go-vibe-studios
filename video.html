@@ -33,6 +33,7 @@
   details.vfx > summary { cursor: pointer; font-size: 13px; padding: 4px 0; }
   details.vfx input[type=range] { width: 100%; }
   .status.sn { margin: 0; }
+  #campreview { width: 100%; max-height: 170px; border-radius: 10px; margin-top: 8px; transform: scaleX(-1); background: #000; object-fit: cover; }
 </style>
 </head>
 <body>
@@ -49,7 +50,7 @@
 
 <main id="main" tabindex="-1" class="wrap" style="max-width:1200px">
   <h1>Video <span class="grad">Editor</span></h1>
-  <p class="lead">Join and trim clips, change their speed, grade the colour, zoom and pan, key out a green screen, stabilise shaky footage, add titles and subtitles, record your screen and lay music under it with automatic ducking. Everything runs on your device.</p>
+  <p class="lead">Join and trim clips, change their speed, grade the colour, crop, rotate and flip, key out a green screen, stabilise shaky footage, cut out silent pauses, add titles, subtitles, pictures and stickers, record your screen, camera and voice, and lay music under it with automatic ducking. Everything runs on your device.</p>
 
   <div class="vgrid">
     <section>
@@ -97,8 +98,10 @@
         <div class="row">
           <button class="btn" id="addclip">+ Add video</button>
           <button class="btn" id="screen">● Record screen</button>
+          <button class="btn" id="camera">● Record camera</button>
           <label class="row" style="gap:6px"><input type="checkbox" id="screenaud"> Include sound</label>
         </div>
+        <video id="campreview" class="hidden" muted playsinline aria-label="Live camera preview"></video>
         <input type="file" id="bgfile" accept="image/*" hidden aria-label="Choose a background picture for green screen">
         <input type="file" id="clipfile" accept="video/*" multiple hidden>
         <div id="cliplist"></div>
@@ -136,6 +139,18 @@
       </div>
 
       <div class="panel">
+        <h2>Pictures and stickers</h2>
+        <div class="row">
+          <button class="btn" id="ovpic">+ Add picture or logo</button>
+          <input type="file" id="ovfile" accept="image/*" hidden aria-label="Choose a picture or logo to place on the video">
+          <label class="row" style="gap:6px">Sticker <select id="ovemoji" class="sel" style="width:auto" aria-label="Sticker"><option>⭐</option><option>❤️</option><option>🔥</option><option>👍</option><option>😀</option><option>🎉</option><option>🎵</option><option>✅</option><option>⚡</option><option>👑</option></select></label>
+          <button class="btn" id="ovsticker">+ Add sticker</button>
+        </div>
+        <div id="ovlist"></div>
+        <p class="status">Pictures and stickers sit on top of the video for the seconds you choose. Use a logo with a see through background for a clean watermark.</p>
+      </div>
+
+      <div class="panel">
         <h2>Music</h2>
         <div class="row">
           <button class="btn" id="addmusic">+ Add music file</button>
@@ -152,6 +167,16 @@
         <label class="ctl" style="min-width:0;margin-top:6px">Music dip (dB)
           <input type="range" id="duckamt" min="3" max="24" value="12">
         </label>
+        <h3 style="margin:16px 0 6px;font-size:15px">Voiceover</h3>
+        <div class="row">
+          <button class="btn" id="vorec">● Record voiceover</button>
+          <span class="time" id="voname">None</span>
+        </div>
+        <label class="ctl" style="min-width:0;margin-top:10px">Voiceover volume
+          <input type="range" id="vovol" min="0" max="200" value="100">
+        </label>
+        <div id="volist"></div>
+        <p class="status">Recording plays the video from the current position while you speak. Wear headphones so the video's sound does not leak into the microphone.</p>
         <p class="status">Music starts at the beginning of the video. Use music you made here or have the right to use.</p>
       </div>
     </section>

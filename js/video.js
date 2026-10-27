@@ -14,7 +14,7 @@
   const lerp = (a, b, p) => a + (b - a) * p;
   const hasFilter = 'filter' in g;
 
-  let clips = [], texts = [], music = null, bgImg = null;
+  let clips = [], texts = [], music = null, bgImg = null, overlays = [], voices = [];
   let tl = 0, playing = false, active = -1, aspect = '16:9', outScale = 1;
   const prevCv = document.createElement('canvas'), pg2 = prevCv.getContext('2d'); let havePrev = false, prevFor = -1, ovolv = 1;
   const keyCv = document.createElement('canvas'), kg = keyCv.getContext('2d', { willReadFrequently: true });
@@ -26,6 +26,7 @@
   const origGain = ctx.createGain(), musicGain = ctx.createGain(), musicDuck = ctx.createGain(), anOrig = ctx.createAnalyser();
   anOrig.fftSize = 1024; const anBuf = new Float32Array(1024);
   origGain.connect(bus); origGain.connect(anOrig); musicDuck.connect(musicGain); musicGain.connect(bus); bus.connect(spk); spk.connect(ctx.destination); bus.connect(recDest);
+  const voiceGain = ctx.createGain(); voiceGain.connect(bus); voiceGain.gain.value = 1;
   musicGain.gain.value = 0.7;
 
   /* ---------- clip model ---------- */
@@ -35,8 +36,11 @@
     grade: { b: 100, c: 100, s: 100, h: 0, sep: 0 },
     zoom: { s1: 100, s2: 100, x1: 0, x2: 0, y1: 0, y2: 0 },
     key: { on: false, color: '#00b140', tol: 40, soft: 15, bg: '#000000' },
+    xf: { rot: 0, fh: false, fv: false, cl: 0, ct: 0, cr: 0, cb: 0 },
+    vol: 1, mute: false, gain: null, sil: { th: -42, min: 0.6 },
     stab: null, stabOn: false, open: {}
   });
+  const applyVol = (c) => { if (c.gain) c.gain.gain.value = c.mute ? 0 : c.vol; };
   /* speed is a straight line from `speed` at the start of the trimmed part to `speed2` at its end (equal values mean a constant speed) */
   function lenOf(c) {
     const L = Math.max(0, c.out - c.in); if (!L) return 0;
@@ -80,8 +84,8 @@
       if (!isFinite(v.duration)) await fixDuration(v);
       if (!isFinite(v.duration) || v.duration <= 0) throw new Error('bad');
     } catch (_) { v.remove(); URL.revokeObjectURL(url); say('Could not read "' + file.name + '". Try MP4 (H.264) or WebM.'); return; }
-    ctx.createMediaElementSource(v).connect(origGain);
-    clips.push(newClip(file.name, url, v, file));
+    const gn = ctx.createGain(); ctx.createMediaElementSource(v).connect(gn); gn.connect(origGain);
+    const nc = newClip(file.name, url, v, file); nc.gain = gn; clips.push(nc);
     if (active < 0) activate(0, 0, false);
     refresh(); say('Added ' + file.name + '.');
   }
@@ -98,17 +102,25 @@
     stopMusic(); if (!music || at >= music.buf.duration) return;
     const s = ctx.createBufferSource(); s.buffer = music.buf; s.connect(musicDuck); s.start(0, at); music.src = s;
   }
+  function startVoices(at) {
+    stopVoices();
+    voices.forEach((v) => {
+      const end = v.start + v.buf.duration; if (at >= end) return;
+      const s = ctx.createBufferSource(); s.buffer = v.buf; s.connect(voiceGain); const lead = Math.max(0, v.start - at); s.start(ctx.currentTime + lead, Math.max(0, at - v.start)); v.src = s;
+    });
+  }
+  function stopVoices() { voices.forEach((v) => { if (v.src) { try { v.src.stop(); } catch (_) {} v.src.disconnect(); v.src = null; } }); }
   function stopMusic() { if (music && music.src) { try { music.src.stop(); } catch (_) {} music.src.disconnect(); music.src = null; } }
   function play() {
     if (!clips.length || playing) return;
     if (tl >= total() - 0.05) tl = 0;
-    const loc = locate(tl); activate(loc.i, loc.off, true); startMusic(tl);
+    const loc = locate(tl); activate(loc.i, loc.off, true); startMusic(tl); startVoices(tl);
     playing = true; $('play').textContent = '❚❚ Pause';
   }
-  function pause() { playing = false; clips.forEach((c) => c.v.pause()); stopMusic(); $('play').textContent = '▶ Play'; }
+  function pause() { playing = false; clips.forEach((c) => c.v.pause()); stopMusic(); stopVoices(); $('play').textContent = '▶ Play'; }
   function seek(t) {
     if (!clips.length) return; tl = clamp(t, 0, total());
-    const loc = locate(tl); activate(loc.i, loc.off, playing); if (playing) startMusic(tl);
+    const loc = locate(tl); activate(loc.i, loc.off, playing); if (playing) { startMusic(tl); startVoices(tl); }
   }
   function finish() {
     pause(); tl = total();
@@ -158,12 +170,18 @@
   }
   /* draw the clip onto target context t, with grade, zoom and pan, and stabilisation */
   function fit(c, x, y, t, prog) {
-    t = t || g; const [W, H] = dims(), vw = c.v.videoWidth, vh = c.v.videoHeight, s0 = Math.min(W / vw, H / vh);
+    t = t || g; const [W, H] = dims(), vw = c.v.videoWidth, vh = c.v.videoHeight, X = c.xf;
+    const sx = vw * X.cl / 100, sy = vh * X.ct / 100, sw = Math.max(2, vw * (1 - (X.cl + X.cr) / 100)), sh = Math.max(2, vh * (1 - (X.ct + X.cb) / 100));
+    const turn = X.rot === 90 || X.rot === 270, lw = turn ? sh : sw, lh = turn ? sw : sh, s0 = Math.min(W / lw, H / lh);
     const p = prog == null ? 0 : prog, z = c.zoom, sc = lerp(z.s1, z.s2, p) / 100 * (c.stabOn && c.stab ? STAB_ZOOM : 1);
-    const w = vw * s0 * sc, h = vh * s0 * sc, st = stabOffset(c);
+    const w = lw * s0 * sc, h = lh * s0 * sc, st = stabOffset(c);
     const cx = (W - w) / 2 + (x || 0) + lerp(z.x1, z.x2, p) / 100 * W + st[0] * w, cy = (H - h) / 2 + (y || 0) + lerp(z.y1, z.y2, p) / 100 * H + st[1] * h;
     if (hasFilter) t.filter = filterOf(c.grade);
-    t.drawImage(c.v, cx, cy, w, h);
+    if (!X.rot && !X.fh && !X.fv) t.drawImage(c.v, sx, sy, sw, sh, cx, cy, w, h);
+    else {
+      t.save(); t.translate(cx + w / 2, cy + h / 2); t.scale(X.fh ? -1 : 1, X.fv ? -1 : 1); t.rotate(X.rot * Math.PI / 180);
+      const dw = turn ? h : w, dh = turn ? w : h; t.drawImage(c.v, sx, sy, sw, sh, -dw / 2, -dh / 2, dw, dh); t.restore();
+    }
     if (hasFilter) t.filter = 'none';
   }
   /* remove the key colour: alpha from the distance in chroma (Cb, Cr), plus a gentle despill on the dominant channel */
@@ -206,6 +224,13 @@
     if (c.trans === 'dip') return L.p < 0.5 ? 0 : Math.min(au, L.p * 2 - 1);
     return Math.min(au, 0.3 + 0.7 * L.p);
   }
+  function drawOverlay(o) {
+    const [W, H] = dims(), px = W * o.size / 100, cx = W * o.x / 100, cy = H * o.y / 100;
+    g.save(); g.globalAlpha = o.op / 100; g.filter = 'none';
+    if (o.kind === 'img' && o.img) { const h = px * o.img.height / o.img.width; g.drawImage(o.img, cx - px / 2, cy - h / 2, px, h); }
+    else if (o.kind === 'emoji') { g.font = Math.round(px) + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(o.emoji, cx, cy); }
+    g.restore();
+  }
   function draw() {
     const [W, H] = dims();
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; havePrev = false; }
@@ -225,6 +250,7 @@
       if (active < clips.length - 1 && L.tleft < 0.2) { if (prevCv.width !== W || prevCv.height !== H) { prevCv.width = W; prevCv.height = H; } pg2.drawImage(cv, 0, 0); havePrev = true; prevFor = active; }
     }
     origGain.gain.value = ovolv * audio;
+    overlays.forEach((o) => { if (tl >= o.start && tl <= o.end) drawOverlay(o); });
     texts.forEach((t) => { if (tl >= t.start && tl <= t.end) drawText(t); });
   }
 
@@ -330,6 +356,22 @@
       dd.querySelector('[data-a=edit]').onclick = () => { $('ttext').value = t.text; $('tstart').value = t.start; $('tend').value = t.end; $('tpos').value = t.pos; $('tsize').value = t.size; $('tcolor').value = t.color; $('tfont').value = t.font || 'sans'; $('tstyle').value = t.style || 'outline'; $('tanim').value = t.anim || 'none'; texts.splice(i, 1); refresh(); $('ttext').focus(); };
       tl2.appendChild(dd);
     });
+    const ol = $('ovlist'); ol.innerHTML = '';
+    overlays.forEach((o, i) => {
+      const dd = document.createElement('div'); dd.className = 'clip';
+      dd.innerHTML = '<div class="nm"></div><div class="mini">' + field('os', 'Start (s)', 'type="number" min="0" step="0.1"') + field('oe', 'End (s)', 'type="number" min="0" step="0.1"') + field('ox', 'Across (%)', 'type="number" min="0" max="100"') + field('oy', 'Down (%)', 'type="number" min="0" max="100"') + field('oz', 'Size (% of width)', 'type="number" min="2" max="100"') + field('oo', 'Opacity (%)', 'type="number" min="5" max="100"') + '</div><div class="row" style="margin-top:8px"><button class="btn sm danger">Remove</button></div>';
+      dd.querySelector('.nm').textContent = (o.kind === 'emoji' ? 'Sticker ' + o.emoji : 'Picture ' + o.name);
+      const m = { os: 'start', oe: 'end', ox: 'x', oy: 'y', oz: 'size', oo: 'op' }, lim = { start: [0, 1e5], end: [0.1, 1e5], x: [0, 100], y: [0, 100], size: [2, 100], op: [5, 100] };
+      Object.entries(m).forEach(([cls, k]) => { const el = dd.querySelector('.' + cls); el.value = o[k]; el.onchange = () => { o[k] = clamp(+el.value, lim[k][0], lim[k][1]); if (o.end <= o.start) o.end = o.start + 0.1; refresh(); }; });
+      dd.querySelector('button').onclick = () => { overlays.splice(i, 1); refresh(); };
+      ol.appendChild(dd);
+    });
+    const vl = $('volist'); vl.innerHTML = ''; $('voname').textContent = voices.length ? voices.length + ' recorded' : 'None';
+    voices.forEach((v, i) => {
+      const dd = document.createElement('div'); dd.className = 'clip'; dd.innerHTML = '<div class="nm"></div><div class="row"><button class="btn sm danger">Remove</button></div>';
+      dd.querySelector('.nm').textContent = v.name + ' at ' + fmt(v.start) + ', ' + fmt(v.buf.duration) + ' long';
+      dd.querySelector('button').onclick = () => { stopVoices(); voices.splice(i, 1); refresh(); }; vl.appendChild(dd);
+    });
     $('subcount').textContent = texts.length ? texts.length + ' text layer' + (texts.length === 1 ? '' : 's') : 'No text yet';
   }
   /* collapsible groups under each clip: speed, colour, zoom and pan, green screen, stabilise */
@@ -369,12 +411,77 @@
     sn.textContent = c.stab ? 'Stabilisation is ready. It crops in about 10% to hide the moving edges.' : 'Analysing takes a few seconds per minute of footage. It looks for camera shake only, and works best on steady scenes.';
     so.onchange = () => { c.stabOn = so.checked; };
     sa.onclick = async () => { sa.disabled = true; const ok = await stabilise(clips.indexOf(c), (p) => { sn.textContent = 'Analysing… ' + Math.round(p * 100) + '%'; }); sa.disabled = false; so.disabled = !c.stab; so.checked = c.stabOn; sn.textContent = ok ? 'Done. Stabilisation is on; play the clip to see it.' : 'Could not analyse this clip.'; };
+    /* volume and sound */
+    e = det('vol', 'Volume and sound', field('cv', 'Volume (%)', 'type="range" min="0" max="200"') + '<label class="ctl">&nbsp;<span class="row" style="gap:6px"><input type="checkbox" class="cm"> Mute this clip</span></label>');
+    const cvr = e.querySelector('.cv'), cm = e.querySelector('.cm'); cvr.value = Math.round(c.vol * 100); cm.checked = c.mute;
+    cvr.oninput = () => { c.vol = +cvr.value / 100; applyVol(c); }; cm.onchange = () => { c.mute = cm.checked; applyVol(c); };
+    /* crop, rotate, flip */
+    e = det('xf', 'Crop, rotate and flip', '<label class="ctl">Rotate<select class="sel xr"><option value="0">None</option><option value="90">90° right</option><option value="180">180°</option><option value="270">90° left</option></select></label><label class="ctl">&nbsp;<span class="row" style="gap:6px"><input type="checkbox" class="xh"> Flip left to right</span></label><label class="ctl">&nbsp;<span class="row" style="gap:6px"><input type="checkbox" class="xv"> Flip top to bottom</span></label>'
+      + field('xl', 'Crop left (%)', 'type="range" min="0" max="45"') + field('xt', 'Crop top (%)', 'type="range" min="0" max="45"') + field('xri', 'Crop right (%)', 'type="range" min="0" max="45"') + field('xb', 'Crop bottom (%)', 'type="range" min="0" max="45"'));
+    const xe = e, xr = e.querySelector('.xr'), xh = e.querySelector('.xh'), xv = e.querySelector('.xv'), xm = { cl: 'xl', ct: 'xt', cr: 'xri', cb: 'xb' };
+    xr.value = String(c.xf.rot); xh.checked = c.xf.fh; xv.checked = c.xf.fv; Object.entries(xm).forEach(([k, cls]) => { xe.querySelector('.' + cls).value = c.xf[k]; xe.querySelector('.' + cls).oninput = (ev) => { c.xf[k] = +ev.target.value; }; });
+    xr.onchange = () => { c.xf.rot = +xr.value; }; xh.onchange = () => { c.xf.fh = xh.checked; }; xv.onchange = () => { c.xf.fv = xv.checked; };
+    /* remove silence */
+    e = det('sil', 'Remove silence', field('sth', 'Counts as silence below (dB)', 'type="range" min="-60" max="-15"') + field('smp', 'Shortest pause to cut (s)', 'type="number" min="0.2" max="3" step="0.1"') + '<label class="ctl">&nbsp;<span class="row" style="gap:6px"><button class="btn sm sf">Find pauses</button><button class="btn sm sc" disabled>Cut them out</button></span></label><p class="status sn sl" role="status" style="grid-column:1/-1">Finds quiet gaps in the clip\'s sound and cuts them out, so the clip is split into the parts with speech or sound.</p>');
+    const sth = e.querySelector('.sth'), smp = e.querySelector('.smp'), sf = e.querySelector('.sf'), sc = e.querySelector('.sc'), sl = e.querySelector('.sl'); sth.value = c.sil.th; smp.value = c.sil.min; let found = null;
+    sth.oninput = () => { c.sil.th = +sth.value; sc.disabled = true; found = null; }; smp.onchange = () => { c.sil.min = clamp(+smp.value || 0.6, 0.2, 3); smp.value = c.sil.min; sc.disabled = true; found = null; };
+    sf.onclick = async () => {
+      sf.disabled = true; sl.textContent = 'Listening…';
+      const r = await findSilence(c, c.sil.th, c.sil.min); sf.disabled = false;
+      if (!r) { sl.textContent = c.speed !== 1 || c.speed2 !== 1 ? 'Reset the clip speed to 1 first.' : 'This clip has no sound to analyse.'; return; }
+      found = r; sc.disabled = !r.pauses; sl.textContent = r.pauses ? 'Found ' + r.pauses + ' pause' + (r.pauses === 1 ? '' : 's') + ', ' + r.removed.toFixed(1) + ' s in all. Press Cut them out to remove them.' : 'No pauses that long. Try a higher dB level or a shorter pause.';
+    };
+    sc.onclick = async () => { if (!found) return; sc.disabled = true; const n = await cutSilence(clips.indexOf(c), found.keep); if (!n) sl.textContent = 'Could not cut this clip.'; };
     return wrap;
+  }
+  /* ---------- remove silence: split a clip into the parts that have sound ---------- */
+  async function findSilence(c, th, minPause) {
+    if (c.speed !== 1 || c.speed2 !== 1) return null;
+    let ab; try { ab = await ctx.decodeAudioData((await c.file.arrayBuffer()).slice(0)); } catch (_) { return null; }
+    const sr = ab.sampleRate, win = Math.round(sr * 0.02), a = Math.floor(c.in * sr), b = Math.min(ab.length, Math.ceil(c.out * sr)), limit = Math.pow(10, th / 20), n = Math.floor((b - a) / win), quiet = [];
+    const chans = []; for (let k = 0; k < ab.numberOfChannels; k++) chans.push(ab.getChannelData(k));
+    for (let w = 0; w < n; w++) { let sum = 0; for (let k = 0; k < chans.length; k++) { const d = chans[k]; for (let i = a + w * win; i < a + (w + 1) * win; i++) sum += d[i] * d[i]; } quiet.push(Math.sqrt(sum / (win * chans.length)) < limit); }
+    const dt = win / sr, pad = 0.12, keep = [], cuts = []; let i = 0, from = c.in;
+    while (i < n) {
+      if (!quiet[i]) { i++; continue; }
+      let j = i; while (j < n && quiet[j]) j++;
+      const len = (j - i) * dt; if (len >= minPause && len - 2 * pad > 0.05) cuts.push([c.in + i * dt + pad, c.in + j * dt - pad]);
+      i = j;
+    }
+    cuts.forEach(([x, y]) => { if (x - from > 0.1) keep.push([from, x]); from = y; });
+    if (c.out - from > 0.1) keep.push([from, c.out]); if (!cuts.length) return { pauses: 0, removed: 0, keep: [[c.in, c.out]] };
+    return { pauses: cuts.length, removed: cuts.reduce((s2, [x, y]) => s2 + (y - x), 0), keep };
+  }
+  async function cloneClip(c, a, b) {
+    const url = URL.createObjectURL(c.file), v = document.createElement('video'); v.src = url; v.preload = 'auto'; v.playsInline = true; $('vids').appendChild(v);
+    await new Promise((res, rej) => { v.onloadedmetadata = res; v.onerror = () => rej(new Error('bad')); }); if (!isFinite(v.duration)) await fixDuration(v);
+    const gn = ctx.createGain(); ctx.createMediaElementSource(v).connect(gn); gn.connect(origGain);
+    const n = newClip(c.name, url, v, c.file); n.gain = gn; n.in = a; n.out = Math.min(b, v.duration);
+    n.grade = { ...c.grade }; n.zoom = { ...c.zoom }; n.key = { ...c.key }; n.xf = { ...c.xf }; n.vol = c.vol; n.mute = c.mute; n.sil = { ...c.sil }; applyVol(n); return n;
+  }
+  async function cutSilence(i, keep) {
+    const c = clips[i]; if (!c || !keep.length) return 0; pause(); const parts = [];
+    try { for (const [a, b] of keep) parts.push(await cloneClip(c, a, b)); } catch (_) { parts.forEach((p2) => { p2.v.remove(); URL.revokeObjectURL(p2.url); }); return 0; }
+    parts[0].fi = c.fi; parts[0].trans = c.trans; parts[0].tdur = c.tdur; parts[parts.length - 1].fo = c.fo;
+    parts.forEach((p2, k) => { p2.name = c.name + ' (part ' + (k + 1) + ')'; });
+    const startT = startOf(i); c.v.remove(); URL.revokeObjectURL(c.url); clips.splice(i, 1, ...parts);
+    active = Math.min(clips.length - 1, Math.max(0, i)); tl = Math.min(startT, total()); activate(locate(tl).i, locate(tl).off, false); refresh(); seek(tl);
+    say('Cut the pauses: the clip is now ' + parts.length + ' part' + (parts.length === 1 ? '' : 's') + ', ' + fmt(parts.reduce((s2, p2) => s2 + len(p2), 0)) + ' long.'); return parts.length;
   }
   $('bgfile').onchange = () => {
     const f = $('bgfile').files[0]; $('bgfile').value = ''; if (!f) return;
     const im = new Image(), u = URL.createObjectURL(f); im.onload = () => { bgImg = im; say('Background picture set.'); }; im.onerror = () => say('Could not read that picture.'); im.src = u;
   };
+
+  /* ---------- pictures, logos and stickers ---------- */
+  const endDefault = () => Math.max(3, Math.round(total() * 10) / 10);
+  function addOverlay(o) { overlays.push(Object.assign({ start: 0, end: endDefault(), x: 50, y: 50, size: 20, op: 100 }, o)); refresh(); }
+  $('ovpic').onclick = () => $('ovfile').click();
+  $('ovfile').onchange = () => {
+    const f = $('ovfile').files[0]; $('ovfile').value = ''; if (!f) return;
+    const im = new Image(), u = URL.createObjectURL(f); im.onload = () => { addOverlay({ kind: 'img', img: im, name: f.name, x: 85, y: 14, size: 18 }); say('Added ' + f.name + '. Set where it sits and when it shows.'); }; im.onerror = () => say('Could not read that picture.'); im.src = u;
+  };
+  $('ovsticker').onclick = () => { addOverlay({ kind: 'emoji', emoji: $('ovemoji').value, size: 14 }); say('Sticker added. Set where it sits and when it shows.'); };
 
   /* ---------- text and subtitles ---------- */
   $('tadd').onclick = () => {
@@ -417,24 +524,51 @@
   $('duck').onchange = () => { duck.on = $('duck').checked; };
   $('duckamt').oninput = () => { duck.db = +$('duckamt').value; };
 
-  /* ---------- screen recording ---------- */
-  let scr = null;
+  /* ---------- recording: screen, camera, voiceover ---------- */
+  let scr = null;      // the recording in progress (screen or camera)
   async function stopScreen() { if (scr && scr.rec.state !== 'inactive') scr.rec.stop(); }
-  $('screen').onclick = async () => {
+  const stopNote = (kind) => 'Recording the ' + kind + '. Press Stop when you are done; the clip is added to the timeline.';
+  async function capture(btn, idle, kind, getStream, nameBase, preview) {
     if (scr) return stopScreen();
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia || !window.MediaRecorder) return say('This browser cannot record the screen. Use Chrome, Edge or Firefox on a computer.');
-    let stream; try { stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: $('screenaud').checked }); } catch (e) { return say(e && e.name === 'NotAllowedError' ? 'Screen recording was cancelled or blocked.' : 'Could not start screen recording.'); }
+    if (!window.MediaRecorder || !navigator.mediaDevices) return say('This browser cannot record. Use Chrome, Edge or Firefox on a computer.');
+    let stream; try { stream = await getStream(); } catch (e) { return say(e && e.name === 'NotAllowedError' ? 'Recording was cancelled or blocked. Allow access in the browser and try again.' : 'Could not start recording. Check that the device is connected.'); }
     const mime = TYPES.find((t) => MediaRecorder.isTypeSupported(t)), rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined), chunks = [];
-    scr = { rec, stream }; rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
-    const t0 = performance.now(), tick = setInterval(() => { $('screen').textContent = '■ Stop recording (' + Math.round((performance.now() - t0) / 1000) + ' s)'; }, 500);
+    scr = { rec, stream, btn }; rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+    if (preview) { const pv = $('campreview'); pv.srcObject = stream; pv.classList.remove('hidden'); pv.play().catch(() => {}); }
+    const t0 = performance.now(), tick = setInterval(() => { btn.textContent = '■ Stop recording (' + Math.round((performance.now() - t0) / 1000) + ' s)'; }, 500);
     stream.getVideoTracks()[0].addEventListener('ended', () => stopScreen());
     rec.onstop = async () => {
-      clearInterval(tick); stream.getTracks().forEach((t) => t.stop()); scr = null; $('screen').textContent = '● Record screen';
+      clearInterval(tick); stream.getTracks().forEach((t) => t.stop()); scr = null; btn.textContent = idle;
+      if (preview) { const pv = $('campreview'); pv.srcObject = null; pv.classList.add('hidden'); }
       const type = rec.mimeType || mime || 'video/webm', blob = new Blob(chunks, { type }); if (blob.size < 1000) return say('Nothing was recorded.');
-      await addFile(new File([blob], 'Screen recording ' + (clips.filter((c) => /^Screen recording/.test(c.name)).length + 1) + (/mp4/.test(type) ? '.mp4' : '.webm'), { type }));
+      await addFile(new File([blob], nameBase + ' ' + (clips.filter((c) => c.name.indexOf(nameBase) === 0).length + 1) + (/mp4/.test(type) ? '.mp4' : '.webm'), { type }));
     };
-    rec.start(500); say('Recording the screen. Press Stop recording when you are done; the clip is added to the timeline.');
-  };
+    btn.textContent = '■ Stop recording (0 s)'; rec.start(500); say(stopNote(kind));
+  }
+  $('screen').onclick = () => capture($('screen'), '● Record screen', 'screen', () => navigator.mediaDevices.getDisplayMedia({ video: true, audio: $('screenaud').checked }), 'Screen recording');
+  $('camera').onclick = () => capture($('camera'), '● Record camera', 'camera', () => navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: true }), 'Camera recording', true);
+
+  /* voiceover: records the microphone while the video plays, and places it where the recording began */
+  let vrec = null;
+  async function recordVoice() {
+    if (vrec) { vrec.rec.stop(); return; }
+    if (!clips.length) return say('Add a video clip first, then record the voiceover over it.');
+    if (!window.MediaRecorder || !navigator.mediaDevices) return say('This browser cannot record. Use Chrome, Edge or Firefox on a computer.');
+    let stream; try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }); } catch (e) { return say(e && e.name === 'NotAllowedError' ? 'Microphone access was blocked. Allow it in the browser and try again.' : 'Could not start the microphone.'); }
+    const rec = new MediaRecorder(stream), chunks = [], start = tl, btn = $('vorec');
+    vrec = { rec }; rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+    const t0 = performance.now(), tick = setInterval(() => { btn.textContent = '■ Stop (' + Math.round((performance.now() - t0) / 1000) + ' s)'; }, 500);
+    rec.onstop = async () => {
+      clearInterval(tick); stream.getTracks().forEach((t) => t.stop()); vrec = null; btn.textContent = '● Record voiceover'; pause();
+      const blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' }); if (blob.size < 500) return say('Nothing was recorded.');
+      try { const buf = await ctx.decodeAudioData(await blob.arrayBuffer()); voices.push({ buf, file: blob, start, name: 'Voiceover ' + (voices.length + 1), src: null }); refresh(); say('Voiceover added at ' + fmt(start) + '. Play the video to hear it.'); }
+      catch (_) { say('Could not read the recording.'); }
+    };
+    btn.textContent = '■ Stop (0 s)'; rec.start(250); if (tl >= total() - 0.05) seek(0); play(); say('Recording the voiceover. Speak now, then press Stop.');
+    const end = setInterval(() => { if (!vrec) return clearInterval(end); if (!playing && !exporting) { clearInterval(end); if (vrec.rec.state !== 'inactive') vrec.rec.stop(); } }, 300);
+  }
+  $('vorec').onclick = recordVoice;
+  $('vovol').oninput = () => { voiceGain.gain.value = $('vovol').value / 100; };
 
   /* ---------- export ---------- */
   const TYPES = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
@@ -490,14 +624,16 @@
       const c = clips[i], Ti = len(c);
       try {
         const ab = await oc.decodeAudioData(await c.file.arrayBuffer()), src = oc.createBufferSource(), gn = oc.createGain(), n = Math.max(2, Math.ceil(Ti * 100) + 1), curve = new Float32Array(n);
-        for (let k = 0; k < n; k++) curve[k] = ovolv * audioOf(c, levelsAt(c, i, k / (n - 1) * Ti, Ti));
+        for (let k = 0; k < n; k++) curve[k] = ovolv * (c.mute ? 0 : c.vol) * audioOf(c, levelsAt(c, i, k / (n - 1) * Ti, Ti));
         src.buffer = ab; gn.gain.setValueCurveAtTime(curve, acc, Ti); src.connect(gn).connect(oc.destination); src.start(acc, c.in, c.out - c.in);
       } catch (_) { /* this clip has no sound track */ }
       acc += Ti;
     }
     const orig = await oc.startRendering();
-    if (!music) return orig;
+    if (!music && !voices.length) return orig;
     const oc2 = new OfflineAudioContext(2, N, SR), os = oc2.createBufferSource(); os.buffer = orig; os.connect(oc2.destination); os.start(0);
+    for (const v of voices) { try { const vb = await oc2.decodeAudioData(await v.file.arrayBuffer()), vs = oc2.createBufferSource(), vg = oc2.createGain(); vs.buffer = vb; vg.gain.value = voiceGain.gain.value; vs.connect(vg).connect(oc2.destination); vs.start(Math.max(0, v.start)); } catch (_) { /* skip */ } }
+    if (!music) return oc2.startRendering();
     const mb = await oc2.decodeAudioData(await music.file.arrayBuffer()), ms = oc2.createBufferSource(), mg = oc2.createGain(); ms.buffer = mb;
     const base = musicGain.gain.value;
     if (duck.on) {                      // follow the original sound the same way the live ducking does
@@ -584,7 +720,7 @@
 
   if (/[?&]gvtest\b/.test(location.search)) window.__ve = {
     addFile, loadMusic, exportVideo, seek, play, pause, ctx, estimateShift, smoothPath, parseSubs, importSubs, exportSrt, keyPixels, stabilise, lenOf, srcAt, tAt, hasFilter,
-    get clips() { return clips; }, get texts() { return texts; }, get duckGain() { return musicDuck.gain.value; }, get screen() { return !!scr; },
-    get state() { return { clips: clips.map((c) => ({ dur: c.dur, in: c.in, out: c.out, fi: c.fi, fo: c.fo, trans: c.trans, speed: c.speed, speed2: c.speed2 })), texts: texts.length, tl, total: total(), playing }; }
+    get clips() { return clips; }, get texts() { return texts; }, get duckGain() { return musicDuck.gain.value; }, get screen() { return !!scr; }, get overlays() { return overlays; }, get voices() { return voices; }, addOverlay, findSilence, cutSilence, recordVoice, draw,
+    get state() { return { clips: clips.map((c) => ({ vol: c.vol, mute: c.mute, xf: c.xf, dur: c.dur, in: c.in, out: c.out, fi: c.fi, fo: c.fo, trans: c.trans, speed: c.speed, speed2: c.speed2 })), texts: texts.length, tl, total: total(), playing }; }
   };
 })();
