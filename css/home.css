@@ -45,9 +45,10 @@
 .tools.n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 a.tool { display: flex; flex-direction: column; border-radius: 22px; overflow: hidden; border: 1px solid var(--line2); background: linear-gradient(180deg, #151833, #0f1126); color: var(--text); position: relative; isolation: isolate; transition: transform .3s cubic-bezier(.2, .7, .2, 1), border-color .25s, box-shadow .3s; }
 a.tool:hover { transform: translateY(-5px); border-color: color-mix(in srgb, var(--c) 70%, transparent); box-shadow: 0 28px 60px -28px color-mix(in srgb, var(--c) 70%, transparent); }
-.shot { display: block; overflow: hidden; background: #0d0f24; aspect-ratio: 16 / 10; }
-.shot img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .6s cubic-bezier(.2, .7, .2, 1); }
-a.tool:hover .shot img { transform: scale(1.045); }
+.shot { display: block; overflow: hidden; background: #0a0b1a; aspect-ratio: 16 / 10; position: relative; padding: 14px 14px 0; }
+.shot::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 14px; background: radial-gradient(circle at 12px 7px, #ff5f57 3px, transparent 3.5px), radial-gradient(circle at 26px 7px, #febc2e 3px, transparent 3.5px), radial-gradient(circle at 40px 7px, #28c840 3px, transparent 3.5px), #151833; z-index: 1; }
+.shot img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top left; border-radius: 8px 8px 0 0; box-shadow: 0 -1px 0 rgba(255, 255, 255, .08); transition: transform .6s cubic-bezier(.2, .7, .2, 1); transform-origin: top center; }
+a.tool:hover .shot img { transform: scale(1.03); }
 .tx { display: block; padding: 18px 20px 20px; position: relative; flex: 1; }
 a.tool h3 { margin: 0; font-size: 21px; font-weight: 700; letter-spacing: -.02em; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-right: 48px; }
 a.tool p { margin: 6px 0 0; color: var(--muted); font-size: 15px; line-height: 1.5; padding-right: 8px; }
@@ -58,7 +59,7 @@ a.tool:hover .go, a.tool:focus-visible .go { transform: translateX(3px); color: 
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 /* the first card of Make and Edit is wide: picture on the left, words on the right */
 a.tool.wide { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); }
-a.tool.wide .shot { aspect-ratio: auto; min-height: 320px; }
+a.tool.wide .shot { aspect-ratio: auto; min-height: 320px; padding: 24px 0 0 24px; } a.tool.wide .shot::before { display: none; } a.tool.wide .shot img { height: 100%; border-radius: 12px 0 0 0; }
 a.tool.wide .tx { display: flex; flex-direction: column; justify-content: center; padding: clamp(24px, 4vw, 48px); }
 a.tool.wide h3 { font-size: clamp(28px, 3.2vw, 40px); line-height: 1.05; letter-spacing: -.03em; padding-right: 0; }
 a.tool.wide p { font-size: 17px; margin-top: 12px; max-width: 38ch; }
