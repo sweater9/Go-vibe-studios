@@ -29,6 +29,10 @@
   .mini { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .mini label.ctl { min-width: 0; }
   .btn.sm { padding: 5px 9px; font-size: 12px; }
+  details.vfx { margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; background: var(--bg); }
+  details.vfx > summary { cursor: pointer; font-size: 13px; padding: 4px 0; }
+  details.vfx input[type=range] { width: 100%; }
+  .status.sn { margin: 0; }
 </style>
 </head>
 <body>
@@ -45,7 +49,7 @@
 
 <main id="main" tabindex="-1" class="wrap" style="max-width:1200px">
   <h1>Video <span class="grad">Editor</span></h1>
-  <p class="lead">Join clips, trim them, add text and a music track, then export. Everything runs on your device.</p>
+  <p class="lead">Join and trim clips, change their speed, grade the colour, zoom and pan, key out a green screen, stabilise shaky footage, add titles and subtitles, record your screen and lay music under it with automatic ducking. Everything runs on your device.</p>
 
   <div class="vgrid">
     <section>
@@ -70,20 +74,32 @@
 
       <div class="panel">
         <h2>Export</h2>
+        <div class="mini" style="margin-bottom:10px">
+          <label class="ctl">Size<select id="xres" class="sel"><option value="480">480p</option><option value="720" selected>720p</option><option value="1080">1080p</option></select></label>
+          <label class="ctl">Frame rate<select id="xfps" class="sel"><option value="24">24</option><option value="30" selected>30</option><option value="60">60</option></select></label>
+          <label class="ctl">Quality<select id="xq" class="sel"><option value="low">Small file</option><option value="std" selected>Standard</option><option value="high">High</option></select></label>
+          <label class="ctl">Format<select id="xfmt" class="sel"><option value="auto" selected>Automatic</option><option value="webm">WebM</option><option value="mp4">MP4 (if supported)</option><option value="wav">Audio only (WAV)</option></select></label>
+          <label class="ctl">Method<select id="xmode" class="sel"><option value="fast" selected>Fast (when possible)</option><option value="real">Real time</option></select></label>
+        </div>
         <div class="row">
           <button class="btn primary" id="export" disabled>Export video</button>
           <button class="btn hidden" id="cancel">Cancel</button>
           <a class="btn hidden" id="dl">Download</a>
         </div>
         <p class="status" id="status" role="status">Add at least one video clip to begin.</p>
-        <p class="status">Export plays the whole video in real time, so a 1-minute video takes about a minute. Keep this tab open and visible while it runs. The file is MP4 if your browser can record it, otherwise WebM.</p>
+        <p class="status">Fast export builds the video frame by frame instead of waiting for it to play, which is often quicker than real time on a good computer (it depends on your device and the footage). It needs a recent Chrome or Edge and clips at normal speed. Otherwise the editor plays the video through in real time while it records, so a 1-minute video takes about a minute. Keep this tab open and visible while it runs. The file is MP4 if your browser can make it, otherwise WebM.</p>
       </div>
     </section>
 
     <section>
       <div class="panel" style="margin-top:0">
         <h2>Clips</h2>
-        <button class="btn" id="addclip">+ Add video</button>
+        <div class="row">
+          <button class="btn" id="addclip">+ Add video</button>
+          <button class="btn" id="screen">● Record screen</button>
+          <label class="row" style="gap:6px"><input type="checkbox" id="screenaud"> Include sound</label>
+        </div>
+        <input type="file" id="bgfile" accept="image/*" hidden aria-label="Choose a background picture for green screen">
         <input type="file" id="clipfile" accept="video/*" multiple hidden>
         <div id="cliplist"></div>
       </div>
@@ -103,7 +119,20 @@
           <label class="ctl">Colour<input type="color" id="tcolor" value="#ffffff"></label>
           <label class="ctl">&nbsp;<button class="btn sm" id="tadd">Add text</button></label>
         </div>
+        <div class="mini" style="margin-top:8px">
+          <label class="ctl">Font<select id="tfont" class="sel"><option value="sans">Sans</option><option value="serif">Serif</option><option value="mono">Mono</option><option value="bold">Heavy</option></select></label>
+          <label class="ctl">Style<select id="tstyle" class="sel"><option value="outline">Outline</option><option value="shadow">Shadow</option><option value="box">Box</option><option value="plain">Plain</option></select></label>
+          <label class="ctl">Animation<select id="tanim" class="sel"><option value="none">None</option><option value="fade">Fade</option><option value="rise">Rise</option><option value="type">Typewriter</option></select></label>
+          <label class="ctl">Animation length (s)<input type="number" id="talen" min="0.1" max="3" step="0.1" value="0.5"></label>
+        </div>
         <div id="textlist"></div>
+        <h3 style="margin:14px 0 6px;font-size:15px">Subtitles</h3>
+        <div class="row">
+          <button class="btn sm" id="subimp">Import SRT or VTT</button>
+          <button class="btn sm" id="subexp">Export all text as SRT</button>
+          <span class="time" id="subcount">No text yet</span>
+        </div>
+        <input type="file" id="subfile" accept=".srt,.vtt,text/vtt,application/x-subrip,text/plain" hidden aria-label="Import subtitles from an SRT or VTT file">
       </div>
 
       <div class="panel">
@@ -118,6 +147,10 @@
         </label>
         <label class="ctl" style="min-width:0;margin-top:10px">Original sound volume
           <input type="range" id="ovol" min="0" max="100" value="100">
+        </label>
+        <label class="row" style="gap:6px;margin-top:10px"><input type="checkbox" id="duck"> Lower the music while the video has sound</label>
+        <label class="ctl" style="min-width:0;margin-top:6px">Music dip (dB)
+          <input type="range" id="duckamt" min="3" max="24" value="12">
         </label>
         <p class="status">Music starts at the beginning of the video. Use music you made here or have the right to use.</p>
       </div>

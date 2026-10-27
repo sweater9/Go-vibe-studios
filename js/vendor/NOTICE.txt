@@ -1,3 +1,7 @@
 lame.min.js is lamejs 1.2.1 (a JavaScript port of the LAME MP3 encoder), unmodified.
 Licence: GNU LGPL 3.0. Source: https://github.com/zhuker/lamejs
 It is loaded as a separate file by js/convert-worker.js, so you can replace it with your own build of lamejs.
+
+mp4-muxer.js is mp4-muxer 5.2.2 and webm-muxer.js is webm-muxer 5.1.4, both unmodified builds by Vanilagy.
+Licence: MIT (see LICENSE-mp4-muxer.txt and LICENSE-webm-muxer.txt). Sources: https://github.com/Vanilagy/mp4-muxer and https://github.com/Vanilagy/webm-muxer
+They are loaded only when you use fast export in the Video editor, to write the finished MP4 or WebM file on your device.

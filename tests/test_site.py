@@ -1984,6 +1984,191 @@ def test_video(browser, base):
     ctx.close()
 
 
+def test_video_pro(browser, base):
+    print("video editor: speed, grade, zoom, green screen, stabilise, text, subtitles, ducking, screen, export options")
+    import tempfile, zlib, struct
+    errs = []
+    ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 1000}, accept_downloads=True)
+    pg.goto(base + "video.html?gvtest"); pg.wait_for_function("() => window.__ve", timeout=10000)
+    ev = lambda js, *a: pg.evaluate(js, *a) if a else pg.evaluate(js)
+    mk = """async ([kind, secs]) => { const c = document.createElement('canvas'); c.width = 320; c.height = 180; const g = c.getContext('2d');
+      const ac = new AudioContext(), dest = ac.createMediaStreamDestination(), o = ac.createOscillator(); o.connect(dest); o.start();
+      const s = c.captureStream(30); dest.stream.getAudioTracks().forEach((t) => s.addTrack(t));
+      const rec = new MediaRecorder(s, { mimeType: 'video/webm;codecs=vp8,opus' }), ch = []; rec.ondataavailable = (e) => ch.push(e.data);
+      const done = new Promise((r) => (rec.onstop = r)); rec.start(100); const t0 = performance.now();
+      const tex = document.createElement('canvas'); tex.width = 480; tex.height = 300; const tg = tex.getContext('2d'); let seed = 7; const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+      for (let i = 0; i < 500; i++) { tg.fillStyle = 'hsl(' + Math.floor(rnd() * 360) + ',70%,' + Math.floor(25 + rnd() * 50) + '%)'; tg.fillRect(rnd() * 480, rnd() * 300, 8 + rnd() * 30, 8 + rnd() * 30); }
+      await new Promise((res) => { (function f() { const t = (performance.now() - t0) / 1000;
+        if (kind === 'split') { g.fillStyle = '#00b140'; g.fillRect(0, 0, 160, 180); g.fillStyle = '#e02020'; g.fillRect(160, 0, 160, 180); }
+        else if (kind === 'shake') g.drawImage(tex, -80 + Math.round(8 * Math.sin(t * 9)), -60 + Math.round(5 * Math.cos(t * 7)));
+        else if (kind === 'still') g.drawImage(tex, -80, -60);
+        else { g.fillStyle = kind; g.fillRect(0, 0, 320, 180); }
+        if (t >= secs) res(); else requestAnimationFrame(f); })(); });
+      rec.stop(); await done; o.stop(); await __ve.addFile(new File([new Blob(ch, { type: 'video/webm' })], kind.replace('#', '') + '.webm')); }"""
+    px_at = """([fx, fy]) => { const c = document.getElementById('cv'), d = c.getContext('2d').getImageData(Math.round(c.width * fx), Math.round(c.height * fy), 1, 1).data; return [d[0], d[1], d[2]]; }"""
+    shot = lambda fx, fy, t=0.5: (ev("(t) => __ve.seek(t)", t), pg.wait_for_timeout(450), ev(px_at, [fx, fy]))[2]
+    cl = lambda i: pg.locator("#cliplist .clip").nth(i)
+    def sect(i, name): 
+        d = cl(i).locator("details.vfx", has_text=name)
+        if d.get_attribute("open") is None: d.locator("summary").click()
+        return d
+    # ---------- speed ----------
+    ev(mk, ["#c0392b", 2.4]); L0 = ev("__ve.state.total")
+    check("the clip starts at normal speed", ev("__ve.clips[0].speed") == 1 and ev("__ve.clips[0].speed2") == 1)
+    d = sect(0, "Speed"); d.locator(".sp1").fill("2"); d.locator(".sp1").dispatch_event("change")
+    check("2x speed halves the length on the timeline", abs(ev("__ve.state.total") - L0 / 2) < 0.01, f"{ev('__ve.state.total')} vs {L0 / 2}")
+    d.locator(".sp2").fill("4"); d.locator(".sp2").dispatch_event("change")
+    c0 = ev("() => { const c = __ve.clips[0]; return [c.out - c.in, c.speed, c.speed2]; }"); Lc, a, b = c0
+    want_len = Lc * __import__("math").log(b / a) / (b - a)
+    check("a ramp from 2x to 4x has the exact curved length", abs(ev("__ve.state.total") - want_len) < 0.01, f"{ev('__ve.state.total')} vs {want_len}")
+    r = ev("() => { const c = __ve.clips[0], T = __ve.lenOf(c); return [__ve.srcAt(c, T) - (c.out - c.in), __ve.tAt(c, __ve.srcAt(c, T * 0.37)) - T * 0.37]; }")
+    check("the ramp maps source time to timeline time and back exactly", abs(r[0]) < 1e-6 and abs(r[1]) < 1e-6, str(r))
+    ev("() => { __ve.seek(0); __ve.play(); }"); pg.wait_for_timeout(500)
+    rate = ev("__ve.clips[0].v.playbackRate"); ev("__ve.pause()")
+    check("playback uses the ramped speed (between 2x and 4x)", 2 <= rate <= 4, str(rate))
+    pg.click("#cliplist .clip >> nth=0 >> .sp0")
+    check("Reset puts the speed back to normal", ev("__ve.clips[0].speed") == 1 and abs(ev("__ve.state.total") - L0) < 0.01)
+    # ---------- colour ----------
+    pre = shot(0.5, 0.5, 0.5); d = sect(0, "Colour grading")
+    d.locator("select.gp").select_option("bw"); post = shot(0.5, 0.5, 0.5)
+    if ev("__ve.hasFilter"):
+        check("the black and white look removes the colour", max(post) - min(post) < 14 and max(pre) - min(pre) > 60, f"{pre} -> {post}")
+        d.locator(".gb").fill("150"); d.locator(".gb").dispatch_event("input"); br = shot(0.5, 0.5, 0.5)
+        check("a custom slider moves the look to Custom and changes the picture", d.locator("select.gp").input_value() == "" and sum(br) > sum(post), f"{post} -> {br}")
+    d.locator("select.gp").select_option("normal"); same = shot(0.5, 0.5, 0.5)
+    check("the Normal look restores the original colours", all(abs(x - y) < 6 for x, y in zip(pre, same)), f"{pre} vs {same}")
+    # ---------- zoom, pan and green screen on a split clip ----------
+    ev(mk, ["split", 2.4]); ev("() => { __ve.clips[0].v.remove(); }") if False else None
+    pg.locator("#cliplist .clip").nth(0).locator("button", has_text="Remove").click()
+    check("the red clip was removed, leaving the split clip", ev("__ve.clips.length") == 1 and ev("__ve.clips[0].name") == "split.webm")
+    left0, right0 = shot(0.25, 0.5, 0.5), shot(0.75, 0.5, 0.5)
+    check("the test clip has a green left half and a red right half", left0[1] > 120 and left0[0] < 80 and right0[0] > 150 and right0[1] < 90, f"{left0} {right0}")
+    d = sect(0, "Zoom and pan")
+    for cls, v in (("zs1", "200"), ("zs2", "200"), ("zx1", "20"), ("zx2", "20")): d.locator("." + cls).fill(v); d.locator("." + cls).dispatch_event("change")
+    mid = shot(0.6, 0.5, 0.5)
+    check("200% zoom panned 20% right moves the green/red border to 70% of the width", mid[1] > 120 and mid[0] < 80 and shot(0.75, 0.5, 0.5)[0] > 150, str(mid))
+    d.locator("select.zp").select_option("none"); back = shot(0.6, 0.5, 0.5)
+    check("the None preset undoes the zoom", back[0] > 150 and back[1] < 90, str(back))
+    d.locator("select.zp").select_option("zin")
+    z = ev("() => __ve.clips[0].zoom"); check("the slow zoom in preset zooms from 100% to 118%", z["s1"] == 100 and z["s2"] == 118, str(z))
+    d.locator("select.zp").select_option("none")
+    d = sect(0, "Green screen")
+    d.locator(".ko").check(); d.locator(".kb").fill("#0000ff"); d.locator(".kb").dispatch_event("input")
+    k_left, k_right = shot(0.25, 0.5, 0.5), shot(0.75, 0.5, 0.5)
+    check("green screen replaces the green half with the background colour and keeps the red half", k_left[2] > 150 and k_left[1] < 90 and k_left[0] < 90 and k_right[0] > 150 and k_right[2] < 90, f"{k_left} {k_right}")
+    png = lambda rgb: (lambda raw: b"\x89PNG\r\n\x1a\n" + struct.pack(">I", 13) + b"IHDR" + struct.pack(">IIBBBBB", 4, 4, 8, 2, 0, 0, 0) + struct.pack(">I", zlib.crc32(b"IHDR" + struct.pack(">IIBBBBB", 4, 4, 8, 2, 0, 0, 0))) + struct.pack(">I", len(zlib.compress(raw))) + b"IDAT" + zlib.compress(raw) + struct.pack(">I", zlib.crc32(b"IDAT" + zlib.compress(raw))) + struct.pack(">I", 0) + b"IEND" + struct.pack(">I", zlib.crc32(b"IEND")))(b"".join(b"\x00" + bytes(rgb) * 4 for _ in range(4)))
+    pg.set_input_files("#bgfile", files=[{"name": "bg.png", "mimeType": "image/png", "buffer": png((255, 255, 0))}]); pg.wait_for_timeout(300)
+    yl = shot(0.25, 0.5, 0.5)
+    check("a background picture shows through the keyed area", yl[0] > 200 and yl[1] > 200 and yl[2] < 90, str(yl))
+    d.locator(".kbx").click(); d.locator(".ko").uncheck()
+    check("Clear removes the picture and the key can be switched off", shot(0.25, 0.5, 0.5)[1] > 120)
+    kp = ev("""() => { const d = new Uint8ClampedArray([0, 177, 64, 255, 224, 32, 32, 255, 20, 20, 20, 255, 0, 120, 40, 255]); __ve.keyPixels(d, { color: '#00b140', tol: 40, soft: 15 }); return [d[3], d[7], d[11], d[15]]; }""")
+    check("the key removes green and dark green but keeps red and near black", kp[0] == 0 and kp[1] == 255 and kp[2] == 255 and kp[3] < 40, str(kp))
+    # ---------- stabilise ----------
+    sh = ev("""() => { const w = 40, h = 30, A = new Float32Array(w * h); let s = 3; for (let i = 0; i < A.length; i++) { s = (s * 1664525 + 1013904223) >>> 0; A[i] = s % 255; }
+      const B = new Float32Array(w * h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const sx = x - 3, sy = y + 2; B[y * w + x] = sx >= 0 && sx < w && sy >= 0 && sy < h ? A[sy * w + sx] : 0; }
+      return __ve.estimateShift(A, B, w, h, 6); }""")
+    check("the motion estimator finds a known shift of 3 right and 2 up", sh == [3, -2], str(sh))
+    ev(mk, ["still", 2.2]); ev(mk, ["shake", 2.2]); n = ev("__ve.clips.length")
+    ev("(i) => __ve.stabilise(i)", n - 2); pg.wait_for_timeout(300); still = ev("(i) => Math.max(...__ve.clips[i].stab.dx.map(Math.abs), ...__ve.clips[i].stab.dy.map(Math.abs))", n - 2)
+    check("a steady clip needs almost no correction", still < 0.01, str(still))
+    d = sect(n - 1, "Stabilise"); d.locator(".sa").click(); pg.wait_for_function("(i) => __ve.clips[i].stab !== null", arg=n - 1, timeout=60000); pg.wait_for_timeout(300)
+    shk = ev("(i) => Math.max(...__ve.clips[i].stab.dx.map(Math.abs), ...__ve.clips[i].stab.dy.map(Math.abs))", n - 1)
+    check("a shaky clip gets real corrections and stabilisation turns on", shk > 0.012 and ev("(i) => __ve.clips[i].stabOn", n - 1) and d.locator(".so").is_checked() and "Done" in d.locator(".sn").inner_text(), f"{shk} {d.locator('.sn').inner_text()}")
+    check("the stabilised clip has one correction per tenth of a second", abs(ev("(i) => __ve.clips[i].stab.dx.length", n - 1) - 22) <= 2)
+    ev("(n) => { for (let i = 0; i < n; i++) { const c = __ve.clips[0]; } }", 0)
+    for _ in range(ev("__ve.clips.length") - 1): cl(0).locator("button", has_text="Remove").click()
+    ev(mk, ["#c0392b", 4.0]); cl(0).locator("button", has_text="Remove").click()
+    check("one clip is left for the text tests", ev("__ve.clips.length") == 1)
+    # ---------- text ----------
+    pg.fill("#ttext", "Hello"); pg.fill("#tstart", "0.2"); pg.fill("#tend", "3"); pg.select_option("#tpos", "middle"); pg.select_option("#tanim", "fade"); pg.fill("#talen", "1"); pg.fill("#tsize", "120"); pg.click("#tadd")
+    t = ev("__ve.texts[0]"); check("a text layer keeps its font, style and animation", t["anim"] == "fade" and t["alen"] == 1 and t["style"] == "outline" and t["font"] == "sans", str(t))
+    white = lambda tt: (ev("(t) => __ve.seek(t)", tt), pg.wait_for_timeout(450), ev("""() => { const c = document.getElementById('cv'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let w = 0; for (let i = 0; i < d.length; i += 4) if (d[i] > 235 && d[i + 1] > 235 && d[i + 2] > 235) w++; return w; }"""))[2]
+    w0, w1, w2 = white(0.25), white(0.7), white(1.6)
+    check("a fade in starts nearly invisible and ends fully visible", w0 < w2 * 0.15 and w1 < w2 * 0.9 and w2 > 3000, f"{w0} {w1} {w2}")
+    ev("() => { __ve.texts[0].anim = 'type'; __ve.texts[0].alen = 1; }"); t0w, t1w = white(0.5), white(2.0)
+    check("typewriter shows only the first letters at first", t0w < t1w * 0.7 and t0w > 0, f"{t0w} {t1w}")
+    ev("() => { Object.assign(__ve.texts[0], { anim: 'none', style: 'box' }); }"); inbox, outbox = shot(0.352, 0.5, 1.0), shot(0.25, 0.5, 1.0)
+    check("the Box style puts a dark panel behind the letters, and the picture is untouched outside it", inbox[0] < 90 and inbox[1] < 35 and outbox[0] > 150, f"{inbox} {outbox}")
+    ev("() => { __ve.texts[0].style = 'outline'; __ve.texts[0].anim = 'type'; }")
+    pg.click("#textlist .clip >> nth=0 >> text=Edit")
+    check("Edit moves a text layer back into the form with its settings", pg.input_value("#ttext") == "Hello" and ev("__ve.texts.length") == 0 and pg.input_value("#tanim") == "type" and pg.input_value("#tstyle") == "outline")
+    # ---------- subtitles ----------
+    srt = "1\n00:00:01,000 --> 00:00:03,500\nHello <i>there</i>\n\n2\n00:00:04,000 --> 00:00:06,250\nSecond line\nwraps here\n\n"
+    vtt = "WEBVTT\n\n00:01.500 --> 00:02.000\nShort cue\n\n1:00:00.000 --> 1:00:01.000\nAn hour in\n"
+    r = ev("([a, b]) => [__ve.parseSubs(a), __ve.parseSubs(b)]", [srt, vtt])
+    check("SRT cues parse with times, markup removed and line breaks kept", r[0][0] == {"text": "Hello there", "start": 1, "end": 3.5} and r[0][1]["text"] == "Second line\nwraps here" and r[0][1]["end"] == 6.25, str(r[0]))
+    check("VTT cues parse with and without an hour", r[1][0]["start"] == 1.5 and r[1][1]["start"] == 3600, str(r[1]))
+    f = tempfile.mkdtemp() + "/subs.srt"; open(f, "w").write(srt); pg.set_input_files("#subfile", f); pg.wait_for_timeout(300)
+    check("importing an SRT file adds the cues as text layers at the bottom", ev("__ve.texts.length") == 2 and ev("__ve.texts[0].pos") == "bottom" and "2 text layers" in pg.inner_text("#subcount"))
+    with pg.expect_download(timeout=10000) as dl: pg.click("#subexp")
+    out_srt = open(dl.value.path()).read()
+    check("exporting writes the text layers back as a valid SRT", "00:00:01,000 --> 00:00:03,500" in out_srt and out_srt.startswith("1\n") and "Second line\nwraps here" in out_srt, out_srt[:120])
+    bad = tempfile.mkdtemp() + "/x.srt"; open(bad, "w").write("nothing useful here"); pg.set_input_files("#subfile", bad); pg.wait_for_timeout(300)
+    check("a file with no subtitles is refused politely", "No subtitles found" in pg.inner_text("#status") and ev("__ve.texts.length") == 2)
+    # ---------- ducking ----------
+    pg.evaluate("""async () => { const sr = 8000, n = sr * 6, b = new ArrayBuffer(44 + n * 2), v = new DataView(b), w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+      w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+      for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.sin(i / 9) * 8000, true); await __ve.loadMusic(new File([b], 'tone.wav')); }""")
+    ev("() => { __ve.seek(0); __ve.play(); }"); pg.wait_for_timeout(700); off = ev("__ve.duckGain")
+    pg.check("#duck"); pg.wait_for_timeout(900); on = ev("__ve.duckGain")
+    check("with ducking off the music stays at full level", off > 0.95, str(off))
+    check("with ducking on the music dips by about 12 dB while the video has sound", 0.15 < on < 0.4, str(on))
+    pg.fill("#duckamt", "24") if False else ev("() => { const r = document.getElementById('duckamt'); r.value = 24; r.dispatchEvent(new Event('input')); }"); pg.wait_for_timeout(700)
+    check("a bigger dip setting lowers it further", ev("__ve.duckGain") < 0.1, str(ev("__ve.duckGain")))
+    pg.uncheck("#duck"); pg.wait_for_timeout(1500); ev("__ve.pause()")
+    check("switching ducking off brings the music back up", ev("__ve.duckGain") > 0.9)
+    # ---------- screen recording (the browser's screen picker is replaced by a canvas) ----------
+    ev("""() => { navigator.mediaDevices.getDisplayMedia = async () => { const c = document.createElement('canvas'); c.width = 320; c.height = 180; const g = c.getContext('2d'); let k = 0; setInterval(() => { g.fillStyle = 'hsl(' + (k += 7) % 360 + ',60%,40%)'; g.fillRect(0, 0, 320, 180); }, 33); return c.captureStream(30); }; }""")
+    n0 = ev("__ve.clips.length"); pg.click("#screen"); pg.wait_for_timeout(1600)
+    check("while recording the button turns into Stop", "Stop recording" in pg.inner_text("#screen") and ev("__ve.screen"))
+    pg.click("#screen"); pg.wait_for_function("(n) => __ve.clips.length === n + 1", arg=n0, timeout=15000)
+    check("stopping adds the screen recording to the timeline as a clip", ev("__ve.clips.at(-1).name").startswith("Screen recording") and ev("__ve.clips.at(-1).dur") > 0.8 and pg.inner_text("#screen") == "● Record screen")
+    ev("""() => { navigator.mediaDevices.getDisplayMedia = async () => { throw new DOMException('no', 'NotAllowedError'); }; }"""); pg.click("#screen"); pg.wait_for_timeout(300)
+    check("cancelling the screen picker is handled with a clear message", "cancelled or blocked" in pg.inner_text("#status") and not ev("__ve.screen"))
+    # ---------- export options ----------
+    pg.select_option("#xres", "480"); pg.select_option("#xfps", "24"); pg.select_option("#xq", "low"); pg.select_option("#xfmt", "webm")
+    out = ev("""async () => { const b = await __ve.exportVideo(); if (!b) return null; const n = __ve.clips.length; await __ve.addFile(new File([b], 'small.webm', { type: b.type })); const v = __ve.clips[n].v; return { type: b.type, size: b.size, w: v.videoWidth, h: v.videoHeight, dur: v.duration }; }""")
+    check("export at 480p makes a 854 by 480 WebM file", out and out["type"].startswith("video/webm") and out["w"] == 854 and out["h"] == 480, str(out))
+    check("the preview goes back to normal size after exporting", ev("[document.getElementById('cv').width, document.getElementById('cv').height]") == [1280, 720])
+    check("the format list offers Automatic, WebM, MP4 and audio only", pg.locator("#xfmt option").all_inner_texts() == ["Automatic", "WebM", "MP4 (if supported)", "Audio only (WAV)"])
+    # ---------- fast export ----------
+    for _ in range(ev("__ve.clips.length")): cl(0).locator("button", has_text="Remove").click()
+    ev(mk, ["#c0392b", 2.0]); ev(mk, ["#2471a3", 2.0]); cl(1).locator("select.tr").select_option("cut")
+    pg.select_option("#xres", "480"); pg.select_option("#xfps", "24"); pg.select_option("#xfmt", "auto"); pg.select_option("#xmode", "fast")
+    T = ev("__ve.state.total")
+    import time as _t; t0 = _t.time()
+    res = ev("""async () => { const b = await __ve.exportVideo(); if (!b) return null; const u = URL.createObjectURL(b), v = document.createElement('video'); v.muted = true; v.src = u; await new Promise((r) => (v.onloadedmetadata = r));
+      const shot = async (t) => { v.currentTime = t; await new Promise((r) => (v.onseeked = r)); const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight; c.getContext('2d').drawImage(v, 0, 0); return Array.from(c.getContext('2d').getImageData(c.width >> 1, c.height >> 1, 1, 1).data); };
+      const ac = new AudioContext(), ab = await ac.decodeAudioData(await b.arrayBuffer()), d = ab.getChannelData(0); let s = 0; for (let i = 0; i < d.length; i++) s += d[i] * d[i];
+      return { type: b.type, size: b.size, w: v.videoWidth, h: v.videoHeight, dur: v.duration, a: await shot(0.5), b: await shot(3.3), rms: Math.sqrt(s / d.length), adur: ab.duration }; }""")
+    took = _t.time() - t0
+    check("fast export produces a 854 by 480 video the right length", res and res["w"] == 854 and res["h"] == 480 and abs(res["dur"] - T) < 0.4, str(res))
+    check("fast export reports that it used the fast method", "Done:" in pg.inner_text("#status") and " in " in pg.inner_text("#status") and took < T * 3, f"{took:.1f} s for a {T:.1f} s video: {pg.inner_text('#status')}")
+    check("fast export uses the right picture at each time (red first, blue second)", res and res["a"][0] > 140 and res["a"][2] < 110 and res["b"][2] > 110 and res["b"][0] < 110, str(res and (res["a"], res["b"])))
+    check("fast export keeps the sound of the clips", res and res["rms"] > 0.05 and abs(res["adur"] - T) < 0.4, str(res and (res["rms"], res["adur"])))
+    check("the file is MP4 or WebM and the download link is shown", res and res["type"] in ("video/mp4", "video/webm") and not pg.locator("#dl").evaluate("(a) => a.classList.contains('hidden')") and pg.get_attribute("#dl", "download").endswith(("mp4", "webm")))
+    pg.select_option("#xfmt", "webm"); wb = ev("async () => { const b = await __ve.exportVideo(); return b && b.type; }")
+    check("choosing WebM gives a WebM file", wb == "video/webm", str(wb))
+    pg.select_option("#xfmt", "wav"); wv = ev("""async () => { const b = await __ve.exportVideo(); if (!b) return null; const u = new Uint8Array(await b.arrayBuffer()); return { type: b.type, riff: String.fromCharCode(...u.slice(0, 4)), size: b.size }; }""")
+    check("audio only export writes a stereo WAV of the whole timeline", wv and wv["type"] == "audio/wav" and wv["riff"] == "RIFF" and abs(wv["size"] - (44 + T * 48000 * 4)) < 20000, str(wv))
+    pg.select_option("#xfmt", "auto")
+    d = sect(0, "Speed"); d.locator(".sp1").fill("2"); d.locator(".sp1").dispatch_event("change")
+    fb = ev("async () => { const b = await __ve.exportVideo(); return b && b.type; }")
+    check("a clip with a speed change falls back to real time export and says so", fb and fb.startswith("video/") and "real time" in pg.inner_text("#status").lower(), pg.inner_text("#status"))
+    pg.click("#cliplist .clip >> nth=0 >> .sp0")
+    pg.select_option("#xmode", "real"); rt = ev("async () => { const b = await __ve.exportVideo(); return b && b.type; }")
+    check("the Real time method still works", rt and rt.startswith("video/"), str(rt))
+    axe = os.environ.get("AXE_PATH") or os.path.join(ROOT, "node_modules/axe-core/axe.min.js")
+    if os.path.exists(axe):
+        c3 = browser.new_context(bypass_csp=True, viewport={"width": 1300, "height": 1000}); p3 = c3.new_page(); p3.goto(base + "video.html?gvtest"); p3.wait_for_function("() => window.__ve", timeout=10000)
+        p3.evaluate(mk, ["#c0392b", 1.5]); p3.evaluate("document.querySelectorAll('details.vfx').forEach((d) => (d.open = true))"); p3.add_script_tag(path=axe)
+        v = p3.evaluate("axe.run(document,{runOnly:['wcag2a','wcag2aa','wcag21a','wcag21aa','best-practice']}).then(r=>r.violations.map(v=>v.id+' x'+v.nodes.length+' '+v.nodes[0].target.join(' ')))")
+        check("video page with every clip control open: no axe violations", not v, str(v)); c3.close()
+    check("no page errors in the video editor", not errs, str(errs[:3]))
+    ctx.close()
+
+
 # ---------------------------------------------------------------- offline support
 def test_offline(browser, base):
     print("offline support")
@@ -2007,7 +2192,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip
