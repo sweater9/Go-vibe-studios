@@ -8,7 +8,7 @@
   let sel = { track: null, clip: null }, clipboard = null;
   let playhead = 0, playing = false, pps = 60, scrollX = 0;
   let undoS = [], redoS = [];
-  let graph = null, live = [], segs = [], startAt = 0, tick = 0, dirty = true, saveT = 0, restartT = 0;
+  let noLoop = false, graph = null, live = [], segs = [], startAt = 0, tick = 0, dirty = true, saveT = 0, restartT = 0;
   const canvas = $('tl'), g = canvas.getContext('2d');
   const say = (t) => { $('status').textContent = t; };
   const fmtT = (s) => { const m = Math.floor(s / 60); return m + ':' + (s - m * 60).toFixed(2).padStart(5, '0'); };
@@ -16,8 +16,9 @@
   const trackOf = (id) => P.tracks.find((t) => t.id === id);
   const clipOf = (id) => { for (const t of P.tracks) { const c = t.clips.find((x) => x.id === id); if (c) return { t, c }; } return null; };
   const xOf = (t) => (t - scrollX) * pps, tOf = (x) => x / pps + scrollX;
-  const SNAPS = { off: 0, '16': 0.25, '8': 0.5, '4': 1, bar: 4 };
-  const snapUnit = () => SNAPS[$('snap').value] * spb();
+  const SNAPS = { off: 0, '16': 0.25, '8': 0.5, '4': 1 };
+  const barBeats = () => Core.barBeats(P);
+  const snapUnit = () => ($('snap').value === 'bar' ? barBeats() : SNAPS[$('snap').value]) * spb();
   const snap = (t) => { const u = snapUnit(); return u ? Math.round(t / u) * u : t; };
 
   /* ---------- audio context ---------- */
@@ -42,8 +43,8 @@
   async function saveNow() { try { await IO.save(P, blobs); $('saved').textContent = 'Saved in this browser at ' + new Date().toLocaleTimeString(); } catch (e) { $('saved').textContent = 'Could not save: ' + (e && e.message || 'storage is full or blocked') + '. Use Download backup.'; } }
   function afterStructure() {
     Core.ensureMix(P); if (sel.clip && !clipOf(sel.clip)) sel.clip = null; if (sel.track && !trackOf(sel.track)) sel.track = null;
-    $('bpm').value = P.bpm; $('pname').value = P.name; $('master').value = Math.round(P.master * 100); $('lim').checked = P.limiter !== false; $('loop').setAttribute('aria-pressed', !!P.loop.on);
-    buildHeads(); refreshSelUI(); dirty = true; if (playing) scheduleRestart(); if (window.GVRoll) GVRoll.refresh(); if (window.GVMixer) GVMixer.refresh();
+    $('bpm').value = P.bpm; $('sig').value = P.sig[0] + '/' + P.sig[1]; $('pname').value = P.name; $('master').value = Math.round(P.master * 100); $('lim').checked = P.limiter !== false; $('loop').setAttribute('aria-pressed', !!P.loop.on);
+    buildHeads(); buildMarks(); refreshSelUI(); dirty = true; if (playing) scheduleRestart(); if (window.GVRoll) GVRoll.refresh(); if (window.GVMixer) GVMixer.refresh();
   }
 
   /* ---------- tracks and clips ---------- */
@@ -79,7 +80,7 @@
     if (!tr) return say('Add a ' + clipboard.type + ' track to paste into.');
     edit('Paste', () => { const c = JSON.parse(JSON.stringify(clipboard.c)); c.id = Core.uid(); c.start = snap(playhead); tr.clips.push(c); sel = { track: tr.id, clip: c.id }; });
   }
-  function newMidiClip(tr, at) { let c; edit('New clip', () => { c = tr.type === 'midi' ? { id: Core.uid(), start: at, dur: 4 * spb(), notes: [] } : { id: Core.uid(), start: at, dur: 4 * spb(), steps: 16, swing: 0, grid: {} }; tr.clips.push(c); sel = { track: tr.id, clip: c.id }; }); return c; }
+  function newMidiClip(tr, at) { let c; edit('New clip', () => { c = tr.type === 'midi' ? { id: Core.uid(), start: at, dur: barBeats() * spb(), notes: [] } : { id: Core.uid(), start: at, dur: barBeats() * spb(), steps: Math.round(barBeats() * 4), swing: 0, grid: {} }; tr.clips.push(c); sel = { track: tr.id, clip: c.id }; }); return c; }
 
   /* ---------- track headers ---------- */
   function buildHeads() {
@@ -91,6 +92,8 @@
       const typ = mk('span', 'ttype', { textContent: t.type === 'audio' ? 'Audio' : t.type === 'midi' ? 'Keys' : 'Drums' });
       const m = mk('button', 'btn mini tbtn2', { textContent: 'M', title: 'Mute' }); m.setAttribute('aria-label', 'Mute ' + t.name); m.setAttribute('aria-pressed', t.mute);
       m.onclick = () => { const b = snapshotJSON(); t.mute = !t.mute; applyAllMix(); changed('Mute', b); buildHeads(); if (window.GVMixer) GVMixer.syncTrack(t); };
+      const arm = t.type === 'audio' ? mk('button', 'btn mini tbtn2', { textContent: 'R', title: 'Arm for recording' }) : null;
+      if (arm) { arm.setAttribute('aria-label', 'Arm ' + t.name + ' for recording'); arm.setAttribute('aria-pressed', !!(window.GVStudioRec && GVStudioRec.armed() === t.id)); arm.onclick = () => { if (window.GVStudioRec) GVStudioRec.toggleArm(t.id); buildHeads(); }; }
       const s = mk('button', 'btn mini tbtn2', { textContent: 'S', title: 'Solo' }); s.setAttribute('aria-label', 'Solo ' + t.name); s.setAttribute('aria-pressed', t.solo);
       s.onclick = () => { const b = snapshotJSON(); t.solo = !t.solo; applyAllMix(); changed('Solo', b); buildHeads(); if (window.GVMixer) GVMixer.syncTrack(t); };
       const x = mk('button', 'btn mini tbtn2', { textContent: '✕', title: 'Remove track' }); x.setAttribute('aria-label', 'Remove ' + t.name); x.onclick = () => removeTrack(t.id);
@@ -101,7 +104,7 @@
       pan.onpointerdown = () => { pan._b = snapshotJSON(); }; pan.onpointerup = () => { if (pan._b && pan._b !== snapshotJSON()) pushUndo(pan._b); };
       const lv = mk('div', 'tlvl'); const lb = mk('div', 'tlvlb'); lv.appendChild(lb); lv.dataset.lv = t.id;
       const top = mk('div', 'trow'); top.append(name, typ);
-      const mid = mk('div', 'trow'); mid.append(m, s, x);
+      const mid = mk('div', 'trow'); if (arm) mid.append(arm); mid.append(m, s, x);
       if (t.type === 'midi') { const ins = mk('select', 'tinst'); ins.setAttribute('aria-label', 'Instrument of ' + t.name); GVSynth.INSTS.forEach((n) => { const o = document.createElement('option'); o.textContent = n; if (n === t.inst) o.selected = true; ins.appendChild(o); }); ins.onchange = () => edit('Instrument', () => { t.inst = ins.value; }); mid.appendChild(ins); }
       const lab = (txt, el) => { const l = mk('label', 'tl'); l.append(document.createTextNode(txt), el); return l; };
       row.append(top, mid, lab('Vol', vol), lab('Pan', pan), lv);
@@ -118,15 +121,18 @@
     fitCanvas(); const W = canvas.width, H = canvas.height; g.clearRect(0, 0, W, H);
     const dark = getComputedStyle(document.documentElement); g.fillStyle = '#0d0e16'; g.fillRect(0, 0, W, H);
     for (let i = 0; i < Math.max(P.tracks.length, 1); i++) { g.fillStyle = i % 2 ? '#10111a' : '#0f1019'; g.fillRect(0, RULER + i * LANE, W, LANE); g.fillStyle = '#1b1d2a'; g.fillRect(0, RULER + (i + 1) * LANE - 1, W, 1); }
-    // grid
-    const S = spb(), t0 = scrollX, t1 = scrollX + W / pps, beatPx = S * pps;
-    if (beatPx > 10) for (let k = Math.max(0, Math.floor(t0 / S)); k * S < t1; k++) { const x = Math.round(xOf(k * S)) + 0.5, bar = k % 4 === 0; g.fillStyle = bar ? '#262a3c' : '#171927'; if (bar || beatPx > 22) g.fillRect(x, RULER, 1, H - RULER); }
-    else for (let k = Math.max(0, Math.floor(t0 / (S * 4))); k * S * 4 < t1; k++) { g.fillStyle = '#262a3c'; g.fillRect(Math.round(xOf(k * S * 4)) + 0.5, RULER, 1, H - RULER); }
+    // grid: one line per pulse (the bottom number of the time signature) and a stronger one at every bar
+    const S = spb(), BB = barBeats(), PS = S * 4 / P.sig[1], num = P.sig[0], t0 = scrollX, t1 = scrollX + W / pps, pulsePx = PS * pps;
+    if (pulsePx > 10) for (let k = Math.max(0, Math.floor(t0 / PS)); k * PS < t1; k++) { const x = Math.round(xOf(k * PS)) + 0.5, bar = k % num === 0; g.fillStyle = bar ? '#262a3c' : '#171927'; if (bar || pulsePx > 22) g.fillRect(x, RULER, 1, H - RULER); }
+    else for (let k = Math.max(0, Math.floor(t0 / (S * BB))); k * S * BB < t1; k++) { g.fillStyle = '#262a3c'; g.fillRect(Math.round(xOf(k * S * BB)) + 0.5, RULER, 1, H - RULER); }
     // ruler
     g.fillStyle = '#141623'; g.fillRect(0, 0, W, RULER); g.fillStyle = '#9aa0b8'; g.font = '11px system-ui, sans-serif'; g.textBaseline = 'middle';
-    const barSec = S * 4, barPx = barSec * pps, every = barPx < 40 ? Math.ceil(40 / barPx) : 1;
+    const barSec = S * BB, barPx = barSec * pps, every = barPx < 40 ? Math.ceil(40 / barPx) : 1;
     for (let k = Math.max(0, Math.floor(t0 / barSec)); k * barSec < t1; k++) { const x = xOf(k * barSec); g.fillStyle = '#3a3f58'; g.fillRect(Math.round(x), 14, 1, 14); if (k % every === 0) { g.fillStyle = '#c3c8de'; g.fillText(String(k + 1), x + 4, 9); g.fillStyle = '#7a809b'; g.fillText(fmtT(k * barSec).replace(/\.\d+$/, ''), x + 4, 21); } }
     if (P.loop.on || P.loop.b > P.loop.a) { const a = xOf(P.loop.a), b = xOf(P.loop.b); g.fillStyle = P.loop.on ? 'rgba(251,191,36,.18)' : 'rgba(251,191,36,.06)'; g.fillRect(a, RULER, b - a, H - RULER); g.fillStyle = P.loop.on ? '#fbbf24' : '#8a7a40'; g.fillRect(a, 0, b - a, 4); }
+    // markers: a thin line down the lanes and a flag on the ruler
+    g.font = '11px system-ui, sans-serif'; g.textBaseline = 'middle';
+    P.markers.forEach((m) => { const x = Math.round(xOf(m.t)) + 0.5; if (x < -200 || x > W) return; g.fillStyle = 'rgba(34,211,238,.35)'; g.fillRect(x, RULER, 1, H - RULER); const label = m.name || 'Marker', w = Math.min(140, g.measureText(label).width + 12); g.fillStyle = '#0e7490'; roundRect(x, 14, w, 13, 4); g.fill(); g.fillStyle = '#ecfeff'; g.fillText(label.slice(0, 22), x + 6, 21); g.fillStyle = '#22d3ee'; g.fillRect(x - 0.5, 0, 2, 28); });
     // clips
     P.tracks.forEach((t, i) => t.clips.forEach((c) => {
       const x = xOf(c.start), w = c.dur * pps; if (x + w < 0 || x > W) return;
@@ -178,7 +184,7 @@
   let drag = null;
   canvas.addEventListener('pointerdown', (e) => {
     canvas.focus(); const r = canvas.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top, h = hit(x, y); canvas.setPointerCapture(e.pointerId);
-    if (h.zone === 'ruler') { drag = { kind: e.shiftKey ? 'loop' : 'seek', a: tOf(x) }; if (!e.shiftKey) { setPlayhead(Math.max(0, snap(tOf(x)))); } return; }
+    if (h.zone === 'ruler') { const mk = markerAt(x, y); if (mk) { setPlayhead(mk.t); say('Jumped to ' + (mk.name || 'marker') + '.'); return; } drag = { kind: e.shiftKey ? 'loop' : 'seek', a: tOf(x) }; if (!e.shiftKey) { setPlayhead(Math.max(0, snap(tOf(x)))); } return; }
     if (h.zone === 'empty') { sel = { track: null, clip: null }; buildHeads(); return; }
     sel.track = h.t.id;
     if (h.zone === 'lane') { sel.clip = null; setPlayhead(Math.max(0, snap(tOf(x)))); buildHeads(); refreshSelUI(); dirty = true; return; }
@@ -237,18 +243,20 @@
   function stopSources() { live.forEach((s) => { try { s.onended = null; s.stop(); } catch (_) {} }); live = []; if (graph) { try { graph.dispose(); graph.out.disconnect(); graph.master.disconnect(); } catch (_) {} } graph = null; }
   function tracksTap() { P.tracks.forEach((t) => { const n = graph.tracks[t.id]; if (!n) return; const an = ctx.createAnalyser(); an.fftSize = 512; n.gain.connect(an); n.an = an; }); }
   function endOfSong() { return Core.projectEnd(P) + 0.05; }
-  function startFrom(pos) {
-    ensureCtx(); ctx.resume(); stopSources();
+  /* opt.delay: seconds of count in before the music starts. opt.noLoop: ignore the loop (recording). opt.until: play on to this time even if the clips end sooner (recording). Returns the first segment, or null. */
+  function startFrom(pos, opt) {
+    opt = opt || {}; ensureCtx(); ctx.resume(); stopSources(); noLoop = !!opt.noLoop;
     graph = Core.buildGraph(ctx, bus, P, {}); tracksTap();
-    let from = pos; if (P.loop.on && P.loop.b > P.loop.a && from >= P.loop.b) from = P.loop.a;
-    const to = P.loop.on && P.loop.b > P.loop.a ? P.loop.b : endOfSong();
-    if (!(to > from)) { playing = false; return say('There is nothing to play after the playhead.'); }
-    segs = [{ when: ctx.currentTime + Core.LEAD, from, to }]; Core.scheduleSegment(ctx, graph, P, buffers, segs[0], { live, metronome: $('metro').getAttribute('aria-pressed') === 'true' });
+    const looping = P.loop.on && P.loop.b > P.loop.a && !noLoop;
+    let from = pos; if (looping && from >= P.loop.b) from = P.loop.a;
+    const to = looping ? P.loop.b : (opt.until != null ? Math.max(opt.until, endOfSong()) : endOfSong());
+    if (!(to > from)) { playing = false; say('There is nothing to play after the playhead.'); return null; }
+    segs = [{ when: ctx.currentTime + Core.LEAD + (opt.delay || 0), from, to }]; Core.scheduleSegment(ctx, graph, P, buffers, segs[0], { live, metronome: $('metro').getAttribute('aria-pressed') === 'true' });
     playing = true; $('play').textContent = '❚❚ Pause'; $('play').setAttribute('aria-label', 'Pause');
-    clearInterval(tick); tick = setInterval(pump, 40); pump();
+    clearInterval(tick); tick = setInterval(pump, 40); pump(); return segs[0];
   }
   function pump() {
-    if (!playing) return; const last = segs[segs.length - 1], loopOn = P.loop.on && P.loop.b > P.loop.a;
+    if (!playing) return; const last = segs[segs.length - 1], loopOn = P.loop.on && P.loop.b > P.loop.a && !noLoop;
     while (loopOn && last && segs[segs.length - 1].when + (segs[segs.length - 1].to - segs[segs.length - 1].from) < ctx.currentTime + 1.2 && segs.length < 400) {
       const ps = segs[segs.length - 1], seg = { when: ps.when + (ps.to - ps.from), from: P.loop.a, to: P.loop.b }; segs.push(seg); Core.scheduleSegment(ctx, graph, P, buffers, seg, { live, metronome: $('metro').getAttribute('aria-pressed') === 'true' });
     }
@@ -257,19 +265,20 @@
     const l = segs[segs.length - 1]; if (!loopOn && ctx.currentTime > l.when + (l.to - l.from) + 1.4) { stop(true); }
   }
   function posNow() { const now = ctx.currentTime; for (const s of segs) { const len = s.to - s.from; if (now >= s.when && now < s.when + len) return s.from + (now - s.when); } const f = segs[0]; return f && now < f.when ? f.from : (segs.length ? Math.min(segs[segs.length - 1].to, playhead) : null); }
-  function stop(atEnd) { clearInterval(tick); const pos = playing && ctx ? posNow() : playhead; stopSources(); playing = false; $('play').textContent = '▶ Play'; $('play').setAttribute('aria-label', 'Play'); if (atEnd) { playhead = P.loop.on ? P.loop.a : 0; ensureVisible(); } else if (pos != null) playhead = pos; $('time').textContent = fmtT(playhead); dirty = true; }
+  function stop(atEnd) { const wasRec = window.GVStudioRec && GVStudioRec.active(); clearInterval(tick); const pos = playing && ctx ? posNow() : playhead; stopSources(); playing = false; $('play').textContent = '▶ Play'; $('play').setAttribute('aria-label', 'Play'); if (atEnd && !wasRec) { playhead = P.loop.on ? P.loop.a : 0; ensureVisible(); } else if (pos != null) playhead = pos; $('time').textContent = fmtT(playhead); dirty = true; if (wasRec) GVStudioRec.stopped(); }
   function toggle() { if (playing) stop(); else startFrom(playhead); }
-  function scheduleRestart() { clearTimeout(restartT); restartT = setTimeout(() => { if (playing) { const p = posNow(); startFrom(p == null ? playhead : p); } }, 120); }
+  function scheduleRestart() { if (window.GVStudioRec && GVStudioRec.active()) return; clearTimeout(restartT); restartT = setTimeout(() => { if (playing) { const p = posNow(); startFrom(p == null ? playhead : p); } }, 120); }
   function applyAllMix() { if (graph) { P.tracks.forEach((t) => Core.applyMix(graph, P, t)); Core.applyMaster(graph, P); } }
   $('play').onclick = toggle; $('stop').onclick = () => { if (playing) stop(); playhead = 0; scrollX = 0; $('time').textContent = fmtT(0); syncScroll(); dirty = true; };
   $('rew').onclick = () => { setPlayhead(P.loop.on ? P.loop.a : 0); };
-  $('loop').onclick = () => { const b = snapshotJSON(); P.loop.on = !P.loop.on; if (P.loop.on && !(P.loop.b > P.loop.a)) { P.loop.a = 0; P.loop.b = 4 * spb() * 2; } $('loop').setAttribute('aria-pressed', P.loop.on); changed('Loop', b); dirty = true; };
+  $('loop').onclick = () => { const b = snapshotJSON(); P.loop.on = !P.loop.on; if (P.loop.on && !(P.loop.b > P.loop.a)) { P.loop.a = 0; P.loop.b = barBeats() * spb() * 2; } $('loop').setAttribute('aria-pressed', P.loop.on); changed('Loop', b); dirty = true; };
   $('metro').onclick = () => { $('metro').setAttribute('aria-pressed', $('metro').getAttribute('aria-pressed') !== 'true'); if (playing) scheduleRestart(); };
   $('bpm').onchange = () => { const v = Math.max(30, Math.min(300, +$('bpm').value || 120)); const b = snapshotJSON(); P.bpm = v; $('bpm').value = v; changed('Tempo', b); dirty = true; };
   $('master').oninput = () => { P.master = $('master').value / 100; if (graph) graph.master.gain.value = P.master; if (window.GVMixer) GVMixer.syncMaster(); }; $('master').onchange = () => markDirty();
   $('lim').onchange = () => { P.limiter = $('lim').checked; markDirty(); if (playing) scheduleRestart(); };
   $('pname').onchange = () => { P.name = $('pname').value.trim() || 'Untitled project'; markDirty(); };
   $('snap').onchange = () => { dirty = true; };
+  $('sig').onchange = () => { const v = $('sig').value.split('/').map(Number); edit('Time signature', () => { P.sig = [v[0], v[1]]; }); say('Time signature is ' + v[0] + '/' + v[1] + '. Clips stay where they are; the bar lines and the snap move.'); };
   ['addaudio', 'addkeys', 'adddrums'].forEach((id) => { $(id).onclick = () => { addTrack(id === 'addaudio' ? 'audio' : id === 'addkeys' ? 'midi' : 'drum'); }; });
   $('import').onclick = () => $('file').click(); $('file').onchange = () => { importFiles([...$('file').files]); $('file').value = ''; };
   $('split').onclick = () => splitAt(playhead); $('dup').onclick = dupClip; $('del').onclick = delClip; $('undo').onclick = undo; $('redo').onclick = redo;
@@ -282,7 +291,7 @@
     if (mod && k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); } else if (mod && k === 'y') { e.preventDefault(); redo(); } else if (mod && k === 'd') { e.preventDefault(); dupClip(); } else if (mod && k === 'c') { copyClip(); } else if (mod && k === 'v') { pasteClip(); } else if (mod && k === 's') { e.preventDefault(); saveNow(); }
     else if (e.code === 'Space' && e.target.tagName !== 'BUTTON') { e.preventDefault(); toggle(); }
     else if (k === 's' && !mod) splitAt(playhead); else if (k === 'delete' || k === 'backspace') { if (sel.clip) { e.preventDefault(); delClip(); } }
-    else if (k === 'l') $('loop').click(); else if (k === 'm' && !mod) $('metro').click(); else if (k === 'home') setPlayhead(0); else if (k === '=' || k === '+') setZoom(pps * 1.4); else if (k === '-') setZoom(pps / 1.4);
+    else if (k === 'k' && !mod) addMarker(); else if (k === ',') gotoMarker(-1); else if (k === '.') gotoMarker(1); else if (k === 'l') $('loop').click(); else if (k === 'm' && !mod) $('metro').click(); else if (k === 'home') setPlayhead(0); else if (k === '=' || k === '+') setZoom(pps * 1.4); else if (k === '-') setZoom(pps / 1.4);
     else if (k === 'enter' && sel.clip) { const x = clipOf(sel.clip); if (x && x.t.type !== 'audio') openEditor(x.t, x.c); }
     else if (k === 'arrowleft' || k === 'arrowright') { if (document.activeElement !== canvas) return; e.preventDefault(); const u = snapUnit() || 0.1, d = (k === 'arrowright' ? 1 : -1) * (e.shiftKey ? 4 : 1) * u; if (e.altKey && sel.clip) { const x = clipOf(sel.clip); edit('Nudge', () => { x.c.start = Math.max(0, x.c.start + d); }); } else setPlayhead(Math.max(0, playhead + d)); }
     else if (k === 'arrowup' || k === 'arrowdown') { if (document.activeElement !== canvas) return; e.preventDefault(); const i = P.tracks.findIndex((t) => t.id === sel.track), n = Math.max(0, Math.min(P.tracks.length - 1, (i < 0 ? 0 : i) + (k === 'arrowdown' ? 1 : -1))); if (P.tracks[n]) { sel.track = P.tracks[n].id; sel.clip = null; buildHeads(); refreshSelUI(); } }
@@ -306,7 +315,7 @@
 
   /* ---------- editors (piano roll and step grid live in studio-roll.js) ---------- */
   function openEditor(t, c) { sel = { track: t.id, clip: c.id }; buildHeads(); refreshSelUI(); if (window.GVRoll) GVRoll.open(t.id, c.id); }
-  const api = { buildHeads: () => buildHeads(), get P() { return P; }, get graph() { return graph; }, get playing() { return playing; }, applyAllMix: () => { if (graph) { P.tracks.forEach((t) => Core.applyMix(graph, P, t)); Core.applyMaster(graph, P); } }, trackOf, clipOf, spb, edit, markDirty, changed, snapshotJSON, pushUndo, ensureCtx, bus: () => bus, say, afterStructure, get playhead() { return playhead; }, redraw: () => { dirty = true; } };
+  const api = { buildHeads: () => buildHeads(), ctx: () => ensureCtx(), startFrom, stop, posNow: () => (ctx && playing ? posNow() : null), select: (t, c) => { sel = { track: t, clip: c }; }, addAsset: (aid, meta, buf, blob) => { P.assets[aid] = meta; buffers.set(aid, buf); blobs.set(aid, blob); peaks.set(aid, Core.peaksOf(buf)); }, get P() { return P; }, get graph() { return graph; }, get playing() { return playing; }, applyAllMix: () => { if (graph) { P.tracks.forEach((t) => Core.applyMix(graph, P, t)); Core.applyMaster(graph, P); } }, trackOf, clipOf, spb, edit, markDirty, changed, snapshotJSON, pushUndo, ensureCtx, bus: () => bus, say, afterStructure, barBeats, get playhead() { return playhead; }, redraw: () => { dirty = true; } };
   window.GVStudio = api;
 
   /* ---------- projects, backup, export ---------- */
@@ -333,6 +342,7 @@
   function dl(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
   async function exportMix() {
     ensureCtx(); const range = $('xrange').value, fmt = $('xfmt').value; let from = 0, to = Core.projectEnd(P);
+    if (fmt === 'mid') { if (!GVMidi.hasNotes(P)) return say('There are no keys or drum clips to export as MIDI. Audio tracks cannot become MIDI.'); dl(new Blob([GVMidi.write(P)], { type: 'audio/midi' }), (P.name.replace(/[^\w\- ]+/g, '_') || 'project') + '.mid'); return say('MIDI file downloaded: one track per keys or drum track, with tempo' + (P.markers && P.markers.length ? ' and markers' : '') + '. Audio tracks are not included.'); }
     if (range === 'loop') { from = P.loop.a; to = P.loop.b; } if (!(to > from)) return say('Nothing to export yet. Add some clips first.');
     $('xgo').disabled = true; say('Rendering…');
     try {
@@ -347,10 +357,56 @@
   }
   $('xgo').onclick = exportMix; $('xstems').onclick = exportStems;
 
+  /* ---------- markers ---------- */
+  const markerAt = (x, y) => { if (y < 13) return null; g.font = '11px system-ui, sans-serif'; for (const m of P.markers) { const mx = xOf(m.t), w = Math.min(140, g.measureText(m.name || 'Marker').width + 12); if (x >= mx - 2 && x <= mx + w) return m; } return null; };
+  function addMarker() {
+    if (P.markers.length >= 200) return say('A project holds up to 200 markers.');
+    const t = Math.round(playhead * 1000) / 1000, top = P.markers.reduce((a, x) => { const r = /^Marker (\d+)$/.exec(x.name); return r ? Math.max(a, +r[1]) : a; }, 0), m = { id: Core.uid(), t, name: 'Marker ' + (top + 1) };
+    edit('Add marker', () => { P.markers.push(m); P.markers.sort((a, b) => a.t - b.t); }); say('Marker added at ' + fmtT(t) + '. Rename it in the Markers list.'); return m;
+  }
+  function gotoMarker(dir) {
+    const eps = 0.005, list = P.markers.slice().sort((a, b) => a.t - b.t), m = dir > 0 ? list.find((x) => x.t > playhead + eps) : list.slice().reverse().find((x) => x.t < playhead - eps);
+    if (!m) return say(dir > 0 ? 'There is no marker after the playhead.' : 'There is no marker before the playhead.'); setPlayhead(m.t); say((m.name || 'Marker') + ' at ' + fmtT(m.t));
+  }
+  function buildMarks() {
+    const box = $('marklist'); box.innerHTML = ''; $('markcount').textContent = '(' + P.markers.length + ')';
+    if (!P.markers.length) { const li = document.createElement('li'); li.className = 'status'; li.textContent = 'No markers yet.'; box.appendChild(li); return; }
+    P.markers.forEach((m) => {
+      const li = document.createElement('li'); li.className = 'prow';
+      const go = Object.assign(document.createElement('button'), { className: 'btn mini', textContent: 'Go to ' + fmtT(m.t), type: 'button' }); go.setAttribute('aria-label', 'Go to ' + fmtT(m.t) + ' (' + (m.name || 'marker') + ')'); go.onclick = () => setPlayhead(m.t);
+      const nm = Object.assign(document.createElement('input'), { type: 'text', value: m.name, maxLength: 40 }); nm.setAttribute('aria-label', 'Name of the marker at ' + fmtT(m.t)); nm.onchange = () => edit('Rename marker', () => { m.name = nm.value.trim().slice(0, 40) || 'Marker'; });
+      const del = Object.assign(document.createElement('button'), { className: 'btn mini', textContent: 'Delete', type: 'button' }); del.setAttribute('aria-label', 'Delete ' + (m.name || 'marker')); del.onclick = () => edit('Delete marker', () => { P.markers = P.markers.filter((x) => x.id !== m.id); });
+      li.append(go, nm, del); box.appendChild(li);
+    });
+  }
+  $('addmark').onclick = addMarker;
+
+  /* ---------- MIDI import and export ---------- */
+  async function importMidi(file) {
+    let parsed; try { parsed = GVMidi.read(new Uint8Array(await file.arrayBuffer())); } catch (e) { return say('Could not read that MIDI file. ' + e.message); }
+    let specs = GVMidi.toSpecs(parsed); if (!specs.length) return say('That MIDI file has no notes.');
+    const extra = Math.max(0, specs.length - 24); specs = specs.slice(0, 24); const fresh = !P.tracks.length;
+    edit('Import MIDI', () => {
+      if (fresh) P.bpm = Math.max(30, Math.min(300, Math.round(parsed.bpm * 100) / 100));
+      if (fresh && parsed.sig && Core.SIGS && Core.SIGS.some((x) => x[0] === parsed.sig[0] && x[1] === parsed.sig[1])) P.sig = parsed.sig.slice();
+      const S = spb();
+      specs.forEach((sp) => {
+        const t = Core.newTrack(P, sp.type === 'drum' ? 'drum' : 'midi'); t.name = (sp.name || t.name).slice(0, 24);
+        if (sp.type === 'midi') { t.inst = sp.inst; t.clips.push({ id: Core.uid(), start: 0, dur: sp.beats * S, notes: sp.notes }); }
+        else sp.clips.forEach((c) => t.clips.push({ id: Core.uid(), start: c.startBeat * S, dur: 4 * S, steps: 16, swing: 0, grid: c.grid }));
+        P.tracks.push(t);
+      });
+      if (Array.isArray(P.markers)) parsed.markers.forEach((m) => { if (P.markers.length < 200) P.markers.push({ id: Core.uid(), t: Math.round(m.beats * S * 1000) / 1000, name: (m.name || 'Marker').slice(0, 40) }); });
+    });
+    const outside = specs.reduce((a, sp) => a + (sp.outOfRange || 0), 0);
+    say('Imported ' + specs.length + ' track(s) and ' + parsed.noteCount + ' notes from ' + file.name + (fresh ? ' at ' + Math.round(P.bpm) + ' BPM' : '. The project tempo was kept') + '.' + (parsed.warnings.length ? ' ' + parsed.warnings.join(' ') : '') + (outside ? ' ' + outside + ' note(s) are outside the piano roll range (C2 to C7). They still play.' : '') + (extra ? ' ' + extra + ' more track(s) in the file were skipped.' : ''));
+  }
+  $('importmidi').onclick = () => $('midifile').click(); $('midifile').onchange = () => { const f = $('midifile').files[0]; $('midifile').value = ''; if (f) importMidi(f); };
+
   /* a loop from the Loop and sample maker becomes an editable track */
   function addLoop(j) {
     const sp = j.spec; edit('Add loop', () => {
-      if (!P.tracks.length) P.bpm = j.bpm; const t = Core.newTrack(P, sp.type), dur = j.bars * 4 * 60 / P.bpm; t.name = sp.name || t.name; if (sp.inst) t.inst = sp.inst;
+      if (!P.tracks.length) { P.bpm = j.bpm; P.sig = [4, 4]; } const t = Core.newTrack(P, sp.type), dur = j.bars * 4 * 60 / P.bpm; t.name = sp.name || t.name; if (sp.inst) t.inst = sp.inst;
       /* notes are in beats, so they keep their meaning at any tempo */
       const start = 0;
       t.clips.push(sp.type === 'midi' ? { id: Core.uid(), start, dur, notes: sp.notes } : { id: Core.uid(), start, dur, steps: 16, swing: sp.swing || 0, grid: sp.grid });
@@ -372,6 +428,6 @@
   }
   window.addEventListener('beforeunload', () => { if (dirty) saveNow(); });
   window.addEventListener('resize', () => { dirty = true; });
-  if (gvtest) window.__st = Object.defineProperties(api, Object.getOwnPropertyDescriptors({ Core, get buffers() { return buffers; }, get blobs() { return blobs; }, get sel() { return sel; }, set sel(v) { sel = v; }, importFiles, addTrack, splitAt, toggle, startFrom, stop, get playing() { return playing; }, get segs() { return segs; }, setPlayhead, xOf, tOf, setZoom, get pps() { return pps; }, saveNow, openProject, newProject, exportMix, exportStems, get graph() { return graph; }, undo, redo, newMidiClip, dupClip, delClip, get undoDepth() { return undoS.length; } }));
+  if (gvtest) window.__st = Object.defineProperties(api, Object.getOwnPropertyDescriptors({ Core, get buffers() { return buffers; }, get blobs() { return blobs; }, get sel() { return sel; }, set sel(v) { sel = v; }, importFiles, importMidi, addMarker, gotoMarker, addTrack, splitAt, toggle, startFrom, stop, get playing() { return playing; }, get segs() { return segs; }, setPlayhead, xOf, tOf, setZoom, get pps() { return pps; }, saveNow, openProject, newProject, exportMix, exportStems, get graph() { return graph; }, undo, redo, newMidiClip, dupClip, delClip, get undoDepth() { return undoS.length; } }));
   start();
 })();

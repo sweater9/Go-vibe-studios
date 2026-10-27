@@ -37,7 +37,7 @@ window.GVRoll = (() => {
     const api = S(), spb = api.spb(), bars = () => c.dur / spb;
     const row = el('div', 'row'); row.style.alignItems = 'flex-end'; row.style.marginTop = '8px'; panel.appendChild(row);
     row.append(
-      labelled('Grid', sel([[0.25, '1/16'], [0.5, '1/8'], [1, '1/4 beat'], [2, '1/2 note'], [4, 'Bar']], opts.grid, (v) => { opts.grid = +v; })),
+      labelled('Grid', sel([[0.25, '1/16'], [0.5, '1/8'], [1, '1/4 beat'], [2, '1/2 note'], [api.barBeats(), 'Bar']], opts.grid, (v) => { opts.grid = +v; })),
       labelled('Scale key', sel(NAMES.map((n, i) => [i, n]), opts.root, (v) => { opts.root = +v; draw(); })),
       labelled('Scale', sel(Object.keys(SCALES), opts.scale, (v) => { opts.scale = v; draw(); })),
       labelled('Click adds', sel(Object.keys(CHORDS), opts.chord, (v) => { opts.chord = v; })),
@@ -63,7 +63,7 @@ window.GVRoll = (() => {
     function draw() {
       size(); const W = cv.width, H = cv.height, B = bars(); g.clearRect(0, 0, W, H);
       for (let p = LOW; p <= HIGH; p++) { const y = yOf(p), pc = p % 12, ins = inScale(p); g.fillStyle = BLACK.has(pc) ? (ins ? '#1a1b28' : '#12131c') : (ins ? '#22243a' : '#181a28'); if (opts.scale !== 'Chromatic' && ins && pc === opts.root) g.fillStyle = '#2e2a52'; g.fillRect(KEYW, y, W - KEYW, ROWH); g.fillStyle = '#0d0e16'; g.fillRect(KEYW, y + ROWH - 1, W - KEYW, 1); }
-      for (let b = 0; b <= B + 2; b += opts.grid >= 1 ? 1 : opts.grid) { const x = Math.round(bx(b)) + 0.5, strong = Math.abs(b % 4) < 1e-6, beat = Math.abs(b % 1) < 1e-6; g.fillStyle = strong ? '#3b4060' : beat ? '#2a2e45' : '#1e2132'; g.fillRect(x, 0, 1, H); }
+      for (let b = 0; b <= B + 2; b += opts.grid >= 1 ? 1 : opts.grid) { const x = Math.round(bx(b)) + 0.5, strong = Math.abs(b % api.barBeats()) < 1e-6, beat = Math.abs(b % 1) < 1e-6; g.fillStyle = strong ? '#3b4060' : beat ? '#2a2e45' : '#1e2132'; g.fillRect(x, 0, 1, H); }
       g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(bx(B), 0, W - bx(B), H);
       for (let p = LOW; p <= HIGH; p++) { const y = yOf(p), pc = p % 12; g.fillStyle = BLACK.has(pc) ? '#111' : '#e8e8f0'; g.fillRect(0, y, BLACK.has(pc) ? KEYW * 0.62 : KEYW - 1, ROWH - 1); if (pc === 0) { g.fillStyle = '#333'; g.font = '10px system-ui'; g.textBaseline = 'middle'; g.fillText('C' + (Math.floor(p / 12) - 1), KEYW - 24, y + ROWH / 2); } }
       c.notes.forEach((n) => { if (n.p < LOW || n.p > HIGH) return; const x = bx(n.t), y = yOf(n.p), w = Math.max(4, n.d * PXB - 1); g.fillStyle = n === selNote ? '#fbbf24' : '#a78bfa'; g.globalAlpha = 0.45 + 0.55 * ((n.v || 100) / 127); g.fillRect(x, y + 1, w, ROWH - 2); g.globalAlpha = 1; g.strokeStyle = n === selNote ? '#fff' : '#ddd6fe'; g.strokeRect(x + 0.5, y + 1.5, w - 1, ROWH - 3); });
@@ -109,16 +109,18 @@ window.GVRoll = (() => {
     'Trap': { Kick: [0, 7, 11], Clap: [8], Hat: [0, 2, 4, 6, 8, 10, 12, 14, 15], 'Open hat': [14] },
     'Empty': {}
   };
+  /* a bar holds beats x 4 sixteenths, so 3/4 has 12 and 7/8 has 14. Offer one, two and four bars of that, plus whatever the clip already uses. */
+  function stepChoices(api, c) { const bar = Math.max(4, Math.round(api.barBeats() * 4)); return [...new Set([bar, bar * 2, bar * 4, c.steps || 16])].filter((n) => n <= 96).sort((a, b) => a - b); }
   function buildSteps(panel, t, c) {
     const api = S(), names = GVSynth.DRUMS; c.steps = c.steps || 16; c.grid = c.grid || {};
     const row = el('div', 'row'); row.style.alignItems = 'flex-end'; row.style.marginTop = '8px'; panel.appendChild(row);
     const sw = el('input'); sw.type = 'range'; sw.min = 0; sw.max = 60; sw.value = Math.round((c.swing || 0) * 100); sw.setAttribute('aria-label', 'Swing'); sw.oninput = () => { c.swing = sw.value / 100; api.redraw(); }; sw.onchange = () => api.markDirty();
     sw.onpointerdown = () => { sw._b = api.snapshotJSON(); }; sw.onpointerup = () => { if (sw._b && sw._b !== api.snapshotJSON()) api.pushUndo(sw._b); };
     row.append(
-      labelled('Steps (16ths)', sel([16, 32, 64], c.steps, (v) => apply('Pattern length', () => { c.steps = +v; }))),
+      labelled('Steps (16ths)', sel(stepChoices(api, c), c.steps, (v) => apply('Pattern length', () => { c.steps = +v; }))),
       labelled('Swing', sw),
       labelled('Preset', sel(['Choose…'].concat(Object.keys(PRESETS)), 'Choose…', (v) => { if (!PRESETS[v]) return; apply('Preset ' + v, () => { c.grid = {}; Object.entries(PRESETS[v]).forEach(([nm, idx]) => { c.grid[nm] = Array(c.steps).fill(0); for (let r = 0; r < c.steps; r += 16) idx.forEach((i) => { if (r + i < c.steps) c.grid[nm][r + i] = 1; }); }); }); })),
-      labelled('Clip length in bars', Object.assign(el('input'), { type: 'number', min: 1, max: 64, step: 1, value: Math.round(c.dur / api.spb() / 4 * 100) / 100, onchange(e) { const v = Math.max(1, Math.min(64, +e.target.value || 1)); apply('Clip length', () => { c.dur = v * 4 * api.spb(); }); } }))
+      labelled('Clip length in bars', Object.assign(el('input'), { type: 'number', min: 1, max: 64, step: 1, value: Math.round(c.dur / api.spb() / api.barBeats() * 100) / 100, onchange(e) { const v = Math.max(1, Math.min(64, +e.target.value || 1)); apply('Clip length', () => { c.dur = v * api.barBeats() * api.spb(); }); } }))
     );
     const info = el('p', 'status', { textContent: 'Press a square to turn a step on or off. The pattern repeats for as long as the clip is.' }); panel.appendChild(info);
     const grid = el('div', 'stepgrid'); grid.style.gridTemplateColumns = '86px repeat(' + c.steps + ', 28px)'; panel.appendChild(grid);

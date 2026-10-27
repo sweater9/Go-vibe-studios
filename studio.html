@@ -39,19 +39,24 @@
   <div class="sbar" role="toolbar" aria-label="Transport and tools">
     <button class="btn primary" id="play" aria-label="Play">▶ Play</button>
     <button class="btn" id="stop" aria-label="Stop and return to start">■ Stop</button>
+    <button class="btn" id="rec" aria-pressed="false" title="Record onto the armed audio track">● Record</button>
     <button class="btn" id="rew" aria-label="Go to start of loop or project">⏮</button>
     <span class="stime" id="time" role="timer" aria-label="Playhead position">0:00.00</span>
     <label class="ctl">BPM <input type="number" id="bpm" min="30" max="300" value="120"></label>
+    <label class="ctl">Time signature <select id="sig"><option>2/4</option><option>3/4</option><option selected>4/4</option><option>5/4</option><option>6/8</option><option>7/8</option><option>12/8</option></select></label>
     <label class="ctl">Snap
       <select id="snap" aria-label="Snap to grid"><option value="off">Off</option><option value="16">1/16</option><option value="8">1/8</option><option value="4" selected>1/4 beat</option><option value="bar">Bar</option></select>
     </label>
     <button class="btn" id="loop" aria-pressed="false" title="Loop (L). Shift and drag on the ruler to set the region.">Loop</button>
     <button class="btn" id="metro" aria-pressed="false" title="Metronome (M)">Metronome</button>
+    <button class="btn" id="addmark" title="Add a marker at the playhead (K)">Add marker</button>
     <span class="sep"></span>
     <button class="btn" id="addaudio">+ Audio track</button>
     <button class="btn" id="addkeys">+ Keys track</button>
     <button class="btn" id="adddrums">+ Drum track</button>
     <button class="btn" id="import">Import audio…</button>
+    <button class="btn" id="importmidi">Import MIDI…</button>
+    <input type="file" id="midifile" accept=".mid,.midi,audio/midi,audio/x-midi" hidden aria-label="Import a MIDI file">
     <input type="file" id="file" accept="audio/*" multiple hidden aria-label="Import audio files">
     <span class="sep"></span>
     <button class="btn" id="split" disabled title="Split at playhead (S)">Split</button>
@@ -75,8 +80,31 @@
     <button class="btn mini" id="zoomin" aria-label="Zoom in">+</button>
   </div>
   <p class="status" id="status" role="status"></p>
+  <details class="panel marks" id="marks">
+    <summary>Markers <span id="markcount">(0)</span></summary>
+    <p class="status">Markers label parts of the song, like Verse or Drop. Press K to add one at the playhead, click a flag on the ruler or its Go to button to jump there, and use the comma and period keys to move to the previous and next marker. They are saved with the project and written into MIDI exports.</p>
+    <ul class="plist" id="marklist" aria-label="Markers"></ul>
+  </details>
 
   <div class="rollpane" id="rollpane"></div>
+
+  <details class="panel recpanel" id="recpanel">
+    <summary>Recording</summary>
+    <p class="status">Press R on an audio track to arm it, then press Record and play or sing. The other tracks play along. Use headphones so the microphone does not pick up the speakers. The microphone is only used while you record or test it, and nothing is uploaded.</p>
+    <div class="row" style="align-items:flex-end">
+      <label class="ctl">Microphone <select id="recdev"><option value="">Default microphone</option></select></label>
+      <label class="ctl">Latency fix (ms) <input type="number" id="reclat" min="0" max="500" step="1" value="0"></label>
+      <button class="btn" id="rectest" type="button">Test microphone</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label class="row time"><input type="checkbox" id="reccount"> Count in one bar</label>
+      <label class="row time"><input type="checkbox" id="recpunch"> Punch in and out (record only inside the loop region)</label>
+      <label class="row time"><input type="checkbox" id="recmon"> Hear the microphone</label>
+      <label class="row time"><input type="checkbox" id="recproc"> Voice processing (echo cancel, noise reduction)</label>
+    </div>
+    <div class="reclvl" role="img" aria-label="Microphone level"><div class="tlvlb" id="reclvl"></div></div>
+    <p class="status">Latency fix moves the take earlier to line it up with the music. If a take sounds late, raise it. It is remembered in this browser.</p>
+  </details>
 
   <section class="panel mixer" id="mixer" aria-labelledby="mixh">
     <div class="mixhead"><h2 id="mixh">Mixer</h2><button class="btn mini" id="mixtoggle" type="button" aria-expanded="true" aria-controls="mixbody">Hide</button></div>
@@ -104,7 +132,7 @@
           <select id="xrange"><option value="all">Whole project</option><option value="loop">Loop region</option></select>
         </label>
         <label class="ctl">Format
-          <select id="xfmt"><option value="wav16">WAV 16 bit</option><option value="wav24">WAV 24 bit</option><option value="mp3">MP3 192 kbps</option></select>
+          <select id="xfmt"><option value="wav16">WAV 16 bit</option><option value="wav24">WAV 24 bit</option><option value="mp3">MP3 192 kbps</option><option value="mid">MIDI (keys and drum tracks)</option></select>
         </label>
         <button class="btn primary" id="xgo">Export mix</button>
         <button class="btn" id="xstems">Export each track (ZIP)</button>
@@ -133,9 +161,11 @@
       <li>Drop audio files on the timeline or use Import audio. Drag clips to move them, drag the edges to trim, and drag the small squares at the top of a selected clip to add fades.</li>
       <li>Keys and drum tracks hold clips you write yourself. Double click an empty spot on one of those tracks to make a clip, then edit its notes or steps below the timeline.</li>
       <li>Open the Mixer to add effects to a track: EQ, compressor, saturation, chorus, delay or reverb. Turn up Reverb or Delay on a channel to send it to the shared return, and use the checkbox beside an effect to switch it off and on while you listen. Exports include every effect.</li>
+      <li>To record, press R on an audio track to arm it, open Recording to check the microphone, then press Record. Use headphones. Turn on Punch to record only inside the loop region, and raise the latency fix if takes sound late.</li>
+      <li>Import MIDI turns a .mid file into keys and drum tracks. Choosing MIDI in the Export panel saves your keys and drum tracks, the tempo, the time signature and the markers as a .mid file.</li>
       <li>Space plays and pauses. S splits at the playhead. L turns the loop on. Shift and drag on the ruler to set the loop region.</li>
       <li>The project is saved in this browser. Download a backup if you want to keep it safe or move it to another computer.</li>
-      <li>Time signature is 4/4. Recording a voice or instrument is on the <a href="record.html">recorder page</a>, which can send a take straight here.</li>
+      <li>Pick a time signature from 2/4 to 12/8. Clips stay where they are; the bar lines, snap, metronome and new clips follow the signature. Recording a voice or instrument is on the <a href="record.html">recorder page</a>, which can send a take straight here.</li>
     </ul>
   </div>
 </main>
@@ -143,12 +173,14 @@
 <script src="js/store.js"></script>
 <script src="js/zip.js"></script>
 <script src="js/synth.js"></script>
+<script src="js/midi.js"></script>
 <script src="js/fx.js"></script>
 <script src="js/studio-core.js"></script>
 <script src="js/studio-io.js"></script>
 <script src="js/studio.js"></script>
 <script src="js/studio-roll.js"></script>
 <script src="js/studio-mixer.js"></script>
+<script src="js/studio-rec.js"></script>
 <script src="js/pwa.js"></script>
 </body>
 </html>

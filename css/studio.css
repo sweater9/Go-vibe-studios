@@ -33,6 +33,11 @@
 .stepgrid .lab { font-size: 12px; color: var(--muted); padding-right: 8px; white-space: nowrap; position: sticky; left: 0; background: var(--panel); }
 .stepb { width: 26px; height: 26px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); cursor: pointer; padding: 0; }
 .stepb.beat { border-color: #3b4060; } .stepb[aria-pressed=true] { background: var(--accent); border-color: #c4b5fd; } .stepb.now { outline: 2px solid #fbbf24; }
+/* recording */
+.recpanel { margin-top: 12px; } .recpanel summary { cursor: pointer; font-weight: 600; } .reclvl { height: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; margin-top: 10px; max-width: 420px; } .reclvl .tlvlb { height: 100%; width: 0; } .tlvlb.clip { background: #f43f5e; }
+#rec[aria-pressed=true] { background: #f43f5e33; border-color: #f43f5e; color: #fff; }
+/* markers */
+.marks { margin-top: 12px; } .marks summary { cursor: pointer; font-weight: 600; } .marks .prow input[type=text] { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 5px 8px; font: inherit; }
 /* mixer */
 .mixer { margin-top: 12px; } .mixhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; } .mixhead h2 { margin: 0; }
 .strips { display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 10px; margin-top: 8px; }

@@ -1188,6 +1188,255 @@ def test_mixer(browser, base):
     ctx.close()
 
 
+def _vlq(n):
+    b = [n & 127]
+    n >>= 7
+    while n:
+        b.insert(0, (n & 127) | 128); n >>= 7
+    return bytes(b)
+
+
+def build_midi(path, ppq=96, fmt=1):
+    """An independent MIDI builder (not the site's writer): tempo 90, 3/4, markers, a piano line with running status and
+    velocity 0 note offs, a bass on channel 2 with a program change, and a drum pattern on channel 10."""
+    import struct
+    def trk(events):
+        out = b""; last = 0
+        for at, data in sorted(events, key=lambda e: e[0]):
+            out += _vlq(at - last) + data; last = at
+        out += b"\x00\xff\x2f\x00"; return b"MTrk" + struct.pack(">I", len(out)) + out
+    mpq = 60000000 // 90
+    cond = [(0, b"\xff\x51\x03" + mpq.to_bytes(3, "big")), (0, b"\xff\x58\x04\x03\x02\x18\x08"), (0, b"\xff\x03\x05Songy"), (ppq * 4, b"\xff\x06\x06Chorus"), (ppq * 8, b"\xff\x51\x03" + (mpq * 2).to_bytes(3, "big"))]
+    piano = [(0, b"\xff\x03\x05Piano"), (0, b"\xc0\x00")]
+    # C4 E4 G4 as quarter notes, written with running status (no repeated 0x90) and velocity 0 as note off
+    t = 0
+    for pitch in (60, 64, 67):
+        piano.append((t, b"\x90" + bytes([pitch, 100])))
+        piano.append((t + ppq, b"\x90" + bytes([pitch, 0]))); t += ppq
+    piano.append((ppq * 3, b"\x90" + bytes([84, 90]))); piano.append((ppq * 3 + ppq * 2, b"\x80" + bytes([84, 0])))  # a high C6 note
+    piano.append((ppq * 6, b"\x90" + bytes([20, 80]))); piano.append((ppq * 6 + ppq, b"\x80" + bytes([20, 0])))  # below the piano roll range
+    bass = [(0, b"\xff\x03\x04Bass"), (0, b"\xc1\x21"), (0, b"\x91" + bytes([36, 110])), (ppq * 2, b"\x81" + bytes([36, 0]))]
+    drums = [(0, b"\xff\x03\x05Drums")]
+    for step in range(16):
+        drums.append((step * ppq // 4, b"\x99" + bytes([42, 70]))); drums.append((step * ppq // 4 + 10, b"\x89" + bytes([42, 0])))
+    drums.append((0, b"\x99" + bytes([36, 127]))); drums.append((10, b"\x89" + bytes([36, 0])))
+    drums.append((ppq * 2, b"\x99" + bytes([38, 100]))); drums.append((ppq * 2 + 10, b"\x89" + bytes([38, 0])))
+    drums.append((ppq * 4 + ppq * 2, b"\x99" + bytes([38, 100]))); drums.append((ppq * 4 + ppq * 2 + 10, b"\x89" + bytes([38, 0])))  # a snare in the second bar
+    chunks = [trk(cond), trk(piano), trk(bass), trk(drums)] if fmt == 1 else [trk(cond + piano + bass + drums)]
+    open(path, "wb").write(b"MThd" + struct.pack(">IHHH", 6, fmt, len(chunks), ppq) + b"".join(chunks))
+
+
+def test_midi(browser, base):
+    print("midi: import (independent file, format 0 and 1), export and round trip")
+    import tempfile
+    errs = []
+    ctx, pg = new_page(browser, errs, viewport={"width": 1400, "height": 1000}, accept_downloads=True)
+    pg.goto(base + "studio.html?gvtest"); pg.wait_for_function("() => window.__st && window.GVMidi", timeout=10000)
+    tmp = tempfile.mkdtemp(); f1, f0 = tmp + "/song.mid", tmp + "/flat.mid"; build_midi(f1, ppq=96, fmt=1); build_midi(f0, ppq=480, fmt=0)
+    st = lambda js, *a: pg.evaluate(js, *a) if a else pg.evaluate(js)
+    pg.set_input_files("#midifile", f1); pg.wait_for_function("() => __st.P.tracks.length > 0", timeout=10000)
+    check("a type 1 file with three instruments becomes three tracks: keys, bass keys and drums", st("__st.P.tracks.map((t) => t.type)") == ["midi", "midi", "drum"], str(st("__st.P.tracks.map((t) => t.type)")))
+    check("the file's tempo is adopted by an empty project (90 BPM)", abs(st("__st.P.bpm") - 90) < 0.01)
+    check("the file's 3/4 time signature is adopted too", st("__st.P.sig") == [3, 4])
+    check("the file's marker Chorus lands at beat 4 (2.667 s at 90 BPM)", st("__st.P.markers.length") == 1 and st("__st.P.markers[0].name") == "Chorus" and abs(st("__st.P.markers[0].t") - 4 * 60 / 90) < 0.01, str(st("__st.P.markers")))
+    check("track names come from the file", st("__st.P.tracks.map((t) => t.name)") == ["Piano", "Bass", "Drums"])
+    check("the program change picks the bass instrument", st("__st.P.tracks.map((t) => t.inst)")[:2] == ["Piano", "Bass"])
+    n = st("__st.P.tracks[0].clips[0].notes")
+    check("piano notes land on the right beats and pitches (running status and velocity 0 note offs handled)", [x["p"] for x in n[:3]] == [60, 64, 67] and [round(x["t"], 3) for x in n[:3]] == [0, 1, 2] and all(abs(x["d"] - 1) < 0.01 for x in n[:3]), str(n[:4]))
+    check("note length and velocity are kept", any(x["p"] == 84 and abs(x["d"] - 2) < 0.01 and x["v"] == 90 for x in n))
+    check("the clip is rounded up to whole bars", abs(st("__st.P.tracks[0].clips[0].dur") / st("__st.Core.spb(__st.P)") % 4) < 0.01 or abs(st("__st.P.tracks[0].clips[0].dur") / st("__st.Core.spb(__st.P)") % 4 - 4) < 0.01)
+    g0 = st("__st.P.tracks[2].clips[0].grid"); g1 = st("__st.P.tracks[2].clips[1].grid")
+    check("drums on channel 10 become a step grid: kick on 1, snare on beat 3, a hat on every sixteenth", g0["Kick"][0] > 0.9 and g0["Snare"][8] > 0.7 and all(v > 0.4 for v in g0["Hat"]), str(g0))
+    check("a snare in the second bar goes into a second clip", len(st("__st.P.tracks[2].clips")) == 2 and g1["Snare"][8] > 0.7 and abs(st("__st.P.tracks[2].clips[1].start") - 4 * st("__st.Core.spb(__st.P)") * 1) < 0.01, str(g1))
+    msg = pg.inner_text("#status")
+    check("the status explains what came in, the tempo, the extra tempo change and the out of range note", "3 track" in msg and "90 BPM" in msg and "changes tempo" in msg and "outside the piano roll range" in msg, msg)
+    # existing project keeps its tempo
+    st("() => { __st.P.bpm = 140; }")
+    pg.set_input_files("#midifile", f0); pg.wait_for_function("() => __st.P.tracks.length === 6", timeout=10000)
+    check("importing into a project that has tracks keeps the project tempo", abs(st("__st.P.bpm") - 140) < 0.01 and "tempo was kept" in pg.inner_text("#status"), pg.inner_text("#status"))
+    check("a type 0 file (everything in one track) splits by channel into keys, bass and drums", st("__st.P.tracks.slice(3).map((t) => t.type)") == ["midi", "midi", "drum"])
+    check("a 480 ticks per beat file gives the same note positions as the 96 ticks per beat file", [round(x["t"], 3) for x in st("__st.P.tracks[3].clips[0].notes")[:3]] == [0, 1, 2])
+    # round trip through our own writer and reader
+    st("() => { __st.P.tracks = __st.P.tracks.slice(0, 3); __st.P.bpm = 90; __st.afterStructure(); }")
+    rt = st("""() => { const bytes = GVMidi.write(__st.P), r = GVMidi.read(bytes), specs = GVMidi.toSpecs(r);
+      return { head: String.fromCharCode(...bytes.slice(0, 4)), n: r.tracks.length, bpm: Math.round(r.bpm * 100) / 100, kinds: specs.map((s) => s.type), first: specs[0].notes.slice(0, 3).map((x) => [x.p, x.t, x.d]), grid: specs[2].clips[0].grid.Kick[0], marks: r.markers.length }; }""")
+    check("our own MIDI file starts with MThd, reads back with the same tracks, tempo and notes", rt["head"] == "MThd" and rt["n"] == 3 and abs(rt["bpm"] - 90) < 0.01 and rt["kinds"] == ["midi", "midi", "drum"] and [x[0] for x in rt["first"]] == [60, 64, 67] and abs(rt["first"][1][1] - 1) < 0.01 and rt["grid"] > 0.9, str(rt))
+    # download from the export panel
+    import tempfile as tf
+    pg.select_option("#xfmt", "mid")
+    with pg.expect_download(timeout=20000) as dl: pg.click("#xgo")
+    raw = open(dl.value.path(), "rb").read()
+    check("exporting MIDI downloads a .mid file that starts with MThd and has 4 tracks (tempo plus three)", dl.value.suggested_filename.endswith(".mid") and raw[:4] == b"MThd" and int.from_bytes(raw[10:12], "big") == 4 and int.from_bytes(raw[8:10], "big") == 1, dl.value.suggested_filename)
+    # the independent builder's tempo and time signature survive: check the bytes of what we wrote
+    check("the file carries a set tempo of 90 BPM (666667 microseconds per beat)", b"\xff\x51\x03" + (666667).to_bytes(3, "big") in raw)
+    # audio only project cannot export MIDI
+    st("() => { __st.newProject(); }"); pg.wait_for_timeout(200); pg.click("#xgo"); pg.wait_for_timeout(200)
+    check("an empty project says there is nothing to export as MIDI", "no keys or drum clips" in pg.inner_text("#status"), pg.inner_text("#status"))
+    # damaged and wrong files
+    open(tmp + "/bad.mid", "wb").write(b"not a midi file at all, just text")
+    pg.set_input_files("#midifile", tmp + "/bad.mid"); pg.wait_for_timeout(300); check("a file that is not MIDI gives a clear message and changes nothing", "does not look like a MIDI file" in pg.inner_text("#status") and st("__st.P.tracks.length") == 0, pg.inner_text("#status"))
+    raw1 = open(f1, "rb").read(); open(tmp + "/cut.mid", "wb").write(raw1[:len(raw1) - 25])
+    pg.set_input_files("#midifile", tmp + "/cut.mid"); pg.wait_for_timeout(500)
+    check("a file cut short still imports what it has without crashing the page", st("__st.P.tracks.length") >= 1 and not errs, str(errs[:2]))
+    check("no page errors importing and exporting MIDI", not errs, str(errs[:3]))
+    ctx.close()
+
+
+def test_sig_markers(browser, base):
+    print("studio: time signatures and markers")
+    errs = []
+    ctx, pg = new_page(browser, errs, viewport={"width": 1400, "height": 1000}, accept_downloads=True)
+    pg.goto(base + "studio.html?gvtest"); pg.wait_for_function("() => window.__st", timeout=10000)
+    st = lambda js, *a: pg.evaluate(js, *a) if a else pg.evaluate(js)
+    check("the time signature menu offers 2/4, 3/4, 4/4, 5/4, 6/8, 7/8 and 12/8 and starts at 4/4", pg.locator("#sig option").all_inner_texts() == ["2/4", "3/4", "4/4", "5/4", "6/8", "7/8", "12/8"] and pg.input_value("#sig") == "4/4" and st("__st.P.sig") == [4, 4])
+    st("() => { __st.addTrack('midi'); __st.addTrack('drum'); }")
+    pg.select_option("#sig", "3/4"); check("choosing 3/4 sets the project signature and a bar of three beats", st("__st.P.sig") == [3, 4] and st("__st.barBeats()") == 3)
+    kc = st("() => { const c = __st.newMidiClip(__st.P.tracks[0], 0); return c.dur / __st.Core.spb(__st.P); }"); dc = st("() => { const c = __st.newMidiClip(__st.P.tracks[1], 0); return [c.dur / __st.Core.spb(__st.P), c.steps]; }")
+    check("a new keys clip is one bar of 3 beats and a new drum clip has 12 sixteenth steps", abs(kc - 3) < 1e-6 and abs(dc[0] - 3) < 1e-6 and dc[1] == 12, str((kc, dc)))
+    pg.select_option("#sig", "7/8"); check("7/8 makes a bar of 3.5 quarter beats", abs(st("__st.barBeats()") - 3.5) < 1e-9)
+    dc = st("() => { const c = __st.newMidiClip(__st.P.tracks[1], 8); __st.sel = { track: __st.P.tracks[1].id, clip: c.id }; GVRoll.open(__st.P.tracks[1].id, c.id); return [c.steps, c.dur / __st.Core.spb(__st.P)]; }"); check("a drum clip in 7/8 has 14 steps", dc[0] == 14 and abs(dc[1] - 3.5) < 1e-6, str(dc))
+    pg.wait_for_timeout(300)
+    opts = pg.locator("#rollpane select").first.locator("option").all_inner_texts()
+    check("the step editor offers one, two and four bars of steps for 7/8 (14, 28, 56)", "14" in opts and "28" in opts and "56" in opts, str(opts))
+    def clicks(sig):
+        return pg.evaluate("""async (sig) => { const P = __st.P; P.sig = sig; P.tracks = []; P.limiter = false; const oc = new OfflineAudioContext(2, 44100 * 3, 44100), g = __st.Core.buildGraph(oc, oc.destination, P, {});
+          __st.Core.scheduleSegment(oc, g, P, __st.buffers, { when: 0, from: 0, to: 3 }, { metronome: true }); const r = await oc.startRendering(), x = r.getChannelData(0), hits = []; let quiet = -99999;
+          for (let i = 0; i < x.length; i++) { const a = Math.abs(x[i]); if (a > 0.02 && i - quiet > 44100 * 0.12) { let pk = 0; for (let k = i; k < Math.min(x.length, i + 2000); k++) pk = Math.max(pk, Math.abs(x[k])); hits.push([+(i / 44100).toFixed(2), +pk.toFixed(2)]); quiet = i; } }
+          return hits; }""", sig)
+    h44 = clicks([4, 4]); check("4/4 clicks once per quarter note (6 in 3 seconds at 120 BPM) with an accent on beat one", len(h44) == 6 and h44[0][1] > h44[1][1] and h44[4][1] > h44[5][1] and abs(h44[1][0] - 0.5) < 0.03, str(h44))
+    h68 = clicks([6, 8]); check("6/8 clicks once per eighth note (12 in 3 seconds) with the accent at the start of each bar", len(h68) == 12 and h68[0][1] > h68[1][1] and h68[6][1] > h68[7][1] and abs(h68[1][0] - 0.25) < 0.03, str(h68[:8]))
+    st("() => { __st.newProject(); }"); pg.wait_for_timeout(300)
+    check("a new project is back in 4/4 with no markers", st("__st.P.sig") == [4, 4] and pg.input_value("#sig") == "4/4" and st("__st.P.markers.length") == 0)
+    # ---------- markers ----------
+    st("() => { __st.addTrack('drum'); __st.setPlayhead(2.37); }"); pg.click("#addmark")
+    check("Add marker puts a marker at the playhead with a default name", st("__st.P.markers.length") == 1 and abs(st("__st.P.markers[0].t") - 2.37) < 1e-6 and st("__st.P.markers[0].name") == "Marker 1")
+    check("the Markers list shows it and the count updates", "(1)" in pg.inner_text("#markcount") and pg.locator("#marklist li").count() == 1)
+    pg.click("#marks summary"); nm = pg.locator("#marklist input[type=text]").first; nm.fill("Verse"); nm.press("Enter"); nm.blur()
+    check("renaming a marker from the list keeps the new name", st("__st.P.markers[0].name") == "Verse")
+    st("() => { __st.setPlayhead(0.8); }"); pg.locator("#tl").focus(); pg.keyboard.press("k")
+    check("pressing K adds another marker and the list stays in time order", st("__st.P.markers.map((m) => m.name)") == ["Marker 1", "Verse"] and abs(st("__st.P.markers[0].t") - 0.8) < 1e-6, str(st("__st.P.markers")))
+    st("() => __st.setPlayhead(0)"); pg.locator("#tl").focus(); pg.keyboard.press(".")
+    check("the period key jumps to the next marker", abs(st("__st.playhead") - 0.8) < 1e-6)
+    pg.keyboard.press("."); check("and again to the one after", abs(st("__st.playhead") - 2.37) < 1e-6)
+    pg.keyboard.press("."); check("there is nothing after the last marker and it says so", abs(st("__st.playhead") - 2.37) < 1e-6 and "no marker after" in pg.inner_text("#status"))
+    pg.keyboard.press(","); check("the comma key jumps back to the previous marker", abs(st("__st.playhead") - 0.8) < 1e-6)
+    box = pg.locator("#tl").bounding_box(); x = box["x"] + st("__st.xOf(2.37)") + 4
+    pg.mouse.click(x, box["y"] + 20); check("clicking a flag on the ruler moves the playhead exactly to the marker, ignoring snap", abs(st("__st.playhead") - 2.37) < 1e-6, str(st("__st.playhead")))
+    px = st("() => { const c = document.getElementById('tl'); return Array.from(c.getContext('2d').getImageData(Math.round(__st.xOf(2.37)) + 3, 15, 1, 1).data); }")
+    check("the marker flag is drawn on the ruler (teal pill)", px[:3] == [14, 116, 144], str(px))
+    n0 = st("__st.P.markers.length"); pg.click("#undo"); check("undo takes a marker away", st("__st.P.markers.length") == n0 - 1 or st("__st.P.markers[0].name") != "Verse", str(st("__st.P.markers")))
+    pg.click("#redo"); check("redo brings it back", st("__st.P.markers.length") == n0)
+    pg.get_by_role("button", name="Delete Verse").click(); check("Delete removes a marker", st("__st.P.markers.map((m) => m.name)") == ["Marker 1"])
+    st("() => { __st.setPlayhead(1.5); __st.addMarker(); }"); st("() => { __st.P.sig = [6, 8]; }"); st("() => __st.saveNow()"); pid = st("__st.P.id"); snap = st("JSON.stringify([__st.P.markers, __st.P.sig])")
+    st("() => __st.newProject()"); st("(id) => __st.openProject(id)", pid); pg.wait_for_timeout(300)
+    check("markers and the time signature come back after reopening", st("JSON.stringify([__st.P.markers, __st.P.sig])") == snap and pg.input_value("#sig") == "6/8" and pg.locator("#marklist li").count() == 2)
+    bk = st("""async () => { const z = await GVStudioIO.exportZip(__st.P, __st.blobs); const r = await GVStudioIO.importZip(z); return JSON.stringify([r.p.markers, r.p.sig]); }""")
+    check("the backup ZIP carries markers and the signature", bk == snap)
+    st("() => { __st.P.tracks[0].clips.push({ id: 'zz', start: 0, dur: 2, steps: 16, swing: 0, grid: { Kick: [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0] } }); __st.afterStructure(); }")
+    pg.select_option("#xfmt", "mid")
+    with pg.expect_download(timeout=20000) as dl: pg.click("#xgo")
+    raw = open(dl.value.path(), "rb").read()
+    check("the MIDI export writes the 6/8 time signature and the markers", bytes([0xff, 0x58, 4, 6, 3, 24, 8]) in raw and b"Marker 1" in raw and b"Marker 2" in raw, str(raw[:60]))
+    st("""async () => { const P = __st.P; delete P.sig; delete P.markers; await __st.saveNow(); }"""); st("(id) => __st.openProject(id)", pid); pg.wait_for_timeout(300)
+    check("an older project without a signature or markers opens as 4/4 with none", st("__st.P.sig") == [4, 4] and st("Array.isArray(__st.P.markers)") and pg.input_value("#sig") == "4/4")
+    st("() => { __st.P.sig = [9, 9]; __st.afterStructure(); }"); check("an invalid signature in a damaged file is replaced by 4/4", st("__st.P.sig") == [4, 4])
+    axe = os.environ.get("AXE_PATH") or os.path.join(ROOT, "node_modules/axe-core/axe.min.js")
+    if os.path.exists(axe):
+        c3 = browser.new_context(bypass_csp=True, viewport={"width": 1400, "height": 1000}); p3 = c3.new_page(); p3.goto(base + "studio.html?gvtest"); p3.wait_for_function("() => window.__st", timeout=10000)
+        p3.evaluate("() => { __st.addTrack('drum'); __st.setPlayhead(1); __st.addMarker(); __st.setPlayhead(3); __st.addMarker(); }"); p3.click("#marks summary"); p3.add_script_tag(path=axe)
+        v = p3.evaluate("axe.run(document,{runOnly:['wcag2a','wcag2aa','wcag21a','wcag21aa','best-practice']}).then(r=>r.violations.map(v=>v.id+' x'+v.nodes.length+' '+v.nodes[0].target.join(' ')))")
+        check("studio with the markers list open and a time signature menu: no axe violations", not v, str(v)); c3.close()
+    check("no page errors with time signatures and markers", not errs, str(errs[:3]))
+    ctx.close()
+
+
+def test_studio_rec(browser, base):
+    print("studio: recording onto a track (fake microphone), count in, punch, latency, undo, save")
+    import tempfile
+    errs = []
+    b2 = _sp_instance.chromium.launch(args=["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", "--autoplay-policy=no-user-gesture-required"])
+    ctx, pg = new_page(b2, errs, viewport={"width": 1400, "height": 1000}, permissions=["microphone"])
+    pg.goto(base + "studio.html?gvtest"); pg.wait_for_function("() => window.__st && window.GVStudioRec", timeout=10000)
+    st = lambda js, *a: pg.evaluate(js, *a) if a else pg.evaluate(js)
+    tmp = tempfile.mkdtemp(); f1 = tmp + "/Click 120.wav"; make_wav(f1, 120, secs=6)
+    pg.click("#recpanel summary")
+    pg.click("#rec"); check("Record with no armed track explains what to do", "Arm an audio track" in pg.inner_text("#status"), pg.inner_text("#status"))
+    pg.set_input_files("#file", f1); pg.wait_for_function("() => __st.P.tracks.length === 1", timeout=20000)
+    st("() => { __st.addTrack('midi'); __st.addTrack('audio'); }")
+    heads = pg.locator(".thead")
+    check("only audio tracks have an arm button", heads.nth(0).locator("button[aria-label^='Arm']").count() == 1 and heads.nth(1).locator("button[aria-label^='Arm']").count() == 0 and heads.nth(2).locator("button[aria-label^='Arm']").count() == 1)
+    heads.nth(0).locator("button[aria-label^='Arm']").click(); heads.nth(2).locator("button[aria-label^='Arm']").click()
+    check("arming one track disarms the other and says which track is armed", heads.nth(2).locator("button[aria-label^='Arm']").get_attribute("aria-pressed") == "true" and heads.nth(0).locator("button[aria-label^='Arm']").get_attribute("aria-pressed") == "false" and "is armed" in pg.inner_text("#status"))
+    pg.fill("#reclat", "0"); pg.locator("#reclat").dispatch_event("change")
+    # ---- a plain take from the playhead ----
+    st("() => __st.setPlayhead(1)"); pg.click("#rec"); pg.wait_for_function("() => GVStudioRec.active()", timeout=10000)
+    check("while recording the button shows Stop recording and the music plays", pg.get_attribute("#rec", "aria-pressed") == "true" and "Stop recording" in pg.inner_text("#rec") and st("__st.playing"))
+    pg.wait_for_timeout(2400); pg.click("#rec"); pg.wait_for_function("() => !GVStudioRec.active() && __st.P.tracks[2].clips.length === 1", timeout=10000)
+    c = st("__st.P.tracks[2].clips[0]"); a = st("__st.P.assets[__st.P.tracks[2].clips[0].assetId]")
+    check("the take is a clip on the armed track that starts at the playhead (1.0 s)", abs(c["start"] - 1.0) < 0.01, str(c))
+    check("its length is about the time recorded (1.5 to 3 s)", 1.5 < c["dur"] < 3.0 and abs(c["offset"]) < 1e-9, str(c))
+    check("the take was stored as a mono WAV that is not silent", st("async () => { const b = __st.blobs.get(__st.P.tracks[2].clips[0].assetId), h = new Uint8Array(await b.slice(0, 12).arrayBuffer()); const buf = __st.buffers.get(__st.P.tracks[2].clips[0].assetId), d = buf.getChannelData(0); let pk = 0; for (let i = 0; i < d.length; i++) pk = Math.max(pk, Math.abs(d[i])); return String.fromCharCode(...h.slice(0, 4)) === 'RIFF' && buf.numberOfChannels === 1 && pk > 0.01; }"))
+    check("the status says how long the take is and music stopped", "Recorded" in pg.inner_text("#status") and not st("__st.playing"), pg.inner_text("#status"))
+    pg.click("#undo"); check("undo removes the take", st("__st.P.tracks[2].clips.length") == 0)
+    pg.click("#redo"); check("redo puts it back", st("__st.P.tracks[2].clips.length") == 1)
+    # ---- latency fix ----
+    pg.fill("#reclat", "120"); pg.locator("#reclat").dispatch_event("change")
+    st("() => __st.setPlayhead(8)"); pg.click("#rec"); pg.wait_for_function("() => GVStudioRec.active()", timeout=10000); pg.wait_for_timeout(1500); pg.click("#stop"); pg.wait_for_function("() => !GVStudioRec.active() && __st.P.tracks[2].clips.length === 2", timeout=10000)
+    c2 = st("__st.P.tracks[2].clips[1]"); a2 = st("__st.P.assets[__st.P.tracks[2].clips[1].assetId]")
+    check("the latency fix trims the start of the take (offset 0.12 s) and shortens it by the same amount", abs(c2["offset"] - 0.12) < 1e-6 and abs(c2["dur"] + 0.12 - a2["dur"]) < 0.002, str((c2, a2)))
+    check("the Stop button also ends a recording", not st("GVStudioRec.active()"))
+    # ---- recording over existing audio goes on a new track ----
+    st("() => __st.setPlayhead(1.2)"); pg.click("#rec"); pg.wait_for_function("() => GVStudioRec.active()", timeout=10000); pg.wait_for_timeout(1200); pg.click("#rec"); pg.wait_for_function("() => !GVStudioRec.active() && __st.P.tracks.length === 4", timeout=10000)
+    check("a take that overlaps audio already on the armed track goes onto a new take track", "new track" in pg.inner_text("#status") and st("__st.P.tracks[3].name").endswith("take"), pg.inner_text("#status"))
+    # ---- punch in and out ----
+    heads = pg.locator(".thead"); heads.nth(0).locator("button[aria-label^='Arm']").click()
+    pg.check("#recpunch"); st("() => { __st.P.loop.on = false; __st.P.loop.a = 0; __st.P.loop.b = 0; }")
+    pg.click("#rec"); check("punch without a loop region explains how to set one and does not record", "loop region" in pg.inner_text("#status") and not st("GVStudioRec.active()"), pg.inner_text("#status"))
+    st("() => { __st.P.loop.a = 2; __st.P.loop.b = 3; __st.afterStructure(); }"); pg.click("#rec"); pg.wait_for_function("() => GVStudioRec.active()", timeout=10000)
+    pg.wait_for_function("() => !GVStudioRec.active()", timeout=20000)
+    cl = st("__st.P.tracks[0].clips.map((c) => ({ s: +c.start.toFixed(3), d: +c.dur.toFixed(3), o: +(c.offset || 0).toFixed(3), take: !!(__st.P.assets[c.assetId] || {}).name && /^Take/.test(__st.P.assets[c.assetId].name) })).sort((x, y) => x.s - y.s)")
+    check("punch cut the old clip in two and put the take between 2 s and 3 s", len(cl) == 3 and abs(cl[0]["s"]) < 0.01 and abs(cl[0]["d"] - 2) < 0.01 and cl[1]["take"] and abs(cl[1]["s"] - 2) < 0.01 and abs(cl[2]["s"] - 3) < 0.01, str(cl))
+    check("the punched take is the length of the region (within 50 ms) and recording and playback stopped by themselves", abs(cl[1]["d"] - 1) < 0.05 and not st("__st.playing"), str(cl))
+    check("the right hand piece of the old clip keeps its place in the audio (3 s into the file) and its end", abs(cl[2]["o"] - 3) < 0.01 and abs(cl[2]["d"] - 3) < 0.01, str(cl))
+    check("the status says what the take replaced", "replaced 1 clip" in pg.inner_text("#status"), pg.inner_text("#status"))
+    pg.click("#undo"); check("undo brings the original clip back whole", st("__st.P.tracks[0].clips.length") == 1 and abs(st("__st.P.tracks[0].clips[0].dur") - 6) < 0.01)
+    pg.uncheck("#recpunch")
+    # ---- count in ----
+    heads.nth(2).locator("button[aria-label^='Arm']").click() if st("GVStudioRec.armed()") != st("__st.P.tracks[2].id") else None
+    pg.check("#reccount"); st("() => { __st.P.loop.on = false; __st.setPlayhead(20); }"); pg.click("#rec"); pg.wait_for_function("() => GVStudioRec.active()", timeout=10000)
+    lead = st("() => __st.segs[0].when - __st.ctx().currentTime")
+    check("a one bar count in at 120 BPM delays the music by about 2 s (plus the short safety lead)", 1.7 < lead < 2.3, str(lead))
+    pg.click("#rec"); pg.wait_for_function("() => !GVStudioRec.active()", timeout=10000)
+    check("stopping during the count in records nothing and says so", "Nothing was recorded" in pg.inner_text("#status"), pg.inner_text("#status"))
+    pg.uncheck("#reccount")
+    # ---- save and reopen ----
+    n_before = st("__st.P.tracks.reduce((n, t) => n + t.clips.filter((c) => /^Take/.test((__st.P.assets[c.assetId] || {}).name || '')).length, 0)")
+    st("() => __st.saveNow()"); pid = st("__st.P.id"); st("() => __st.newProject()"); st("(id) => __st.openProject(id)", pid); pg.wait_for_timeout(500)
+    check("recorded takes are saved with the project and decode again after reopening", n_before >= 2 and st("__st.P.tracks.reduce((n, t) => n + t.clips.filter((c) => /^Take/.test((__st.P.assets[c.assetId] || {}).name || '') && __st.buffers.has(c.assetId)).length, 0)") == n_before, str(n_before))
+    # ---- microphone test button and level meter ----
+    pg.click("#rectest"); pg.wait_for_function("() => GVStudioRec.mic", timeout=10000); pg.wait_for_timeout(1300)
+    check("Test microphone opens the microphone and the level meter moves", float(pg.evaluate("document.getElementById('reclvl').style.width.replace('%','') || 0")) > 0, pg.evaluate("document.getElementById('reclvl').style.width"))
+    pg.click("#rectest"); check("pressing it again turns the microphone off", not st("GVStudioRec.mic"))
+    check("no page errors while recording", not errs, str(errs[:3]))
+    ctx.close()
+    # ---- microphone blocked ----
+    ctx2, p2 = new_page(b2, [], viewport={"width": 1400, "height": 1000}); p2.goto(base + "studio.html?gvtest"); p2.wait_for_function("() => window.GVStudioRec", timeout=10000)
+    p2.evaluate("() => { navigator.mediaDevices.getUserMedia = () => Promise.reject(Object.assign(new Error('x'), { name: 'NotAllowedError' })); __st.addTrack('audio'); }")
+    p2.locator(".thead button[aria-label^='Arm']").click(); p2.click("#rec"); p2.wait_for_timeout(500)
+    check("a blocked microphone gives a clear message and nothing is recorded", "blocked" in p2.inner_text("#status") and not p2.evaluate("GVStudioRec.active()"), p2.inner_text("#status"))
+    ctx2.close()
+    # ---- phone width and accessibility ----
+    ctx3 = b2.new_context(bypass_csp=True, viewport={"width": 390, "height": 800}); p3 = ctx3.new_page(); p3.goto(base + "studio.html?gvtest"); p3.wait_for_function("() => window.GVStudioRec", timeout=10000)
+    p3.evaluate("() => { __st.addTrack('audio'); __st.addTrack('audio'); }"); p3.click("#recpanel summary")
+    check("at phone width the recording panel does not make the page scroll sideways", p3.evaluate("() => document.documentElement.scrollWidth <= window.innerWidth + 1"), str(p3.evaluate("() => [document.documentElement.scrollWidth, window.innerWidth]")))
+    axe = os.environ.get("AXE_PATH") or os.path.join(ROOT, "node_modules/axe-core/axe.min.js")
+    if os.path.exists(axe):
+        p3.set_viewport_size({"width": 1400, "height": 1000}); p3.add_script_tag(path=axe)
+        v = p3.evaluate("axe.run(document,{runOnly:['wcag2a','wcag2aa','wcag21a','wcag21aa','best-practice']}).then(r=>r.violations.map(v=>v.id+' x'+v.nodes.length+' '+v.nodes[0].target.join(' ')))")
+        check("studio with the recording panel open and arm buttons: no axe violations", not v, str(v))
+    ctx3.close(); b2.close()
+
+
 def test_master(browser, base):
     print("master: loudness, limiter, A/B, export")
     import tempfile, numpy as np, scipy.io.wavfile as sw, pyloudnorm as pyln
@@ -1602,7 +1851,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_record, test_studio, test_mixer, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

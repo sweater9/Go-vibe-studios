@@ -4,7 +4,11 @@ window.GVStudioCore = (() => {
   const COLORS = ['#22d3ee', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#fb7185', '#60a5fa', '#f97316'];
   const DRUMS = () => GVSynth.DRUMS;
 
-  function newProject(name) { return { v: 1, id: uid(), name: name || 'Untitled project', bpm: 120, tracks: [], assets: {}, loop: { on: false, a: 0, b: 0 }, master: 0.9, limiter: true, mfx: [], sends: { rev: Object.assign({}, FX().BUS.rev.p), dly: Object.assign({}, FX().BUS.dly.p) } }; }
+  const SIGS = [[2, 4], [3, 4], [4, 4], [5, 4], [6, 8], [7, 8], [12, 8]];
+  const sigOk = (g) => Array.isArray(g) && SIGS.some((x) => x[0] === g[0] && x[1] === g[1]);
+  /* length of a bar in quarter note beats, and of one pulse (the bottom number of the time signature) */
+  const barBeats = (p) => (sigOk(p.sig) ? p.sig[0] * 4 / p.sig[1] : 4);
+  function newProject(name) { return { v: 1, id: uid(), name: name || 'Untitled project', bpm: 120, sig: [4, 4], markers: [], tracks: [], assets: {}, loop: { on: false, a: 0, b: 0 }, master: 0.9, limiter: true, mfx: [], sends: { rev: Object.assign({}, FX().BUS.rev.p), dly: Object.assign({}, FX().BUS.dly.p) } }; }
   function newTrack(p, type) {
     const n = p.tracks.filter((t) => t.type === type).length + 1, label = type === 'audio' ? 'Audio' : type === 'midi' ? 'Keys' : 'Drums';
     return { id: uid(), type, name: label + ' ' + n, vol: 0.8, pan: 0, mute: false, solo: false, color: COLORS[p.tracks.length % COLORS.length], inst: type === 'midi' ? 'Piano' : undefined, fx: [], sendR: 0, sendD: 0, clips: [] };
@@ -18,6 +22,7 @@ window.GVStudioCore = (() => {
   /* ---------- mixer data. Older projects have none of this, so ensureMix fills it in. ---------- */
   const FX = () => window.GVFx;
   function ensureMix(p) {
+    if (!sigOk(p.sig)) p.sig = [4, 4]; if (!Array.isArray(p.markers)) p.markers = [];
     if (!Array.isArray(p.mfx)) p.mfx = [];
     if (!p.sends) p.sends = {};
     ['rev', 'dly'].forEach((k) => { if (!p.sends[k]) p.sends[k] = Object.assign({}, FX().BUS[k].p); });
@@ -94,8 +99,8 @@ window.GVStudioCore = (() => {
     }
   }
   function schedClicks(ctx, dest, p, seg) {
-    const S = spb(p); let k = Math.ceil(seg.from / S - 1e-6);
-    for (; k * S < seg.to; k++) GVSynth.click(ctx, dest, seg.when + k * S - seg.from, k % 4 === 0);
+    const sg = sigOk(p.sig) ? p.sig : [4, 4], S = spb(p) * 4 / sg[1]; let k = Math.ceil(seg.from / S - 1e-6);
+    for (; k * S < seg.to; k++) GVSynth.click(ctx, dest, seg.when + k * S - seg.from, k % sg[0] === 0);
   }
   function scheduleSegment(ctx, graph, p, buffers, seg, opt) {
     opt = opt || {}; const live = opt.live || [];
@@ -147,5 +152,5 @@ window.GVStudioCore = (() => {
     for (let i = 0; i < n; i++) { let mn = 1, mx = -1; const a = i * B, b = Math.min(buf.length, a + B); for (let k = a; k < b; k += 2) { let v = 0; for (let c = 0; c < ch; c++) v += d[c][k]; v /= ch; if (v < mn) mn = v; if (v > mx) mx = v; } out[i * 2] = mn; out[i * 2 + 1] = mx; }
     return { B, data: out, rate: buf.sampleRate };
   }
-  return { uid, LEAD, COLORS, ensureMix, newFx, fxTail, applyMaster, newProject, newTrack, spb, clipEnd, projectEnd, audible, buildGraph, applyMix, scheduleSegment, render, wavBlob, mp3Blob, peaksOf };
+  return { uid, LEAD, SIGS, sigOk, barBeats, COLORS, ensureMix, newFx, fxTail, applyMaster, newProject, newTrack, spb, clipEnd, projectEnd, audible, buildGraph, applyMix, scheduleSegment, render, wavBlob, mp3Blob, peaksOf };
 })();
