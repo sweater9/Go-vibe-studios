@@ -33,6 +33,7 @@
   details.vfx > summary { cursor: pointer; font-size: 13px; padding: 4px 0; }
   details.vfx input[type=range] { width: 100%; }
   .status.sn { margin: 0; }
+  #cv.drawing { cursor: crosshair; touch-action: none; outline: 2px solid #ff3b3b; }
   #campreview { width: 100%; max-height: 170px; border-radius: 10px; margin-top: 8px; transform: scaleX(-1); background: #000; object-fit: cover; }
 </style>
 </head>
@@ -50,7 +51,7 @@
 
 <main id="main" tabindex="-1" class="wrap" style="max-width:1200px">
   <h1>Video <span class="grad">Editor</span></h1>
-  <p class="lead">Join and trim clips, change their speed, grade the colour, crop, rotate and flip, key out a green screen, stabilise shaky footage, cut out silent pauses, add titles, subtitles, pictures and stickers, record your screen, camera and voice, and lay music under it with automatic ducking. Everything runs on your device.</p>
+  <p class="lead">Join and trim clips, change their speed, grade the colour, crop, rotate and flip, key out a green screen, stabilise shaky footage, cut out silent pauses, add titles, subtitles, pictures and stickers, record your screen, camera and voice, clean up noisy sound, draw on the picture, and lay music under it with automatic ducking. Everything runs on your device.</p>
 
   <div class="vgrid">
     <section>
@@ -76,10 +77,10 @@
       <div class="panel">
         <h2>Export</h2>
         <div class="mini" style="margin-bottom:10px">
-          <label class="ctl">Size<select id="xres" class="sel"><option value="480">480p</option><option value="720" selected>720p</option><option value="1080">1080p</option></select></label>
+          <label class="ctl">Size<select id="xres" class="sel"><option value="480">480p</option><option value="720" selected>720p</option><option value="1080">1080p</option><option value="2160">4K (needs a strong computer)</option></select></label>
           <label class="ctl">Frame rate<select id="xfps" class="sel"><option value="24">24</option><option value="30" selected>30</option><option value="60">60</option></select></label>
           <label class="ctl">Quality<select id="xq" class="sel"><option value="low">Small file</option><option value="std" selected>Standard</option><option value="high">High</option></select></label>
-          <label class="ctl">Format<select id="xfmt" class="sel"><option value="auto" selected>Automatic</option><option value="webm">WebM</option><option value="mp4">MP4 (if supported)</option><option value="wav">Audio only (WAV)</option></select></label>
+          <label class="ctl">Format<select id="xfmt" class="sel"><option value="auto" selected>Automatic</option><option value="webm">WebM</option><option value="mp4">MP4 (if supported)</option><option value="wav">Audio only (WAV)</option><option value="gif">GIF animation (no sound)</option></select></label>
           <label class="ctl">Method<select id="xmode" class="sel"><option value="fast" selected>Fast (when possible)</option><option value="real">Real time</option></select></label>
         </div>
         <div class="row">
@@ -151,6 +152,19 @@
       </div>
 
       <div class="panel">
+        <h2>Draw on the video</h2>
+        <div class="mini">
+          <label class="ctl">Tool<select id="drtool" class="sel"><option value="pen">Pen</option><option value="arrow">Arrow</option><option value="box">Box</option><option value="circle">Circle</option></select></label>
+          <label class="ctl">Colour<input type="color" id="drcolor" value="#ff3b3b"></label>
+          <label class="ctl">Thickness<input type="number" id="drw" min="1" max="30" value="6"></label>
+          <label class="ctl">Shows for (s)<input type="number" id="drlen" min="0.5" max="60" step="0.5" value="3"></label>
+        </div>
+        <div class="row" style="margin-top:10px"><button class="btn" id="drmode" aria-pressed="false">Draw on the picture: off</button></div>
+        <div id="drlist"></div>
+        <p class="status">Turn drawing on, then drag on the preview. Each drawing appears from the moment you draw it, for the seconds you set, and you can change its times below.</p>
+      </div>
+
+      <div class="panel">
         <h2>Music</h2>
         <div class="row">
           <button class="btn" id="addmusic">+ Add music file</button>
@@ -184,6 +198,7 @@
 </main>
 <div id="vids" aria-hidden="true" style="position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none;overflow:hidden"></div>
 <footer>GoVibe Mix · all processing happens in your browser · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/denoise.js"></script>
 <script src="js/video.js"></script>
 <script src="js/pwa.js"></script>
 </body>

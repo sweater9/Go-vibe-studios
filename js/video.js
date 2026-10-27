@@ -14,7 +14,7 @@
   const lerp = (a, b, p) => a + (b - a) * p;
   const hasFilter = 'filter' in g;
 
-  let clips = [], texts = [], music = null, bgImg = null, overlays = [], voices = [];
+  let clips = [], texts = [], music = null, bgImg = null, overlays = [], voices = [], drawings = [];
   let tl = 0, playing = false, active = -1, aspect = '16:9', outScale = 1;
   const prevCv = document.createElement('canvas'), pg2 = prevCv.getContext('2d'); let havePrev = false, prevFor = -1, ovolv = 1;
   const keyCv = document.createElement('canvas'), kg = keyCv.getContext('2d', { willReadFrequently: true });
@@ -37,10 +37,13 @@
     zoom: { s1: 100, s2: 100, x1: 0, x2: 0, y1: 0, y2: 0 },
     key: { on: false, color: '#00b140', tol: 40, soft: 15, bg: '#000000' },
     xf: { rot: 0, fh: false, fv: false, cl: 0, ct: 0, cr: 0, cb: 0 },
-    vol: 1, mute: false, gain: null, sil: { th: -42, min: 0.6 },
+    vol: 1, mute: false, gain: null, cgain: null, clean: null, csrc: null, sil: { th: -42, min: 0.6 },
     stab: null, stabOn: false, open: {}
   });
-  const applyVol = (c) => { if (c.gain) c.gain.gain.value = c.mute ? 0 : c.vol; };
+  const applyVol = (c) => { if (c.gain) c.gain.gain.value = c.mute || c.clean ? 0 : c.vol; if (c.cgain) c.cgain.gain.value = c.mute ? 0 : c.vol; };
+  /* a clip with cleaned sound plays the cleaned copy instead of the video's own sound; both are tied to the same source time */
+  function stopClean(c) { if (c.csrc) { try { c.csrc.stop(); } catch (_) {} c.csrc.disconnect(); c.csrc = null; } }
+  function startClean(c, srcTime, rate) { stopClean(c); if (!c.clean || srcTime >= c.clean.duration) return; const sn = ctx.createBufferSource(); sn.buffer = c.clean; sn.playbackRate.value = rate; sn.connect(c.cgain); sn.start(0, srcTime); c.csrc = sn; }
   /* speed is a straight line from `speed` at the start of the trimmed part to `speed2` at its end (equal values mean a constant speed) */
   function lenOf(c) {
     const L = Math.max(0, c.out - c.in); if (!L) return 0;
@@ -85,7 +88,7 @@
       if (!isFinite(v.duration) || v.duration <= 0) throw new Error('bad');
     } catch (_) { v.remove(); URL.revokeObjectURL(url); say('Could not read "' + file.name + '". Try MP4 (H.264) or WebM.'); return; }
     const gn = ctx.createGain(); ctx.createMediaElementSource(v).connect(gn); gn.connect(origGain);
-    const nc = newClip(file.name, url, v, file); nc.gain = gn; clips.push(nc);
+    const nc = newClip(file.name, url, v, file); nc.gain = gn; nc.cgain = ctx.createGain(); nc.cgain.connect(origGain); clips.push(nc);
     if (active < 0) activate(0, 0, false);
     refresh(); say('Added ' + file.name + '.');
   }
@@ -94,9 +97,9 @@
 
   /* ---------- playback ---------- */
   function activate(i, off, shouldPlay) {
-    clips.forEach((c, k) => { if (k !== i) c.v.pause(); });
+    clips.forEach((c, k) => { if (k !== i) c.v.pause(); stopClean(c); });
     active = i; const c = clips[i], u = srcAt(c, off); c.v.currentTime = c.in + u; c.v.playbackRate = clamp(speedAt(c, u), 0.25, 4);
-    if (shouldPlay) { ctx.resume(); c.v.play().catch(() => {}); }
+    if (shouldPlay) { ctx.resume(); c.v.play().catch(() => {}); startClean(c, c.in + u, clamp(speedAt(c, u), 0.25, 4)); }
   }
   function startMusic(at) {
     stopMusic(); if (!music || at >= music.buf.duration) return;
@@ -117,7 +120,7 @@
     const loc = locate(tl); activate(loc.i, loc.off, true); startMusic(tl); startVoices(tl);
     playing = true; $('play').textContent = '❚❚ Pause';
   }
-  function pause() { playing = false; clips.forEach((c) => c.v.pause()); stopMusic(); stopVoices(); $('play').textContent = '▶ Play'; }
+  function pause() { playing = false; clips.forEach((c) => { c.v.pause(); stopClean(c); }); stopMusic(); stopVoices(); $('play').textContent = '▶ Play'; }
   function seek(t) {
     if (!clips.length) return; tl = clamp(t, 0, total());
     const loc = locate(tl); activate(loc.i, loc.off, playing); if (playing) { startMusic(tl); startVoices(tl); }
@@ -224,6 +227,20 @@
     if (c.trans === 'dip') return L.p < 0.5 ? 0 : Math.min(au, L.p * 2 - 1);
     return Math.min(au, 0.3 + 0.7 * L.p);
   }
+  function drawStroke(d) {
+    const [W, H] = dims(), P = d.pts.map(([x, y]) => [x / 100 * W, y / 100 * H]); if (P.length < 2) return;
+    g.save(); g.globalAlpha = 1; g.filter = 'none'; g.strokeStyle = d.color; g.fillStyle = d.color; g.lineWidth = Math.max(1, d.w * W / 1280); g.lineCap = 'round'; g.lineJoin = 'round';
+    const a = P[0], b = P[P.length - 1];
+    if (d.tool === 'pen') { g.beginPath(); g.moveTo(a[0], a[1]); P.slice(1).forEach((q) => g.lineTo(q[0], q[1])); g.stroke(); }
+    else if (d.tool === 'box') g.strokeRect(Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]));
+    else if (d.tool === 'circle') { g.beginPath(); g.ellipse((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, Math.max(1, Math.abs(b[0] - a[0]) / 2), Math.max(1, Math.abs(b[1] - a[1]) / 2), 0, 0, Math.PI * 2); g.stroke(); }
+    else if (d.tool === 'arrow') {
+      const ang = Math.atan2(b[1] - a[1], b[0] - a[0]), hl = Math.max(12, g.lineWidth * 4);
+      g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+      g.beginPath(); g.moveTo(b[0], b[1]); g.lineTo(b[0] - hl * Math.cos(ang - 0.45), b[1] - hl * Math.sin(ang - 0.45)); g.lineTo(b[0] - hl * Math.cos(ang + 0.45), b[1] - hl * Math.sin(ang + 0.45)); g.closePath(); g.fill();
+    }
+    g.restore();
+  }
   function drawOverlay(o) {
     const [W, H] = dims(), px = W * o.size / 100, cx = W * o.x / 100, cy = H * o.y / 100;
     g.save(); g.globalAlpha = o.op / 100; g.filter = 'none';
@@ -251,6 +268,7 @@
     }
     origGain.gain.value = ovolv * audio;
     overlays.forEach((o) => { if (tl >= o.start && tl <= o.end) drawOverlay(o); });
+    drawings.forEach((d) => { if (tl >= d.start - 0.001 && tl <= d.end) drawStroke(d); });
     texts.forEach((t) => { if (tl >= t.start && tl <= t.end) drawText(t); });
   }
 
@@ -333,7 +351,7 @@
         const a = b.dataset.a, was = clips[active];
         if (a === 'up' && i > 0) [clips[i - 1], clips[i]] = [clips[i], clips[i - 1]];
         if (a === 'down' && i < clips.length - 1) [clips[i + 1], clips[i]] = [clips[i], clips[i + 1]];
-        if (a === 'del') { pause(); c.v.remove(); URL.revokeObjectURL(c.url); clips.splice(i, 1); }
+        if (a === 'del') { pause(); stopClean(c); c.v.remove(); URL.revokeObjectURL(c.url); clips.splice(i, 1); }
         active = clips.indexOf(was); if (active < 0) { active = clips.length ? 0 : -1; tl = 0; if (active >= 0) activate(0, 0, false); }
         refresh(); if (clips.length) seek(Math.min(tl, total()));
       }));
@@ -365,6 +383,14 @@
       Object.entries(m).forEach(([cls, k]) => { const el = dd.querySelector('.' + cls); el.value = o[k]; el.onchange = () => { o[k] = clamp(+el.value, lim[k][0], lim[k][1]); if (o.end <= o.start) o.end = o.start + 0.1; refresh(); }; });
       dd.querySelector('button').onclick = () => { overlays.splice(i, 1); refresh(); };
       ol.appendChild(dd);
+    });
+    const dl = $('drlist'); dl.innerHTML = '';
+    drawings.forEach((d, i) => {
+      const dd = document.createElement('div'); dd.className = 'clip'; dd.innerHTML = '<div class="nm"></div><div class="mini">' + field('ds', 'Start (s)', 'type="number" min="0" step="0.1"') + field('de', 'End (s)', 'type="number" min="0" step="0.1"') + '</div><div class="row" style="margin-top:8px"><button class="btn sm danger">Remove</button></div>';
+      dd.querySelector('.nm').textContent = ({ pen: 'Pen drawing', arrow: 'Arrow', box: 'Box', circle: 'Circle' })[d.tool];
+      const ds = dd.querySelector('.ds'), de = dd.querySelector('.de'); ds.value = d.start.toFixed(1); de.value = d.end.toFixed(1);
+      ds.onchange = () => { d.start = Math.max(0, +ds.value || 0); if (d.end <= d.start) d.end = d.start + 0.5; refresh(); }; de.onchange = () => { d.end = Math.max(d.start + 0.1, +de.value || d.start + 3); refresh(); };
+      dd.querySelector('button').onclick = () => { drawings.splice(i, 1); refresh(); }; dl.appendChild(dd);
     });
     const vl = $('volist'); vl.innerHTML = ''; $('voname').textContent = voices.length ? voices.length + ' recorded' : 'None';
     voices.forEach((v, i) => {
@@ -421,6 +447,23 @@
     const xe = e, xr = e.querySelector('.xr'), xh = e.querySelector('.xh'), xv = e.querySelector('.xv'), xm = { cl: 'xl', ct: 'xt', cr: 'xri', cb: 'xb' };
     xr.value = String(c.xf.rot); xh.checked = c.xf.fh; xv.checked = c.xf.fv; Object.entries(xm).forEach(([k, cls]) => { xe.querySelector('.' + cls).value = c.xf[k]; xe.querySelector('.' + cls).oninput = (ev) => { c.xf[k] = +ev.target.value; }; });
     xr.onchange = () => { c.xf.rot = +xr.value; }; xh.onchange = () => { c.xf.fh = xh.checked; }; xv.onchange = () => { c.xf.fv = xv.checked; };
+    /* clean the sound: background noise removal on this device */
+    e = det('clean', 'Clean the sound', field('cn', 'Strength (%)', 'type="range" min="10" max="100"') + '<label class="ctl">&nbsp;<span class="row" style="gap:6px"><button class="btn sm cr">Remove background noise</button><button class="btn sm co">Use original sound</button></span></label><p class="status sn cs" role="status" style="grid-column:1/-1"></p>');
+    const cn = e.querySelector('.cn'), cr = e.querySelector('.cr'), co = e.querySelector('.co'), cs = e.querySelector('.cs'); cn.value = c.cn || 100; co.disabled = !c.clean;
+    cs.textContent = c.clean ? 'The cleaned sound is on for this clip.' : 'Reduces steady background noise such as hiss, hum and fans, mostly in speech. It runs on this device and takes a few seconds per minute of sound.';
+    cn.oninput = () => { c.cn = +cn.value; };
+    cr.onclick = async () => {
+      if (Math.abs(c.speed2 - c.speed) > 1e-6) { cs.textContent = 'Use a steady speed for this clip first (set both speeds the same).'; return; }
+      cr.disabled = true; cs.textContent = 'Preparing…';
+      try {
+        const ab = await ctx.decodeAudioData((await c.file.arrayBuffer()).slice(0)), arrs = []; for (let k = 0; k < ab.numberOfChannels; k++) arrs.push(ab.getChannelData(k).slice());
+        const out = await GVDenoise.run(arrs, ab.sampleRate, (c.cn || 100) / 100, (pr) => { cs.textContent = 'Removing noise… ' + Math.round(pr * 100) + '%'; });
+        const nb = ctx.createBuffer(out.length, out[0].length, ab.sampleRate); out.forEach((o, k) => nb.copyToChannel(o, k));
+        const was = playing; if (was) pause(); c.clean = nb; applyVol(c); co.disabled = false; cs.textContent = 'Done. The cleaned sound is on for this clip, in the preview and the export.'; if (was) play();
+      } catch (err) { cs.textContent = /decode/i.test(String(err && err.message)) || (err && err.name === 'EncodingError') ? 'This clip has no sound to clean.' : 'Could not clean the sound in this browser. A recent Chrome, Edge or Firefox is needed.'; }
+      cr.disabled = false;
+    };
+    co.onclick = () => { const was = playing; if (was) pause(); c.clean = null; applyVol(c); co.disabled = true; cs.textContent = 'Back to the original sound.'; if (was) play(); };
     /* remove silence */
     e = det('sil', 'Remove silence', field('sth', 'Counts as silence below (dB)', 'type="range" min="-60" max="-15"') + field('smp', 'Shortest pause to cut (s)', 'type="number" min="0.2" max="3" step="0.1"') + '<label class="ctl">&nbsp;<span class="row" style="gap:6px"><button class="btn sm sf">Find pauses</button><button class="btn sm sc" disabled>Cut them out</button></span></label><p class="status sn sl" role="status" style="grid-column:1/-1">Finds quiet gaps in the clip\'s sound and cuts them out, so the clip is split into the parts with speech or sound.</p>');
     const sth = e.querySelector('.sth'), smp = e.querySelector('.smp'), sf = e.querySelector('.sf'), sc = e.querySelector('.sc'), sl = e.querySelector('.sl'); sth.value = c.sil.th; smp.value = c.sil.min; let found = null;
@@ -456,7 +499,7 @@
     const url = URL.createObjectURL(c.file), v = document.createElement('video'); v.src = url; v.preload = 'auto'; v.playsInline = true; $('vids').appendChild(v);
     await new Promise((res, rej) => { v.onloadedmetadata = res; v.onerror = () => rej(new Error('bad')); }); if (!isFinite(v.duration)) await fixDuration(v);
     const gn = ctx.createGain(); ctx.createMediaElementSource(v).connect(gn); gn.connect(origGain);
-    const n = newClip(c.name, url, v, c.file); n.gain = gn; n.in = a; n.out = Math.min(b, v.duration);
+    const n = newClip(c.name, url, v, c.file); n.gain = gn; n.cgain = ctx.createGain(); n.cgain.connect(origGain); n.clean = c.clean; n.in = a; n.out = Math.min(b, v.duration);
     n.grade = { ...c.grade }; n.zoom = { ...c.zoom }; n.key = { ...c.key }; n.xf = { ...c.xf }; n.vol = c.vol; n.mute = c.mute; n.sil = { ...c.sil }; applyVol(n); return n;
   }
   async function cutSilence(i, keep) {
@@ -472,6 +515,18 @@
     const f = $('bgfile').files[0]; $('bgfile').value = ''; if (!f) return;
     const im = new Image(), u = URL.createObjectURL(f); im.onload = () => { bgImg = im; say('Background picture set.'); }; im.onerror = () => say('Could not read that picture.'); im.src = u;
   };
+
+  /* ---------- drawing on the picture ---------- */
+  let drawOn = false, drawing = null;
+  $('drmode').onclick = () => { drawOn = !drawOn; $('drmode').setAttribute('aria-pressed', drawOn); $('drmode').textContent = 'Draw on the picture: ' + (drawOn ? 'on' : 'off'); cv.classList.toggle('drawing', drawOn); };
+  const cvPos = (e) => { const r = cv.getBoundingClientRect(); return [clamp((e.clientX - r.left) / r.width * 100, 0, 100), clamp((e.clientY - r.top) / r.height * 100, 0, 100)]; };
+  cv.addEventListener('pointerdown', (e) => {
+    if (!drawOn || !clips.length) return; e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (_) { /* fine */ }
+    const len = clamp(+$('drlen').value || 3, 0.5, 60); drawing = { tool: $('drtool').value, color: $('drcolor').value, w: clamp(+$('drw').value || 6, 1, 30), start: tl, end: tl + len, pts: [cvPos(e)] }; drawings.push(drawing);
+  });
+  cv.addEventListener('pointermove', (e) => { if (!drawing) return; const p = cvPos(e); if (drawing.tool === 'pen') drawing.pts.push(p); else drawing.pts[1] = p; });
+  const endDraw = () => { if (!drawing) return; if (drawing.pts.length < 2) drawings.pop(); drawing = null; refresh(); };
+  cv.addEventListener('pointerup', endDraw); cv.addEventListener('pointercancel', endDraw);
 
   /* ---------- pictures, logos and stickers ---------- */
   const endDefault = () => Math.max(3, Math.round(total() * 10) / 10);
@@ -572,7 +627,7 @@
 
   /* ---------- export ---------- */
   const TYPES = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
-  const RES = { 480: 480 / 720, 720: 1, 1080: 1.5 }, QUAL = { low: 2.5e6, std: 5e6, high: 12e6 };
+  const RES = { 480: 480 / 720, 720: 1, 1080: 1.5, 2160: 3 }, QUAL = { low: 2.5e6, std: 5e6, high: 12e6 };
   async function exportRealtime() {
     if (!clips.length || exporting) return null;
     if (!window.MediaRecorder || !cv.captureStream) { say('This browser cannot record video. Try Chrome, Edge or Firefox.'); return null; }
@@ -606,7 +661,7 @@
   const fastCapable = () => !!(window.VideoEncoder && window.AudioEncoder && window.VideoFrame && window.AudioData && window.OfflineAudioContext);
   async function pickCodecs(want, W, H, fps, bitrate) {
     const tries = [];
-    if (want !== 'webm') tries.push({ kind: 'mp4', v: (H >= 1000 || fps > 30) ? 'avc1.64002a' : 'avc1.640028', a: 'mp4a.40.2' });
+    if (want !== 'webm') tries.push({ kind: 'mp4', v: H >= 1500 || W >= 1500 && H >= 1500 ? 'avc1.640033' : (H >= 1000 || fps > 30) ? 'avc1.64002a' : 'avc1.640028', a: 'mp4a.40.2' });
     if (want !== 'mp4') tries.push({ kind: 'webm', v: 'vp09.00.10.08', a: 'opus', mv: 'V_VP9' }, { kind: 'webm', v: 'vp8', a: 'opus', mv: 'V_VP8' });
     for (const t of tries) {
       try {
@@ -623,7 +678,7 @@
     for (let i = 0; i < clips.length; i++) {
       const c = clips[i], Ti = len(c);
       try {
-        const ab = await oc.decodeAudioData(await c.file.arrayBuffer()), src = oc.createBufferSource(), gn = oc.createGain(), n = Math.max(2, Math.ceil(Ti * 100) + 1), curve = new Float32Array(n);
+        const ab = c.clean || await oc.decodeAudioData(await c.file.arrayBuffer()), src = oc.createBufferSource(), gn = oc.createGain(), n = Math.max(2, Math.ceil(Ti * 100) + 1), curve = new Float32Array(n);
         for (let k = 0; k < n; k++) curve[k] = ovolv * (c.mute ? 0 : c.vol) * audioOf(c, levelsAt(c, i, k / (n - 1) * Ti, Ti));
         src.buffer = ab; gn.gain.setValueCurveAtTime(curve, acc, Ti); src.connect(gn).connect(oc.destination); src.start(acc, c.in, c.out - c.in);
       } catch (_) { /* this clip has no sound track */ }
@@ -700,8 +755,30 @@
     finally { try { if (venc && venc.state !== 'closed') venc.close(); if (aenc && aenc.state !== 'closed') aenc.close(); } catch (_) { /* closed */ } exporting = false; outScale = 1; $('cancel').classList.add('hidden'); draw(); refresh(); seek(0); }
   }
   /* choose the fast path when this browser and this project allow it, otherwise record in real time */
+  /* animated GIF: frames are drawn one by one, like fast export, then packed with gifenc (MIT). No sound; at most 60 seconds, at a smaller size. */
+  async function exportGif() {
+    const T = Math.min(60, total()), fps = Math.min(15, +$('xfps').value || 15), scale = Math.min(RES[$('xres').value] || 1, 0.5);
+    pause(); exporting = true; exportCancelled = false; refresh(); $('cancel').classList.remove('hidden'); $('dl').classList.add('hidden'); outScale = scale;
+    const t0 = performance.now();
+    try {
+      await loadScript('js/vendor/gifenc.js'); const G = window.GIFenc, enc = G.GIFEncoder(); draw(); const [W, H] = dims(), frames = Math.max(1, Math.ceil(T * fps)), delay = Math.round(1000 / fps);
+      for (let f = 0; f < frames; f++) {
+        if (exportCancelled) break;
+        const t = Math.min(Math.max(0, total() - 0.001), f / fps), loc = locate(t), c = clips[loc.i];
+        active = loc.i; tl = t; await seekTo(c.v, c.in + srcAt(c, loc.off)); draw();
+        const px = g.getImageData(0, 0, W, H).data, pal = G.quantize(px, 256), idx = G.applyPalette(px, pal);
+        enc.writeFrame(idx, W, H, { palette: pal, delay, repeat: 0 });
+        if (f % 3 === 0) { say('Making the GIF… ' + Math.min(99, Math.round(f / frames * 100)) + '% (keep this tab open)'); await nap(); }
+      }
+      if (exportCancelled) { say('Export cancelled.'); return null; }
+      enc.finish(); const blob = new Blob([enc.bytes()], { type: 'image/gif' });
+      finishDownload(blob, 'govibe-video.gif', 'GIF, ' + W + ' × ' + H + (total() > 60 ? ', first 60 s' : '') + ', in ' + ((performance.now() - t0) / 1000).toFixed(1) + ' s'); return blob;
+    } catch (e) { say('Could not make the GIF: ' + ((e && e.message) || 'unknown error') + '.'); return null; }
+    finally { exporting = false; outScale = 1; $('cancel').classList.add('hidden'); draw(); refresh(); seek(0); }
+  }
   async function exportVideo() {
     if (!clips.length || exporting) return null;
+    if ($('xfmt').value === 'gif') return exportGif();
     const wav = $('xfmt').value === 'wav', slow = clips.some((c) => c.speed !== 1 || c.speed2 !== 1);
     if (wav) {
       if (!fastCapable()) { say('Audio only export needs a recent Chrome or Edge.'); return null; }
@@ -720,7 +797,7 @@
 
   if (/[?&]gvtest\b/.test(location.search)) window.__ve = {
     addFile, loadMusic, exportVideo, seek, play, pause, ctx, estimateShift, smoothPath, parseSubs, importSubs, exportSrt, keyPixels, stabilise, lenOf, srcAt, tAt, hasFilter,
-    get clips() { return clips; }, get texts() { return texts; }, get duckGain() { return musicDuck.gain.value; }, get screen() { return !!scr; }, get overlays() { return overlays; }, get voices() { return voices; }, addOverlay, findSilence, cutSilence, recordVoice, draw,
+    get clips() { return clips; }, get texts() { return texts; }, get duckGain() { return musicDuck.gain.value; }, get screen() { return !!scr; }, get overlays() { return overlays; }, get drawings() { return drawings; }, get active() { return active; }, get voices() { return voices; }, addOverlay, findSilence, cutSilence, recordVoice, draw,
     get state() { return { clips: clips.map((c) => ({ vol: c.vol, mute: c.mute, xf: c.xf, dur: c.dur, in: c.in, out: c.out, fi: c.fi, fo: c.fo, trans: c.trans, speed: c.speed, speed2: c.speed2 })), texts: texts.length, tl, total: total(), playing }; }
   };
 })();
