@@ -4,10 +4,10 @@ window.GVStudioCore = (() => {
   const COLORS = ['#22d3ee', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#fb7185', '#60a5fa', '#f97316'];
   const DRUMS = () => GVSynth.DRUMS;
 
-  function newProject(name) { return { v: 1, id: uid(), name: name || 'Untitled project', bpm: 120, tracks: [], assets: {}, loop: { on: false, a: 0, b: 0 }, master: 0.9, limiter: true }; }
+  function newProject(name) { return { v: 1, id: uid(), name: name || 'Untitled project', bpm: 120, tracks: [], assets: {}, loop: { on: false, a: 0, b: 0 }, master: 0.9, limiter: true, mfx: [], sends: { rev: Object.assign({}, FX().BUS.rev.p), dly: Object.assign({}, FX().BUS.dly.p) } }; }
   function newTrack(p, type) {
     const n = p.tracks.filter((t) => t.type === type).length + 1, label = type === 'audio' ? 'Audio' : type === 'midi' ? 'Keys' : 'Drums';
-    return { id: uid(), type, name: label + ' ' + n, vol: 0.8, pan: 0, mute: false, solo: false, color: COLORS[p.tracks.length % COLORS.length], inst: type === 'midi' ? 'Piano' : undefined, clips: [] };
+    return { id: uid(), type, name: label + ' ' + n, vol: 0.8, pan: 0, mute: false, solo: false, color: COLORS[p.tracks.length % COLORS.length], inst: type === 'midi' ? 'Piano' : undefined, fx: [], sendR: 0, sendD: 0, clips: [] };
   }
   const spb = (p) => 60 / p.bpm;
   const clipEnd = (c) => c.start + c.dur;
@@ -15,28 +15,60 @@ window.GVStudioCore = (() => {
   const anySolo = (p) => p.tracks.some((t) => t.solo);
   const audible = (p, t) => !t.mute && (!anySolo(p) || t.solo);
 
+  /* ---------- mixer data. Older projects have none of this, so ensureMix fills it in. ---------- */
+  const FX = () => window.GVFx;
+  function ensureMix(p) {
+    if (!Array.isArray(p.mfx)) p.mfx = [];
+    if (!p.sends) p.sends = {};
+    ['rev', 'dly'].forEach((k) => { if (!p.sends[k]) p.sends[k] = Object.assign({}, FX().BUS[k].p); });
+    p.tracks.forEach((t) => { if (!Array.isArray(t.fx)) t.fx = []; if (typeof t.sendR !== 'number') t.sendR = 0; if (typeof t.sendD !== 'number') t.sendD = 0; });
+    return p;
+  }
+  function newFx(type) { return { id: uid(), type, on: true, p: FX().defaults(type) }; }
+  const sendsUsed = (p) => ({ rev: p.tracks.some((t) => t.sendR > 0 && t.clips.length), dly: p.tracks.some((t) => t.sendD > 0 && t.clips.length) });
+  const fxTail = (p) => { const all = [].concat(p.mfx || []); p.tracks.forEach((t) => { if (t.clips.length) all.push(...(t.fx || [])); }); return FX().tailOf(all, p.sends, p.bpm, sendsUsed(p)); };
+
   /* ---------- graph ---------- */
+  function chain(ctx, list, bpm) {
+    const slots = [], first = ctx.createGain(); let last = first;
+    (list || []).forEach((f) => { if (!FX().DEFS[f.type]) return; const s = FX().make(ctx, f.type, f.p, { bpm, on: f.on !== false }); last.connect(s.in); last = s.out; slots.push({ id: f.id, slot: s }); });
+    return { in: first, out: last, slots };
+  }
   function buildGraph(ctx, dest, p, opt) {
-    opt = opt || {};
+    opt = opt || {}; ensureMix(p);
     const master = ctx.createGain(); master.gain.value = p.master;
     let out = master;
     if (p.limiter !== false) { const lim = ctx.createDynamicsCompressor(); lim.threshold.value = -1.5; lim.knee.value = 0; lim.ratio.value = 20; lim.attack.value = 0.002; lim.release.value = 0.1; master.connect(lim); out = lim; }
     out.connect(dest);
+    /* tracks sum into mixIn, then the master effects, then the master fader */
+    const mixIn = ctx.createGain(), mchain = chain(ctx, p.mfx, p.bpm); mixIn.connect(mchain.in); mchain.out.connect(master);
+    const rev = FX().bus(ctx, 'reverb', p.sends.rev, { bpm: p.bpm }), dly = FX().bus(ctx, 'delay', p.sends.dly, { bpm: p.bpm }); rev.out.connect(mixIn); dly.out.connect(mixIn);
     const tracks = {};
     p.tracks.forEach((t) => {
-      const input = ctx.createGain(), gain = ctx.createGain(), pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+      const input = ctx.createGain(), ch = chain(ctx, t.fx, p.bpm), gain = ctx.createGain(), pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null, sR = ctx.createGain(), sD = ctx.createGain();
+      /* every channel is stereo from the first node, so adding an effect never changes the level. Mono sources keep the old 3 dB centre pan level. */
+      input.channelCount = 2; input.channelCountMode = 'explicit'; input.channelInterpretation = 'speakers'; input.gain.value = t.type === 'audio' ? 1 : Math.SQRT1_2;
       gain.gain.value = (opt.onlyTrack ? opt.onlyTrack === t.id : audible(p, t)) ? t.vol : 0;
-      if (pan) { pan.pan.value = t.pan; input.connect(gain).connect(pan).connect(master); } else input.connect(gain).connect(master);
-      tracks[t.id] = { in: input, gain, pan };
+      input.connect(ch.in); ch.out.connect(gain);
+      const post = pan || gain; if (pan) { pan.pan.value = t.pan; gain.connect(pan); } post.connect(mixIn);
+      sR.gain.value = t.sendR; sD.gain.value = t.sendD; post.connect(sR).connect(rev.in); post.connect(sD).connect(dly.in);
+      tracks[t.id] = { in: input, gain, pan, fx: ch.slots, sR, sD };
     });
-    return { master, out, tracks };
+    const stops = [rev, dly, ...mchain.slots.map((x) => x.slot)]; Object.keys(tracks).forEach((id) => tracks[id].fx.forEach((x) => stops.push(x.slot)));
+    return { master, out, tracks, mixIn, mfx: mchain.slots, rev, dly, dispose() { stops.forEach((s) => { try { s.stop(); } catch (_) { /* already stopped */ } }); } };
   }
-  function applyMix(graph, p, t) { const n = graph.tracks[t.id]; if (!n) return; n.gain.gain.value = audible(p, t) ? t.vol : 0; if (n.pan) n.pan.pan.value = t.pan; }
+  function applyFxList(slots, list) { (list || []).forEach((f) => { const s = slots.find((x) => x.id === f.id); if (s) { s.slot.set(f.p, false); s.slot.setOn(f.on !== false, false); } }); }
+  function applyMix(graph, p, t) {
+    const n = graph.tracks[t.id]; if (!n) return; n.gain.gain.value = audible(p, t) ? t.vol : 0; if (n.pan) n.pan.pan.value = t.pan;
+    n.sR.gain.value = t.sendR || 0; n.sD.gain.value = t.sendD || 0; applyFxList(n.fx, t.fx);
+  }
+  /* master effects, the two send buses and the master fader */
+  function applyMaster(graph, p) { ensureMix(p); graph.master.gain.value = p.master; applyFxList(graph.mfx, p.mfx); graph.rev.set(FX().full('reverb', p.sends.rev), false); graph.dly.set(FX().full('delay', p.sends.dly), false); }
 
   /* ---------- scheduling ---------- */
   function schedAudio(ctx, node, c, buf, seg, live) {
     const s = Math.max(seg.from, c.start), e = Math.min(seg.to, clipEnd(c)); if (e <= s + 0.001 || !buf) return;
-    const src = ctx.createBufferSource(), g = ctx.createGain(), when = seg.when + (s - seg.from), base = c.gain == null ? 1 : c.gain;
+    const src = ctx.createBufferSource(), g = ctx.createGain(), when = seg.when + (s - seg.from), base = (c.gain == null ? 1 : c.gain) * (buf.numberOfChannels === 1 ? Math.SQRT1_2 : 1);
     src.buffer = buf; src.connect(g).connect(node.in);
     const fi = c.fadeIn || 0, fo = Math.min(c.fadeOut || 0, Math.max(0, c.dur - fi)), end = clipEnd(c);
     const val = (t) => base * Math.max(0, Math.min(1, fi > 0 ? (t - c.start) / fi : 1, fo > 0 ? (end - t) / fo : 1));
@@ -81,12 +113,18 @@ window.GVStudioCore = (() => {
   }
 
   /* ---------- offline render ---------- */
+  const LEAD = 0.15;
   async function render(p, buffers, opt) {
-    opt = opt || {}; const from = opt.from || 0, to = opt.to == null ? projectEnd(p) : opt.to, rate = opt.rate || 44100, tail = opt.tail == null ? 1.2 : opt.tail;
+    opt = opt || {}; const from = opt.from || 0, to = opt.to == null ? projectEnd(p) : opt.to, rate = opt.rate || 44100, tail = opt.tail == null ? Math.max(1.2, fxTail(p) + 0.3) : opt.tail;
     if (!(to > from)) throw new Error('Nothing to render');
-    const oc = new OfflineAudioContext(2, Math.ceil((to - from + tail) * rate), rate), graph = buildGraph(oc, oc.destination, p, { onlyTrack: opt.onlyTrack });
-    scheduleSegment(oc, graph, p, buffers, { when: 0, from, to }, {});
-    return oc.startRendering();
+    /* The browser's limiter fades in over its first ~100 ms, which would crush a hit on the very first beat. Render a short lead in and cut it off. */
+    const lead = p.limiter === false ? 0 : LEAD, skip = Math.round(lead * rate);
+    const oc = new OfflineAudioContext(2, Math.ceil((to - from + tail + lead) * rate), rate), graph = buildGraph(oc, oc.destination, p, { onlyTrack: opt.onlyTrack });
+    scheduleSegment(oc, graph, p, buffers, { when: lead, from, to }, {});
+    const full = await oc.startRendering(); if (!skip) return full;
+    const out = new AudioBuffer({ length: full.length - skip, numberOfChannels: 2, sampleRate: rate });
+    for (let c = 0; c < 2; c++) out.copyToChannel(full.getChannelData(c).subarray(skip), c);
+    return out;
   }
   function wavBlob(buf, bits) {
     const n = buf.length, ch = buf.numberOfChannels, rate = buf.sampleRate, bytes = (bits === 24 ? 3 : 2), v = new DataView(new ArrayBuffer(44 + n * ch * bytes)), w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
@@ -109,5 +147,5 @@ window.GVStudioCore = (() => {
     for (let i = 0; i < n; i++) { let mn = 1, mx = -1; const a = i * B, b = Math.min(buf.length, a + B); for (let k = a; k < b; k += 2) { let v = 0; for (let c = 0; c < ch; c++) v += d[c][k]; v /= ch; if (v < mn) mn = v; if (v > mx) mx = v; } out[i * 2] = mn; out[i * 2 + 1] = mx; }
     return { B, data: out, rate: buf.sampleRate };
   }
-  return { uid, COLORS, newProject, newTrack, spb, clipEnd, projectEnd, audible, buildGraph, applyMix, scheduleSegment, render, wavBlob, mp3Blob, peaksOf };
+  return { uid, LEAD, COLORS, ensureMix, newFx, fxTail, applyMaster, newProject, newTrack, spb, clipEnd, projectEnd, audible, buildGraph, applyMix, scheduleSegment, render, wavBlob, mp3Blob, peaksOf };
 })();

@@ -943,12 +943,12 @@ def test_studio(browser, base):
       P.tracks[1].mute = false; return { early: rms(0, 2205), late: rms(22050 * 2, 22050 * 3), len: b.length / b.sampleRate }; }""")
     check("offline render honours a one second fade in", r["early"] < r["late"] * 0.4 and r["late"] > 0.02, str(r))
     # solo and mute
-    pg.get_by_role("button", name="Mute Tone 330").click()
+    pg.locator("#heads").get_by_role("button", name="Mute Tone 330").click()
     check("mute silences a track in the mix", st("__st.Core.audible(__st.P, __st.P.tracks[1])") is False)
-    pg.get_by_role("button", name="Mute Tone 330").click()
-    pg.get_by_role("button", name="Solo Click 120").click()
+    pg.locator("#heads").get_by_role("button", name="Mute Tone 330").click()
+    pg.locator("#heads").get_by_role("button", name="Solo Click 120").click()
     check("solo silences the others", st("__st.Core.audible(__st.P, __st.P.tracks[1])") is False and st("__st.Core.audible(__st.P, __st.P.tracks[0])"))
-    pg.get_by_role("button", name="Solo Click 120").click()
+    pg.locator("#heads").get_by_role("button", name="Solo Click 120").click()
     # playback
     pg.keyboard.press("Home"); pg.locator("#tl").focus(); pg.keyboard.press("Space"); pg.wait_for_function("() => __st.playing", timeout=5000); pg.wait_for_timeout(1500)
     ph = st("__st.playhead"); check("space starts playback and the playhead advances", 0.8 < ph < 2.6, str(ph))
@@ -1032,6 +1032,160 @@ def test_studio(browser, base):
     c3 = browser.new_context(viewport={"width": 390, "height": 844}); p3 = c3.new_page(); p3.goto(base + "studio.html"); p3.click("#addaudio"); p3.wait_for_timeout(300)
     check("studio: no sideways scroll at 390px", p3.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth") <= 0, str(p3.evaluate("document.documentElement.scrollWidth - document.documentElement.clientWidth")))
     c3.close()
+
+
+MIX_RENDER = """async (wins) => { const P = __st.P; const buf = await __st.Core.render(P, __st.buffers, {rate: 44100}); const d = buf.getChannelData(0), e = buf.getChannelData(1), r = buf.sampleRate; let peak = 0, fin = true;
+ for (let i = 0; i < d.length; i++) { const v = Math.max(Math.abs(d[i]), Math.abs(e[i])); if (!isFinite(v)) fin = false; if (v > peak) peak = v; }
+ const rms = (a, b) => { let s = 0; const i0 = Math.floor(a * r), i1 = Math.min(d.length, Math.floor(b * r)); for (let i = i0; i < i1; i++) s += d[i] * d[i] + e[i] * e[i]; return Math.sqrt(s / Math.max(1, (i1 - i0) * 2)); };
+ return { peak, fin, len: buf.length / r, w: wins.map(([a, b]) => rms(a, b)) }; }"""
+
+
+def test_mixer(browser, base):
+    print("mixer: effects chains, sends, master chain, undo, save, export, live playback")
+    import tempfile, io, zipfile
+    errs = []
+    ctx, pg = new_page(browser, errs, viewport={"width": 1400, "height": 1000}, accept_downloads=True)
+    pg.goto(base + "studio.html?gvtest"); pg.wait_for_function("() => window.__st && window.__mx", timeout=10000)
+    st = lambda js, *a: pg.evaluate(js, *a) if a else pg.evaluate(js)
+    check("an empty project shows the mixer with an invitation and the returns and master strips", "appears here" in pg.inner_text("#strips") and pg.locator(".strip").count() == 3)
+    # a drum hit on the very first beat, and a bass note
+    st("() => { const k = __st.addTrack('midi'); const c = __st.newMidiClip(k, 0); c.notes = [{t: 0, p: 48, d: 0.25, v: 100}]; const d = __st.addTrack('drum'); const dc = __st.newMidiClip(d, 0); dc.dur = 0.5; dc.grid = {Snare: [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}; }")
+    check("each track gets a channel strip plus reverb return, delay return and master", pg.locator(".strip").count() == 5)
+    check("new tracks start with an empty effects chain and no sends", st("__st.P.tracks.every((t) => Array.isArray(t.fx) && t.fx.length === 0 && t.sendR === 0 && t.sendD === 0)") and st("__st.P.mfx.length") == 0)
+    W = [[0, 0.1], [0.3, 0.9], [2.05, 2.9], [0.5, 1.0], [1.0, 2.0]]
+    R = lambda: pg.evaluate(MIX_RENDER, W)
+    # work on the drum track (index 1): a hit on the first beat
+    TK = "__st.P.tracks[1]"
+    def setfx(t, p="{}", on="true", track=TK):
+        st(f"() => {{ const T = {track}; T.fx = [Object.assign(__st.Core.newFx('{t}'), {{on: {on}}})]; Object.assign(T.fx[0].p, {p}); }}")
+    st("() => { __st.P.tracks[0].mute = true; }")  # only the drum hit is heard in the effect measurements
+    base_r = R()
+    check("a hit on the first beat is not squashed by the limiter start up (peak above 0.3)", base_r["peak"] > 0.3, str(base_r["peak"]))
+    for t in ("eq", "comp", "sat", "chorus", "delay", "reverb"):
+        setfx(t, on="false"); r = R()
+        check(f"{t} switched off sounds exactly like no effect", abs(r["peak"] - base_r["peak"]) < 1e-6 and abs(r["len"] - base_r["len"]) < 1e-6 and all(abs(a - b) < 1e-7 for a, b in zip(r["w"], base_r["w"])), str((r, base_r)))
+    setfx("eq", "{low: 12, high: 12}"); r = R(); check("EQ with low and high boosted is louder and stays finite", r["fin"] and r["w"][0] > base_r["w"][0] * 1.15, str((r["w"][0], base_r["w"][0])))
+    setfx("eq", "{low: -18, mid: -18, high: -18}"); r = R(); check("EQ cut by 18 dB is quieter", r["w"][0] < base_r["w"][0] * 0.85, str((r["w"][0], base_r["w"][0])))
+    setfx("comp", "{thresh: -50, ratio: 20, attack: 1}"); r = R(); check("compressor with a low threshold pulls the hit down a lot", r["fin"] and r["w"][0] < base_r["w"][0] * 0.6, str((r["w"], base_r["w"])))
+    setfx("comp", "{thresh: -50, ratio: 20, attack: 1, makeup: 12}"); r2 = R(); check("make up gain brings the compressed hit back up", r2["w"][0] > r["w"][0] * 2.5, str((r2["w"][0], r["w"][0])))
+    setfx("sat", "{drive: 1}"); r = R(); check("saturation rounds off the peaks (lower peak to average ratio) and stays finite", r["fin"] and r["peak"] / r["w"][0] < (base_r["peak"] / base_r["w"][0]) * 0.92, str((r["peak"], r["w"][0], base_r["peak"], base_r["w"][0])))
+    setfx("chorus", "{mix: 0.6}"); r = R(); check("chorus changes the sound and stays finite", r["fin"] and abs(r["w"][0] - base_r["w"][0]) > base_r["w"][0] * 0.01, str(r["w"]))
+    setfx("delay", "{time: 400, fb: 0, mix: 1}"); r = R(); check("delay adds an echo where the original is silent", r["fin"] and base_r["w"][1] < 1e-3 and r["w"][1] > 0.01, str((r["w"], base_r["w"])))
+    setfx("delay", "{time: 150, fb: 0.7, mix: 1}"); r = R(); check("delay feedback makes the export longer so the echoes are not cut off", r["len"] > base_r["len"] + 0.5, str((r["len"], base_r["len"])))
+    setfx("reverb", "{mix: 0.5, size: 2}"); r = R(); check("reverb adds a tail where the original is silent and the export gets longer", r["fin"] and r["w"][1] > 0.003 and r["len"] > base_r["len"] + 0.9, str((r["w"], r["len"], base_r["len"])))
+    r_dry = r["w"][0]; check("reverb keeps the direct sound about the same level (within 25%)", abs(r_dry - base_r["w"][0]) < base_r["w"][0] * 0.25, str((r_dry, base_r["w"][0])))
+    # sends
+    st(f"() => {{ {TK}.fx = []; {TK}.sendR = 1; }}"); r = R(); check("reverb send adds a tail from the shared reverb and lengthens the export", r["w"][1] > 0.003 and r["len"] > base_r["len"] + 0.9, str((r["w"], r["len"])))
+    st(f"() => {{ {TK}.sendR = 0; {TK}.sendD = 1; }}"); r = R(); check("delay send adds echoes from the shared delay in time with the tempo", r["w"][1] > 0.01, str(r["w"]))
+    st(f"() => {{ {TK}.mute = true; }}"); r = R(); check("muting a track silences its sends too", r["peak"] < 1e-4 or all(v < 1e-4 for v in r["w"][:2]) or r["peak"] < base_r["peak"] * 0.3, str(r))
+    st(f"() => {{ {TK}.mute = false; {TK}.sendD = 0; }}")
+    # per track stems of linear effects add back up to the mix
+    st("() => { __st.P.tracks[0].mute = false; __st.P.tracks[0].fx = [__st.Core.newFx('reverb')]; __st.P.tracks[1].fx = [__st.Core.newFx('eq')]; __st.P.tracks[1].fx[0].p.high = 6; __st.P.tracks[0].sendR = 0.5; __st.P.tracks[1].sendR = 0.3; __st.P.limiter = false; }")
+    err = st("""async () => { const Cr = __st.Core, P = __st.P, b = __st.buffers; const all = await Cr.render(P, b, {rate: 44100}); const s0 = await Cr.render(P, b, {rate: 44100, onlyTrack: P.tracks[0].id}), s1 = await Cr.render(P, b, {rate: 44100, onlyTrack: P.tracks[1].id});
+      const n = Math.min(all.length, s0.length, s1.length); let m = 0, pk = 0; for (let c = 0; c < 2; c++) { const a = all.getChannelData(c), x = s0.getChannelData(c), y = s1.getChannelData(c); for (let i = 0; i < n; i++) { m = Math.max(m, Math.abs(a[i] - x[i] - y[i])); pk = Math.max(pk, Math.abs(a[i])); } } return { m, pk, same: all.length === s0.length && all.length === s1.length }; }""")
+    check("stems with reverb sends and EQ add back up to the full mix (difference under 0.001) and are the same length", err["m"] < 1e-3 and err["same"] and err["pk"] > 0.05, str(err))
+    st("() => { __st.P.limiter = true; __st.P.tracks.forEach((t) => { t.fx = []; t.sendR = 0; t.sendD = 0; }); }")
+    # master chain
+    st("() => { __st.P.mfx = [__st.Core.newFx('comp')]; Object.assign(__st.P.mfx[0].p, {thresh: -50, ratio: 20, attack: 1}); }"); r = R()
+    check("a compressor on the master changes the mix and stays finite", r["fin"] and abs(r["w"][1] / r["w"][0] - base_r["w"][1] / base_r["w"][0]) > 0.05, str((r["w"], base_r["w"])))
+    st("() => { __st.P.mfx = []; }")
+
+    # ---------- the controls ----------
+    st("() => { __st.afterStructure(); __st.undoDepth; }")
+    d0 = st("__st.undoDepth")
+    strip = pg.locator(".strip").nth(0)
+    strip.locator("select.fxadd").select_option("reverb")
+    check("choosing + Effect adds it to that track's chain with default settings", st("__st.P.tracks[0].fx.length") == 1 and st("__st.P.tracks[0].fx[0].type") == "reverb" and st("__st.P.tracks[0].fx[0].p.size") == 1.8)
+    check("the editor opens for the new effect with a heading and one slider per setting", "Reverb on Keys 1" in pg.inner_text("#fxedit") and pg.locator("#fxedit input[type=range]").count() == 4, pg.inner_text("#fxedit")[:80])
+    check("adding an effect is one undo step", st("__st.undoDepth") == d0 + 1)
+    sz = pg.locator("#fxedit label.fxp", has_text="Size").locator("input")
+    d1 = st("__st.undoDepth")
+    sz.evaluate("(el) => { for (const v of [2.5, 3.5, 4.5]) { el.value = v; el.dispatchEvent(new Event('input', {bubbles: true})); } el.dispatchEvent(new Event('change', {bubbles: true})); }")
+    check("dragging a slider changes the setting and is one undo step", abs(st("__st.P.tracks[0].fx[0].p.size") - 4.5) < 1e-6 and st("__st.undoDepth") == d1 + 1)
+    check("the value readout follows the slider", "4.5" in pg.locator("#fxedit label.fxp", has_text="Size").inner_text())
+    pg.click("#undo"); check("undo puts the setting back", abs(st("__st.P.tracks[0].fx[0].p.size") - 1.8) < 1e-6)
+    pg.click("#redo"); check("redo applies it again", abs(st("__st.P.tracks[0].fx[0].p.size") - 4.5) < 1e-6)
+    pg.click("#undo"); pg.click("#undo"); check("undoing again removes the effect", st("__st.P.tracks[0].fx.length") == 0 and "Choose an effect" in pg.inner_text("#fxedit"))
+    for _ in range(2): pg.click("#redo")
+    # chain order, on and off, remove
+    pg.locator(".strip").nth(0).locator("select.fxadd").select_option("eq"); pg.locator(".strip").nth(0).locator("select.fxadd").select_option("comp")
+    check("effects are added in order", st("__st.P.tracks[0].fx.map((f) => f.type)") == ["reverb", "eq", "comp"])
+    pg.get_by_role("button", name="Move earlier").click()
+    check("Earlier moves the selected effect up the chain", st("__st.P.tracks[0].fx.map((f) => f.type)") == ["reverb", "comp", "eq"])
+    pg.locator(".strip").nth(0).get_by_role("button", name="Edit Reverb on Keys 1").click(); check("the first effect in a chain cannot move earlier", pg.get_by_role("button", name="Move earlier").is_disabled())
+    pg.locator(".strip").nth(0).get_by_role("button", name="Edit Compressor on Keys 1").click()
+    cb = pg.locator(".strip").nth(0).locator(".fxs input[type=checkbox]").nth(1); cb.uncheck()
+    check("the checkbox bypasses just that effect", st("__st.P.tracks[0].fx[1].on") == False and st("__st.P.tracks[0].fx[0].on") != False)
+    pg.get_by_role("button", name="Remove effect").click(); check("Remove deletes the effect", st("__st.P.tracks[0].fx.map((f) => f.type)") == ["reverb", "eq"])
+    # sends, pan, fader
+    sr = pg.locator(".strip").nth(0).locator("input[aria-label^='Reverb send']")
+    sr.evaluate("(el) => { el.value = 40; el.dispatchEvent(new Event('input', {bubbles: true})); el.dispatchEvent(new Event('change', {bubbles: true})); }"); check("the reverb send slider sets the send level", abs(st("__st.P.tracks[0].sendR") - 0.4) < 1e-6)
+    fd = pg.locator(".strip").nth(0).locator("input[aria-label^='Volume']"); fd.focus(); v0 = st("__st.P.tracks[0].vol"); pg.keyboard.press("ArrowUp")
+    check("the fader works from the keyboard and the track header slider follows", st("__st.P.tracks[0].vol") > v0 and abs(float(pg.locator(".thead").nth(0).locator(".tvol").input_value()) / 100 - st("__st.P.tracks[0].vol")) < 0.011)
+    pg.locator(".thead").nth(0).locator(".tvol").evaluate("(el) => { el.value = 55; el.dispatchEvent(new Event('input', {bubbles: true})); el.dispatchEvent(new Event('change', {bubbles: true})); }")
+    check("moving the header slider moves the mixer fader", abs(float(fd.input_value()) - 55) < 1)
+    pg.locator(".strip").nth(0).get_by_role("button", name="Mute Keys 1").click(); check("mute from the mixer mutes the track and the header shows it", st("__st.P.tracks[0].mute") and pg.locator(".thead").nth(0).locator("button[aria-label^='Mute']").get_attribute("aria-pressed") == "true")
+    pg.locator(".strip").nth(0).get_by_role("button", name="Mute Keys 1").click()
+    # master strip
+    pg.locator(".strip.master select.fxadd").select_option("comp"); check("the master strip takes effects too", st("__st.P.mfx.length") == 1 and "Compressor on Master" in pg.inner_text("#fxedit"))
+    pg.locator("#mfader").evaluate("(el) => { el.value = 50; el.dispatchEvent(new Event('input', {bubbles: true})); el.dispatchEvent(new Event('change', {bubbles: true})); }")
+    check("the master fader and the Master volume slider are the same control", abs(st("__st.P.master") - 0.5) < 1e-6 and pg.input_value("#master") == "50")
+    pg.evaluate("() => { const m = document.getElementById('master'); m.value = 80; m.dispatchEvent(new Event('input', {bubbles: true})); }"); check("and the Master volume slider moves the master fader", pg.input_value("#mfader") == "80")
+    # returns
+    pg.get_by_role("button", name="Edit reverb return").click(); check("the reverb return opens its own editor", "Reverb return" in pg.inner_text("#fxedit") and pg.locator("#fxedit input[type=range]").count() == 4)
+    pg.locator("#fxedit label.fxp", has_text="Size").locator("input").evaluate("(el) => { el.value = 3; el.dispatchEvent(new Event('input', {bubbles: true})); el.dispatchEvent(new Event('change', {bubbles: true})); }"); check("changing the return changes the project's reverb send settings", abs(st("__st.P.sends.rev.size") - 3) < 1e-6)
+    pg.get_by_role("button", name="Edit delay return").click(); sel = pg.locator("#fxedit label.fxp", has_text="Tempo sync").locator("select"); sel.select_option(label="1/8")
+    check("the delay return has a tempo sync choice", abs(st("__st.P.sends.dly.sync") - 0.5) < 1e-6)
+    pg.get_by_role("button", name="Reset settings").click(); check("Reset returns a return to its starting values", abs(st("__st.P.sends.dly.sync") - 0.75) < 1e-6)
+
+    # ---------- live playback ----------
+    st("() => { __st.setPlayhead(0); __st.startFrom(0); }"); pg.wait_for_timeout(700)
+    gi = st("() => ({ n: __st.graph.tracks[__st.P.tracks[0].id].fx.length, m: __st.graph.mfx.length })")
+    check("the live graph has the same effects as the project", gi["n"] == 2 and gi["m"] == 1, str(gi))
+    pg.locator(".strip").nth(0).get_by_role("button", name="Edit EQ on Keys 1").click()
+    pg.locator("#fxedit label.fxp", has_text="Low").locator("input").evaluate("(el) => { el.value = 9; el.dispatchEvent(new Event('input', {bubbles: true})); el.dispatchEvent(new Event('change', {bubbles: true})); }")
+    pg.locator(".strip").nth(0).locator(".fxs input[type=checkbox]").nth(0).uncheck(); pg.wait_for_timeout(500)
+    check("changing settings and bypassing while playing keeps playing and does not restart", st("__st.playing") and not errs, str(errs[:2]))
+    pg.wait_for_timeout(300); mm = pg.evaluate("() => [...document.querySelectorAll('.vmeter i')].map((i) => i.style.height)")
+    check("the channel meters move while playing", any(h not in ("0px", "0", "") for h in mm), str(mm))
+    st("() => __st.stop()"); pg.wait_for_timeout(200)
+    check("meters fall back to zero when stopped", all(h in ("0px", "0", "") for h in pg.evaluate("() => [...document.querySelectorAll('.vmeter i')].map((i) => i.style.height)")))
+    # ---------- save, reopen, backup, old projects ----------
+    snap = st("() => JSON.stringify({ f: __st.P.tracks.map((t) => t.fx), m: __st.P.mfx, s: __st.P.sends, r: __st.P.tracks.map((t) => [t.sendR, t.sendD]) })")
+    st("() => __st.saveNow()"); pid = st("__st.P.id"); st("() => __st.newProject()"); st("(id) => __st.openProject(id)", pid); pg.wait_for_timeout(300)
+    check("effects, sends and returns are saved with the project and come back after reopening", st("() => JSON.stringify({ f: __st.P.tracks.map((t) => t.fx), m: __st.P.mfx, s: __st.P.sends, r: __st.P.tracks.map((t) => [t.sendR, t.sendD]) })") == snap)
+    check("the mixer shows the reopened project", pg.locator(".strip").count() == 5 and pg.locator(".strip").nth(0).locator(".fxs").count() == 2)
+    bk = st("""async () => { const z = await GVStudioIO.exportZip(__st.P, __st.blobs); const r = await GVStudioIO.importZip(z); return JSON.stringify({ f: r.p.tracks.map((t) => t.fx), m: r.p.mfx, s: r.p.sends, r: r.p.tracks.map((t) => [t.sendR, t.sendD]) }); }""")
+    check("the backup ZIP carries the mixer settings", bk == snap)
+    st("""async () => { const P = __st.P; P.tracks.forEach((t) => { delete t.fx; delete t.sendR; delete t.sendD; }); delete P.mfx; delete P.sends; await __st.saveNow(); }"""); st("(id) => __st.openProject(id)", pid); pg.wait_for_timeout(300)
+    check("a project saved before the mixer existed opens with empty chains and default returns", st("__st.P.tracks.every((t) => Array.isArray(t.fx) && t.sendR === 0)") and st("Array.isArray(__st.P.mfx)") and st("!!__st.P.sends.rev && !!__st.P.sends.dly") and pg.locator(".strip").count() == 5)
+    r_old = R(); check("and it still renders", r_old["fin"] and r_old["peak"] > 0.05)
+    # ---------- export with effects ----------
+    import numpy as np, scipy.io.wavfile as sw
+    st("() => { __st.P.tracks[1].fx = [Object.assign(__st.Core.newFx('reverb'), {})]; __st.P.tracks[1].fx[0].p.mix = 0.5; __st.P.tracks[1].fx[0].p.size = 2.5; __st.afterStructure(); }")
+    base_len = st("() => __st.Core.projectEnd(__st.P)")
+    pg.select_option("#xfmt", "wav16")
+    with pg.expect_download(timeout=60000) as dl: pg.click("#xgo")
+    sr_, data = sw.read(dl.value.path()); dur = len(data) / sr_
+    tail = data[int((base_len + 0.3) * sr_):]
+    check("the exported WAV includes the reverb tail beyond the last clip", dur > base_len + 2 and np.abs(tail).max() > 3, f"{dur:.2f}s vs {base_len:.2f}s")
+    # ---------- phone width and accessibility ----------
+    ctx2, p2 = new_page(browser, errs, viewport={"width": 390, "height": 800}); p2.goto(base + "studio.html?gvtest"); p2.wait_for_function("() => window.__st && window.__mx", timeout=10000)
+    p2.evaluate("() => { for (const t of ['midi', 'drum', 'midi', 'drum']) __st.addTrack(t); }"); p2.locator(".strip").nth(0).locator("select.fxadd").select_option("reverb")
+    check("at phone width the page does not scroll sideways (the strips scroll inside the mixer)", p2.evaluate("() => document.documentElement.scrollWidth <= window.innerWidth + 1"), str(p2.evaluate("() => [document.documentElement.scrollWidth, window.innerWidth]")))
+    check("the strips row scrolls on its own", p2.evaluate("() => { const s = document.getElementById('strips'); return s.scrollWidth > s.clientWidth + 50; }"))
+    p2.click("#mixtoggle"); check("Hide folds the mixer away and Show brings it back", p2.locator("#mixbody").is_hidden() and p2.get_attribute("#mixtoggle", "aria-expanded") == "false")
+    p2.click("#mixtoggle"); check("the mixer is open again", p2.locator("#mixbody").is_visible())
+    ctx2.close()
+    axe = os.environ.get("AXE_PATH") or os.path.join(ROOT, "node_modules/axe-core/axe.min.js")
+    if os.path.exists(axe):
+        ctx3 = browser.new_context(bypass_csp=True, viewport={"width": 1400, "height": 1000}); p3 = ctx3.new_page(); p3.goto(base + "studio.html?gvtest"); p3.wait_for_function("() => window.__st && window.__mx", timeout=10000)
+        p3.evaluate("() => { __st.addTrack('midi'); __st.addTrack('drum'); }"); p3.locator(".strip").nth(0).locator("select.fxadd").select_option("delay"); p3.locator(".strip.master select.fxadd").select_option("eq"); p3.locator(".strip").nth(0).get_by_role("button", name="Edit Delay on Keys 1").click()
+        p3.add_script_tag(path=axe)
+        v = p3.evaluate("axe.run(document,{runOnly:['wcag2a','wcag2aa','wcag21a','wcag21aa','best-practice']}).then(r=>r.violations.map(v=>v.id+' x'+v.nodes.length+' '+v.nodes[0].target.join(' ')))")
+        check("studio with the mixer, effects and editor open: no axe violations", not v, str(v)); ctx3.close()
+    check("no page errors in the mixer", not errs, str(errs[:3]))
+    ctx.close()
 
 
 def test_master(browser, base):
@@ -1448,7 +1602,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_record, test_studio, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_create, test_dj, test_dj_extras, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_record, test_studio, test_mixer, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

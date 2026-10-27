@@ -41,9 +41,9 @@
   function markDirty() { dirty = true; $('saved').textContent = 'Unsaved changes'; clearTimeout(saveT); saveT = setTimeout(saveNow, 1200); }
   async function saveNow() { try { await IO.save(P, blobs); $('saved').textContent = 'Saved in this browser at ' + new Date().toLocaleTimeString(); } catch (e) { $('saved').textContent = 'Could not save: ' + (e && e.message || 'storage is full or blocked') + '. Use Download backup.'; } }
   function afterStructure() {
-    if (sel.clip && !clipOf(sel.clip)) sel.clip = null; if (sel.track && !trackOf(sel.track)) sel.track = null;
+    Core.ensureMix(P); if (sel.clip && !clipOf(sel.clip)) sel.clip = null; if (sel.track && !trackOf(sel.track)) sel.track = null;
     $('bpm').value = P.bpm; $('pname').value = P.name; $('master').value = Math.round(P.master * 100); $('lim').checked = P.limiter !== false; $('loop').setAttribute('aria-pressed', !!P.loop.on);
-    buildHeads(); refreshSelUI(); dirty = true; if (playing) scheduleRestart(); if (window.GVRoll) GVRoll.refresh();
+    buildHeads(); refreshSelUI(); dirty = true; if (playing) scheduleRestart(); if (window.GVRoll) GVRoll.refresh(); if (window.GVMixer) GVMixer.refresh();
   }
 
   /* ---------- tracks and clips ---------- */
@@ -90,14 +90,14 @@
       const name = mk('input', 'tname', { type: 'text', value: t.name }); name.setAttribute('aria-label', 'Track name'); name.onchange = () => edit('Rename track', () => { t.name = name.value.trim() || t.name; });
       const typ = mk('span', 'ttype', { textContent: t.type === 'audio' ? 'Audio' : t.type === 'midi' ? 'Keys' : 'Drums' });
       const m = mk('button', 'btn mini tbtn2', { textContent: 'M', title: 'Mute' }); m.setAttribute('aria-label', 'Mute ' + t.name); m.setAttribute('aria-pressed', t.mute);
-      m.onclick = () => { const b = snapshotJSON(); t.mute = !t.mute; applyAllMix(); changed('Mute', b); buildHeads(); };
+      m.onclick = () => { const b = snapshotJSON(); t.mute = !t.mute; applyAllMix(); changed('Mute', b); buildHeads(); if (window.GVMixer) GVMixer.syncTrack(t); };
       const s = mk('button', 'btn mini tbtn2', { textContent: 'S', title: 'Solo' }); s.setAttribute('aria-label', 'Solo ' + t.name); s.setAttribute('aria-pressed', t.solo);
-      s.onclick = () => { const b = snapshotJSON(); t.solo = !t.solo; applyAllMix(); changed('Solo', b); buildHeads(); };
+      s.onclick = () => { const b = snapshotJSON(); t.solo = !t.solo; applyAllMix(); changed('Solo', b); buildHeads(); if (window.GVMixer) GVMixer.syncTrack(t); };
       const x = mk('button', 'btn mini tbtn2', { textContent: '✕', title: 'Remove track' }); x.setAttribute('aria-label', 'Remove ' + t.name); x.onclick = () => removeTrack(t.id);
       const vol = mk('input', 'tvol', { type: 'range', min: 0, max: 150, value: Math.round(t.vol * 100) }); vol.setAttribute('aria-label', 'Volume of ' + t.name);
-      vol.oninput = () => { t.vol = vol.value / 100; applyAllMix(); }; vol.onchange = () => { markDirty(); }; vol.onpointerdown = () => { vol._b = snapshotJSON(); }; vol.onpointerup = () => { if (vol._b && vol._b !== snapshotJSON()) pushUndo(vol._b); };
+      vol.oninput = () => { t.vol = vol.value / 100; applyAllMix(); if (window.GVMixer) GVMixer.syncTrack(t); }; vol.onchange = () => { markDirty(); }; vol.onpointerdown = () => { vol._b = snapshotJSON(); }; vol.onpointerup = () => { if (vol._b && vol._b !== snapshotJSON()) pushUndo(vol._b); };
       const pan = mk('input', 'tpan', { type: 'range', min: -100, max: 100, value: Math.round(t.pan * 100) }); pan.setAttribute('aria-label', 'Pan of ' + t.name);
-      pan.oninput = () => { t.pan = pan.value / 100; applyAllMix(); }; pan.onchange = () => markDirty(); pan.ondblclick = () => { t.pan = 0; pan.value = 0; applyAllMix(); markDirty(); };
+      pan.oninput = () => { t.pan = pan.value / 100; applyAllMix(); if (window.GVMixer) GVMixer.syncTrack(t); }; pan.onchange = () => markDirty(); pan.ondblclick = () => { t.pan = 0; pan.value = 0; applyAllMix(); markDirty(); };
       pan.onpointerdown = () => { pan._b = snapshotJSON(); }; pan.onpointerup = () => { if (pan._b && pan._b !== snapshotJSON()) pushUndo(pan._b); };
       const lv = mk('div', 'tlvl'); const lb = mk('div', 'tlvlb'); lv.appendChild(lb); lv.dataset.lv = t.id;
       const top = mk('div', 'trow'); top.append(name, typ);
@@ -234,7 +234,7 @@
   /* ---------- transport and playback ---------- */
   function setPlayhead(t) { playhead = Math.max(0, t); if (playing) scheduleRestart(true); dirty = true; $('time').textContent = fmtT(playhead); ensureVisible(); }
   function ensureVisible() { const W = canvas.width / pps; if (playhead < scrollX || playhead > scrollX + W - 1) { scrollX = Math.max(0, playhead - W * 0.1); syncScroll(); } }
-  function stopSources() { live.forEach((s) => { try { s.onended = null; s.stop(); } catch (_) {} }); live = []; if (graph) { try { graph.out.disconnect(); graph.master.disconnect(); } catch (_) {} } graph = null; }
+  function stopSources() { live.forEach((s) => { try { s.onended = null; s.stop(); } catch (_) {} }); live = []; if (graph) { try { graph.dispose(); graph.out.disconnect(); graph.master.disconnect(); } catch (_) {} } graph = null; }
   function tracksTap() { P.tracks.forEach((t) => { const n = graph.tracks[t.id]; if (!n) return; const an = ctx.createAnalyser(); an.fftSize = 512; n.gain.connect(an); n.an = an; }); }
   function endOfSong() { return Core.projectEnd(P) + 0.05; }
   function startFrom(pos) {
@@ -243,7 +243,7 @@
     let from = pos; if (P.loop.on && P.loop.b > P.loop.a && from >= P.loop.b) from = P.loop.a;
     const to = P.loop.on && P.loop.b > P.loop.a ? P.loop.b : endOfSong();
     if (!(to > from)) { playing = false; return say('There is nothing to play after the playhead.'); }
-    segs = [{ when: ctx.currentTime + 0.08, from, to }]; Core.scheduleSegment(ctx, graph, P, buffers, segs[0], { live, metronome: $('metro').getAttribute('aria-pressed') === 'true' });
+    segs = [{ when: ctx.currentTime + Core.LEAD, from, to }]; Core.scheduleSegment(ctx, graph, P, buffers, segs[0], { live, metronome: $('metro').getAttribute('aria-pressed') === 'true' });
     playing = true; $('play').textContent = '❚❚ Pause'; $('play').setAttribute('aria-label', 'Pause');
     clearInterval(tick); tick = setInterval(pump, 40); pump();
   }
@@ -260,13 +260,13 @@
   function stop(atEnd) { clearInterval(tick); const pos = playing && ctx ? posNow() : playhead; stopSources(); playing = false; $('play').textContent = '▶ Play'; $('play').setAttribute('aria-label', 'Play'); if (atEnd) { playhead = P.loop.on ? P.loop.a : 0; ensureVisible(); } else if (pos != null) playhead = pos; $('time').textContent = fmtT(playhead); dirty = true; }
   function toggle() { if (playing) stop(); else startFrom(playhead); }
   function scheduleRestart() { clearTimeout(restartT); restartT = setTimeout(() => { if (playing) { const p = posNow(); startFrom(p == null ? playhead : p); } }, 120); }
-  function applyAllMix() { if (graph) P.tracks.forEach((t) => Core.applyMix(graph, P, t)); }
+  function applyAllMix() { if (graph) { P.tracks.forEach((t) => Core.applyMix(graph, P, t)); Core.applyMaster(graph, P); } }
   $('play').onclick = toggle; $('stop').onclick = () => { if (playing) stop(); playhead = 0; scrollX = 0; $('time').textContent = fmtT(0); syncScroll(); dirty = true; };
   $('rew').onclick = () => { setPlayhead(P.loop.on ? P.loop.a : 0); };
   $('loop').onclick = () => { const b = snapshotJSON(); P.loop.on = !P.loop.on; if (P.loop.on && !(P.loop.b > P.loop.a)) { P.loop.a = 0; P.loop.b = 4 * spb() * 2; } $('loop').setAttribute('aria-pressed', P.loop.on); changed('Loop', b); dirty = true; };
   $('metro').onclick = () => { $('metro').setAttribute('aria-pressed', $('metro').getAttribute('aria-pressed') !== 'true'); if (playing) scheduleRestart(); };
   $('bpm').onchange = () => { const v = Math.max(30, Math.min(300, +$('bpm').value || 120)); const b = snapshotJSON(); P.bpm = v; $('bpm').value = v; changed('Tempo', b); dirty = true; };
-  $('master').oninput = () => { P.master = $('master').value / 100; if (graph) graph.master.gain.value = P.master; }; $('master').onchange = () => markDirty();
+  $('master').oninput = () => { P.master = $('master').value / 100; if (graph) graph.master.gain.value = P.master; if (window.GVMixer) GVMixer.syncMaster(); }; $('master').onchange = () => markDirty();
   $('lim').onchange = () => { P.limiter = $('lim').checked; markDirty(); if (playing) scheduleRestart(); };
   $('pname').onchange = () => { P.name = $('pname').value.trim() || 'Untitled project'; markDirty(); };
   $('snap').onchange = () => { dirty = true; };
@@ -299,13 +299,14 @@
       mg.clearRect(0, 0, mcan.width, mcan.height); [hold[0], hold[1]].forEach((v, i) => { const db = v > 1e-5 ? 20 * Math.log10(v) : -90, w = Math.max(0, Math.min(1, (db + 60) / 60)) * mcan.width; mg.fillStyle = db > -1 ? '#f43f5e' : db > -9 ? '#fbbf24' : '#34d399'; mg.fillRect(0, i * 11 + 2, w, 8); });
       $('mdb').textContent = (Math.max(hold[0], hold[1]) > 1e-5 ? (20 * Math.log10(Math.max(hold[0], hold[1]))).toFixed(1) : '−∞') + ' dB peak';
       document.querySelectorAll('[data-lv]').forEach((el) => { const n = graph && graph.tracks[el.dataset.lv]; if (n && n.an) { const v = peakDb(n.an, lvl), db = v > 1e-5 ? 20 * Math.log10(v) : -90; el.firstChild.style.width = Math.max(0, Math.min(100, (db + 60) / 60 * 100)) + '%'; } });
-    } else if (!playing && hold[0] > 0) { hold = [0, 0]; mg.clearRect(0, 0, mcan.width, mcan.height); $('mdb').textContent = ''; document.querySelectorAll('[data-lv]').forEach((el) => { el.firstChild.style.width = '0'; }); }
+      if (window.GVMixer) GVMixer.tick(graph, (an) => peakDb(an, lvl), hold);
+    } else if (!playing && hold[0] > 0) { if (window.GVMixer) GVMixer.tick(null); hold = [0, 0]; mg.clearRect(0, 0, mcan.width, mcan.height); $('mdb').textContent = ''; document.querySelectorAll('[data-lv]').forEach((el) => { el.firstChild.style.width = '0'; }); }
     requestAnimationFrame(loop);
   }
 
   /* ---------- editors (piano roll and step grid live in studio-roll.js) ---------- */
   function openEditor(t, c) { sel = { track: t.id, clip: c.id }; buildHeads(); refreshSelUI(); if (window.GVRoll) GVRoll.open(t.id, c.id); }
-  const api = { get P() { return P; }, trackOf, clipOf, spb, edit, markDirty, changed, snapshotJSON, pushUndo, ensureCtx, bus: () => bus, say, afterStructure, get playhead() { return playhead; }, redraw: () => { dirty = true; } };
+  const api = { buildHeads: () => buildHeads(), get P() { return P; }, get graph() { return graph; }, get playing() { return playing; }, applyAllMix: () => { if (graph) { P.tracks.forEach((t) => Core.applyMix(graph, P, t)); Core.applyMaster(graph, P); } }, trackOf, clipOf, spb, edit, markDirty, changed, snapshotJSON, pushUndo, ensureCtx, bus: () => bus, say, afterStructure, get playhead() { return playhead; }, redraw: () => { dirty = true; } };
   window.GVStudio = api;
 
   /* ---------- projects, backup, export ---------- */

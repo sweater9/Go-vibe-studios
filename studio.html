@@ -78,6 +78,15 @@
 
   <div class="rollpane" id="rollpane"></div>
 
+  <section class="panel mixer" id="mixer" aria-labelledby="mixh">
+    <div class="mixhead"><h2 id="mixh">Mixer</h2><button class="btn mini" id="mixtoggle" type="button" aria-expanded="true" aria-controls="mixbody">Hide</button></div>
+    <div id="mixbody">
+      <p class="status">Each track has a channel with its own effects. Add EQ, a compressor, saturation, chorus, delay or reverb, and send sound to the shared reverb and delay. Everything you hear is what the exported file will sound like.</p>
+      <div class="strips" id="strips" role="group" aria-label="Channel strips"></div>
+      <div class="fxedit" id="fxedit"></div>
+    </div>
+  </section>
+
   <div class="srow">
     <div class="panel">
       <h2>Master</h2>
@@ -123,6 +132,7 @@
     <ul>
       <li>Drop audio files on the timeline or use Import audio. Drag clips to move them, drag the edges to trim, and drag the small squares at the top of a selected clip to add fades.</li>
       <li>Keys and drum tracks hold clips you write yourself. Double click an empty spot on one of those tracks to make a clip, then edit its notes or steps below the timeline.</li>
+      <li>Open the Mixer to add effects to a track: EQ, compressor, saturation, chorus, delay or reverb. Turn up Reverb or Delay on a channel to send it to the shared return, and use the checkbox beside an effect to switch it off and on while you listen. Exports include every effect.</li>
       <li>Space plays and pauses. S splits at the playhead. L turns the loop on. Shift and drag on the ruler to set the loop region.</li>
       <li>The project is saved in this browser. Download a backup if you want to keep it safe or move it to another computer.</li>
       <li>Time signature is 4/4. Recording a voice or instrument is on the <a href="record.html">recorder page</a>, which can send a take straight here.</li>
@@ -133,10 +143,12 @@
 <script src="js/store.js"></script>
 <script src="js/zip.js"></script>
 <script src="js/synth.js"></script>
+<script src="js/fx.js"></script>
 <script src="js/studio-core.js"></script>
 <script src="js/studio-io.js"></script>
 <script src="js/studio.js"></script>
 <script src="js/studio-roll.js"></script>
+<script src="js/studio-mixer.js"></script>
 <script src="js/pwa.js"></script>
 </body>
 </html>
