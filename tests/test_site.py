@@ -1478,7 +1478,7 @@ def test_sig_markers(browser, base):
     pg.keyboard.press(","); check("the comma key jumps back to the previous marker", abs(st("__st.playhead") - 0.8) < 1e-6)
     box = pg.locator("#tl").bounding_box(); x = box["x"] + st("__st.xOf(2.37)") + 4
     pg.mouse.click(x, box["y"] + 20); check("clicking a flag on the ruler moves the playhead exactly to the marker, ignoring snap", abs(st("__st.playhead") - 2.37) < 1e-6, str(st("__st.playhead")))
-    px = st("() => { const c = document.getElementById('tl'); return Array.from(c.getContext('2d').getImageData(Math.round(__st.xOf(2.37)) + 3, 15, 1, 1).data); }")
+    pg.wait_for_timeout(250); px = st("() => { const c = document.getElementById('tl'); return Array.from(c.getContext('2d').getImageData(Math.round(__st.xOf(2.37)) + 3, 15, 1, 1).data); }")
     check("the marker flag is drawn on the ruler (teal pill)", px[:3] == [14, 116, 144], str(px))
     n0 = st("__st.P.markers.length"); pg.click("#undo"); check("undo takes a marker away", st("__st.P.markers.length") == n0 - 1 or st("__st.P.markers[0].name") != "Verse", str(st("__st.P.markers")))
     pg.click("#redo"); check("redo brings it back", st("__st.P.markers.length") == n0)
