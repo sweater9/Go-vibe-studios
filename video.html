@@ -51,7 +51,7 @@
 
 <main id="main" tabindex="-1" class="wrap" style="max-width:1200px">
   <h1>Video <span class="grad">Editor</span></h1>
-  <p class="lead">Join and trim clips, change their speed, grade the colour, crop, rotate and flip, key out a green screen, stabilise shaky footage, cut out silent pauses, add titles, subtitles, pictures and stickers, record your screen, camera and voice, clean up noisy sound, draw on the picture, and lay music under it with automatic ducking. Everything runs on your device.</p>
+  <p class="lead">Three ways to work: <b>Auto</b> edits your footage for you, <b>Guided</b> lets you pick a template and the steps, and <b>Pro</b> is the full editor. Join and trim clips, change their speed, grade the colour, crop, rotate and flip, key out a green screen, stabilise shaky footage, cut out silent pauses, add titles, subtitles, pictures and stickers, record your screen, camera and voice, clean up noisy sound, draw on the picture, and lay music under it with automatic ducking. Everything runs on your device.</p>
 
   <div class="vgrid">
     <section>
@@ -94,6 +94,55 @@
     </section>
 
     <section>
+      <div role="tablist" aria-label="How do you want to work?" class="ttabs" style="margin-top:0">
+        <button role="tab" class="ttab" id="tab-a" aria-selected="true" aria-controls="pane-a">Auto</button>
+        <button role="tab" class="ttab" id="tab-g" aria-selected="false" aria-controls="pane-g" tabindex="-1">Guided</button>
+        <button role="tab" class="ttab" id="tab-p" aria-selected="false" aria-controls="pane-p" tabindex="-1">Pro</button>
+      </div>
+      <div id="hubfiles" class="panel" style="margin-top:0">
+        <h2>Your footage</h2>
+        <div class="row">
+          <button class="btn primary" id="hadd">+ Add videos</button>
+          <button class="btn" id="hmus">+ Add music (optional)</button>
+          <input type="file" id="hfile" accept="video/*" multiple hidden aria-label="Choose videos">
+          <input type="file" id="hmusic" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.flac,.caf,.aif,.aiff,.3gp,.amr,video/mp4" hidden aria-label="Choose a music file">
+        </div>
+        <p class="status" id="hsum" role="status">No videos yet. Add one or more, in the order you want them.</p>
+      </div>
+      <div role="tabpanel" id="pane-a" aria-labelledby="tab-a" class="panel">
+        <h2>Auto</h2>
+        <p class="status">Add your videos, then press the button. Auto looks at the footage, picks the shape of the video, cuts long pauses from talking, evens out the loudness, adds soft fades and joins the clips. You can change anything afterwards in the Guided or Pro tab.</p>
+        <div class="row"><button class="btn primary" id="hauto" disabled>Edit it for me</button></div>
+        <ul id="hauto-log" aria-label="What was done"></ul>
+      </div>
+      <div role="tabpanel" id="pane-g" aria-labelledby="tab-g" class="panel" hidden>
+        <h2>Guided</h2>
+        <label class="ctl" style="max-width:320px">Start from<select id="gtpl" class="sel">
+          <option value="social">Short vertical video (Reels, TikTok, Shorts)</option>
+          <option value="square">Square post</option>
+          <option value="youtube">YouTube video with a title</option>
+          <option value="music">Music video with a title</option>
+          <option value="talk">Talking head, tidy</option>
+          <option value="custom">My own choices</option></select></label>
+        <div class="mini" style="margin-top:10px">
+          <label class="ctl">Shape<select id="gaspect" class="sel"><option value="auto">Match my first video</option><option value="9:16">Vertical 9:16</option><option value="1:1">Square 1:1</option><option value="16:9">Landscape 16:9</option></select></label>
+          <label class="ctl">Joins<select id="gtrans" class="sel"><option value="cut">Straight cut</option><option value="fade">Crossfade</option><option value="dip">Dip to black</option><option value="wipe">Wipe</option><option value="slide">Slide</option></select></label>
+          <label class="ctl">Look<select id="ggrade" class="sel"><option value="normal">Natural</option><option value="warm">Warm</option><option value="cool">Cool</option><option value="vivid">Vivid</option><option value="vintage">Vintage</option><option value="bw">Black and white</option><option value="faded">Faded</option></select></label>
+          <label class="ctl">Size<select id="gres" class="sel"><option value="720">720p</option><option value="1080">1080p</option></select></label>
+        </div>
+        <div class="rstep"><label><input type="checkbox" id="gcut"> Cut long pauses from talking</label></div>
+        <div class="rstep"><label><input type="checkbox" id="gloud"> Even out the loudness of each clip</label></div>
+        <div class="rstep"><label><input type="checkbox" id="gfade"> Fade in at the start and out at the end</label></div>
+        <div class="rstep"><label><input type="checkbox" id="gmute"> Silence the video's own sound (use with music)</label></div>
+        <div class="mini" style="margin-top:6px">
+          <label class="ctl">Title (optional)<input type="text" id="gtitle" placeholder="Shown for the first 3 seconds"></label>
+          <label class="ctl">Title place<select id="gtpos" class="sel"><option value="top">Top</option><option value="middle" selected>Middle</option><option value="bottom">Bottom</option></select></label>
+          <label class="ctl">Music volume (%)<input type="number" id="gmvol" min="0" max="100" value="35"></label>
+        </div>
+        <div class="row" style="margin-top:10px"><button class="btn primary" id="hgo" disabled>Apply to my videos</button></div>
+        <ul id="hg-log" aria-label="What was done"></ul>
+      </div>
+      <div role="tabpanel" id="pane-p" aria-labelledby="tab-p" hidden>
       <div class="panel" style="margin-top:0">
         <h2>Clips</h2>
         <div class="row">
@@ -193,12 +242,14 @@
         <p class="status">Recording plays the video from the current position while you speak. Wear headphones so the video's sound does not leak into the microphone.</p>
         <p class="status">Music starts at the beginning of the video. Use music you made here or have the right to use.</p>
       </div>
+      </div>
     </section>
   </div>
 </main>
 <div id="vids" aria-hidden="true" style="position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none;overflow:hidden"></div>
 <footer>GoVibe Mix · all processing happens in your browser · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
 <script src="js/denoise.js"></script>
+<script src="js/tabs.js"></script>
 <script src="js/video.js"></script>
 <script src="js/pwa.js"></script>
 </body>

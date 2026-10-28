@@ -1796,7 +1796,7 @@ def test_video_basics(browser, base):
     print("video editor: volume, crop, rotate, flip, pictures, stickers, silence remover, camera, voiceover")
     errs = []
     ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 1000})
-    pg.goto(base + "video.html?gvtest"); pg.wait_for_function("() => window.__ve", timeout=10000)
+    pg.goto(base + "video.html?gvtest&tab=pro"); pg.wait_for_function("() => window.__ve", timeout=10000)
     ev = lambda js, *a: pg.evaluate(js, *a) if a else pg.evaluate(js)
     MK = """async ([kind, secs, gaps]) => { const c = document.createElement('canvas'); c.width = 320; c.height = 180; const g = c.getContext('2d');
       const ac = new AudioContext(), dest = ac.createMediaStreamDestination(), o = ac.createOscillator(), gn = ac.createGain(); o.connect(gn); gn.connect(dest); o.start();
@@ -1885,7 +1885,7 @@ def test_video_basics(browser, base):
     errs2 = []
     c2 = br.new_context(viewport={"width": 1300, "height": 1000}, permissions=["camera", "microphone"]); p2 = c2.new_page()
     p2.on("pageerror", lambda e: errs2.append(f"pageerror: {e}")); p2.on("console", lambda m: errs2.append(f"console: {m.text}") if m.type == "error" else None)
-    p2.goto(base + "video.html?gvtest"); p2.wait_for_function("() => window.__ve", timeout=10000)
+    p2.goto(base + "video.html?gvtest&tab=pro"); p2.wait_for_function("() => window.__ve", timeout=10000)
     p2.click("#camera"); p2.wait_for_timeout(300)
     check("camera recording shows a live preview and a stop button", not p2.locator("#campreview").get_attribute("class").count("hidden") and "Stop" in p2.inner_text("#camera"), p2.inner_text("#camera"))
     p2.wait_for_timeout(1800); p2.click("#camera"); p2.wait_for_function("() => __ve.clips.length === 1", timeout=15000)
@@ -1909,7 +1909,7 @@ def test_video_more(browser, base):
     print("video editor: clean the sound, drawing, GIF export, 4K")
     errs = []
     ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 1000})
-    pg.goto(base + "video.html?gvtest"); pg.wait_for_function("() => window.__ve", timeout=10000)
+    pg.goto(base + "video.html?gvtest&tab=pro"); pg.wait_for_function("() => window.__ve", timeout=10000)
     ev = lambda js, *a: pg.evaluate(js, *a) if a else pg.evaluate(js)
     MK = """async ([color, secs, noise]) => { const c = document.createElement('canvas'); c.width = 320; c.height = 180; const g = c.getContext('2d');
       const ac = new AudioContext(), dest = ac.createMediaStreamDestination(); let seed = 5; const n = ac.sampleRate * 3, b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0);
@@ -2090,7 +2090,7 @@ def test_video(browser, base):
     print("video editor")
     errs = []
     ctx, pg = new_page(browser, errs)
-    pg.goto(base + "video.html?gvtest")
+    pg.goto(base + "video.html?gvtest&tab=pro")
     mk = """async ([color, secs]) => { const c = document.createElement('canvas'); c.width = 320; c.height = 180; const g = c.getContext('2d');
       const ac = new AudioContext(), dest = ac.createMediaStreamDestination(), o = ac.createOscillator(); o.connect(dest); o.start();
       const s = c.captureStream(30); dest.stream.getAudioTracks().forEach((t) => s.addTrack(t));
@@ -2146,7 +2146,7 @@ def test_video(browser, base):
     pg.evaluate("__ve.pause()")
     axe = os.environ.get("AXE_PATH") or os.path.join(ROOT, "node_modules/axe-core/axe.min.js")
     if os.path.exists(axe):
-        ctxa = browser.new_context(bypass_csp=True); pa = ctxa.new_page(); pa.goto(base + "video.html?gvtest")
+        ctxa = browser.new_context(bypass_csp=True); pa = ctxa.new_page(); pa.goto(base + "video.html?gvtest&tab=pro")
         pa.evaluate(mk, ["#c0392b", 1.2]); pa.evaluate(mk, ["#2471a3", 1.2]); pa.add_script_tag(path=axe)
         va = pa.evaluate("axe.run(document,{runOnly:['wcag2a','wcag2aa','wcag21a','wcag21aa','best-practice']}).then(r=>r.violations.map(v=>v.id+' x'+v.nodes.length+' '+v.nodes[0].target.join(' ')))")
         check("video page with two clips and the new controls: no axe violations", not va, str(va)); ctxa.close()
@@ -2171,7 +2171,7 @@ def test_video_pro(browser, base):
     import tempfile, zlib, struct
     errs = []
     ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 1000}, accept_downloads=True)
-    pg.goto(base + "video.html?gvtest"); pg.wait_for_function("() => window.__ve", timeout=10000)
+    pg.goto(base + "video.html?gvtest&tab=pro"); pg.wait_for_function("() => window.__ve", timeout=10000)
     ev = lambda js, *a: pg.evaluate(js, *a) if a else pg.evaluate(js)
     mk = """async ([kind, secs]) => { const c = document.createElement('canvas'); c.width = 320; c.height = 180; const g = c.getContext('2d');
       const ac = new AudioContext(), dest = ac.createMediaStreamDestination(), o = ac.createOscillator(); o.connect(dest); o.start();
@@ -2343,7 +2343,7 @@ def test_video_pro(browser, base):
     check("the Real time method still works", rt and rt.startswith("video/"), str(rt))
     axe = os.environ.get("AXE_PATH") or os.path.join(ROOT, "node_modules/axe-core/axe.min.js")
     if os.path.exists(axe):
-        c3 = browser.new_context(bypass_csp=True, viewport={"width": 1300, "height": 1000}); p3 = c3.new_page(); p3.goto(base + "video.html?gvtest"); p3.wait_for_function("() => window.__ve", timeout=10000)
+        c3 = browser.new_context(bypass_csp=True, viewport={"width": 1300, "height": 1000}); p3 = c3.new_page(); p3.goto(base + "video.html?gvtest&tab=pro"); p3.wait_for_function("() => window.__ve", timeout=10000)
         p3.evaluate(mk, ["#c0392b", 1.5]); p3.evaluate("document.querySelectorAll('details.vfx').forEach((d) => (d.open = true))"); p3.add_script_tag(path=axe)
         v = p3.evaluate("axe.run(document,{runOnly:['wcag2a','wcag2aa','wcag21a','wcag21aa','best-practice']}).then(r=>r.violations.map(v=>v.id+' x'+v.nodes.length+' '+v.nodes[0].target.join(' ')))")
         check("video page with every clip control open: no axe violations", not v, str(v)); c3.close()
@@ -2993,6 +2993,51 @@ def test_offline(browser, base):
     ctx.close()
 
 
+def test_videohub(browser, base):
+    print("video hub: Auto, Guided and Pro tabs")
+    errs = []
+    ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 1000})
+    pg.goto(base + "video.html?gvtest"); pg.wait_for_function("() => window.__ve", timeout=10000)
+    ev = lambda js, *a: pg.evaluate(js, *a) if a else pg.evaluate(js)
+    check("video hub opens on Auto with three tabs", pg.locator('[role=tab]').count() == 3 and pg.locator("#tab-a").get_attribute("aria-selected") == "true" and pg.locator("#pane-a").is_visible() and not pg.locator("#pane-p").is_visible() and pg.locator("#hubfiles").is_visible())
+    check("Auto button waits for footage", pg.locator("#hauto").is_disabled() and pg.locator("#hgo").is_disabled())
+    MK = """async ([secs, gaps, portrait]) => { const c = document.createElement('canvas'); c.width = portrait ? 180 : 320; c.height = portrait ? 320 : 180; const g = c.getContext('2d');
+      const ac = new AudioContext(), dest = ac.createMediaStreamDestination(), o = ac.createOscillator(), gn = ac.createGain(); o.connect(gn); gn.connect(dest); o.start();
+      if (gaps) { gn.gain.value = 0; gaps.forEach(([a, b]) => { gn.gain.setValueAtTime(0.5, ac.currentTime + a); gn.gain.setValueAtTime(0, ac.currentTime + b); }); }
+      const s = c.captureStream(30); dest.stream.getAudioTracks().forEach((t) => s.addTrack(t));
+      const rec = new MediaRecorder(s, { mimeType: 'video/webm;codecs=vp8,opus' }), ch = []; rec.ondataavailable = (e) => ch.push(e.data);
+      const done = new Promise((r) => (rec.onstop = r)); rec.start(100); const t0 = performance.now();
+      await new Promise((res) => { (function f() { const t = (performance.now() - t0) / 1000; g.fillStyle = '#2060c0'; g.fillRect(0, 0, c.width, c.height);
+        if (t >= secs) res(); else requestAnimationFrame(f); })(); });
+      rec.stop(); await done; o.stop(); await __ve.addFile(new File([new Blob(ch, { type: 'video/webm' })], 'clip.webm')); __ve.hubSum(); }"""
+    ev(MK, [5.0, [[0.0, 1.0], [3.6, 4.8]], True]); ev("() => __ve.pause()")
+    check("adding a video enables the buttons", pg.locator("#hauto").is_enabled() and "1 video" in pg.inner_text("#hsum"))
+    pg.click("#hauto"); pg.wait_for_function("() => document.querySelectorAll('#hauto-log li').length > 2 && !document.getElementById('hauto').disabled", timeout=60000)
+    st = ev("() => ({a: document.getElementById('aspect').value, n: __ve.clips.length, fi: __ve.clips[0].fi, fo: __ve.clips[__ve.clips.length - 1].fo, tot: __ve.state.total})")
+    check("Auto picks the vertical shape for a portrait clip", st["a"] == "9:16")
+    check("Auto cuts the long pauses into parts", st["n"] >= 2 and st["tot"] < 4.6)
+    check("Auto adds fades at the ends", st["fi"] > 0 and st["fo"] > 0)
+    check("Auto reports what it did", "Video shape set" in pg.inner_text("#hauto-log"))
+    pg.click("#tab-g")
+    check("Guided tab shows its own controls", pg.locator("#pane-g").is_visible() and not pg.locator("#pane-a").is_visible() and pg.locator("#hubfiles").is_visible())
+    pg.select_option("#gtpl", "youtube")
+    check("choosing a template fills the choices", pg.input_value("#gaspect") == "16:9" and pg.input_value("#gtrans") == "dip" and not pg.locator("#gcut").is_checked())
+    pg.fill("#gtitle", "My trip"); pg.select_option("#ggrade", "warm")
+    check("changing a choice switches to my own choices", pg.input_value("#gtpl") == "custom")
+    pg.click("#hgo"); pg.wait_for_function("() => document.querySelectorAll('#hg-log li').length > 2 && !document.getElementById('hgo').disabled", timeout=60000)
+    st = ev("() => ({a: document.getElementById('aspect').value, t: __ve.texts.map((x) => x.text), tr: __ve.clips.map((c) => c.trans), g: __ve.clips[0].grade.s})")
+    check("Guided applies shape, title, joins and look", st["a"] == "16:9" and st["t"] == ["My trip"] and st["tr"][0] == "cut" and (len(st["tr"]) < 2 or st["tr"][1] == "dip") and st["g"] == 115)
+    pg.click("#tab-p")
+    check("Pro tab shows the full editor", pg.locator("#pane-p").is_visible() and pg.locator("#cliplist .clip").count() >= 1 and not pg.locator("#hubfiles").is_visible())
+    check("the export panel stays in every tab", pg.locator("#export").is_visible())
+    check("no page errors in the video hub", not errs)
+    ctx.close()
+    ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 1000})
+    pg.goto(base + "video.html?tab=pro")
+    check("?tab=pro opens the Pro tab", pg.locator("#pane-p").is_visible() and not pg.locator("#pane-a").is_visible())
+    ctx.close()
+
+
 def main():
     srv, base = start_server()
     test_static()
@@ -3000,7 +3045,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

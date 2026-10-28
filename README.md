@@ -17,7 +17,7 @@ Free browser tools for music lovers, content creators, DJs and music makers. No 
 
 ## Phase 4
 
-- **Video Editor** (`video.html`): add several clips, trim in/out points, reorder, add timed text overlays (position, size, colour), add one music track with volume and original-sound volume, pick 16:9, 9:16 or 1:1, preview, and export. No libraries.
+- **Video Editor** (`video.html`) with three tabs: Auto (analyses the footage and edits it), Guided (templates and checkboxes for shape, pauses, loudness, fades, joins, look, title and music) and Pro (the full editor, also at `video.html?tab=pro`): add several clips, trim in/out points, reorder, add timed text overlays (position, size, colour), add one music track with volume and original-sound volume, pick 16:9, 9:16 or 1:1, preview, and export. No libraries.
 - How export works: the preview is recorded in real time with the browser's MediaRecorder, so a 1-minute video takes about a minute and the tab must stay open. The file is MP4 (H.264/AAC) only if the browser can record it, otherwise WebM (VP9/Opus). WebM files from MediaRecorder carry no duration in their header, so some players cannot seek in them; the site's own editors handle this.
 - Not included: transitions, multiple tracks, filters, fades, music offset, MP4 conversion for browsers that only record WebM. The MP4 path was not tested here (the test browser has no H.264); the WebM path was tested end to end.
 

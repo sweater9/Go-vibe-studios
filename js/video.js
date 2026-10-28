@@ -795,8 +795,91 @@
   $('export').onclick = exportVideo;
   $('cancel').onclick = () => { exportCancelled = true; finish(); };
 
+
+  /* ---------- Auto and Guided: a kit that sets the editor up from a few choices ---------- */
+  const TPL = {
+    social: { aspect: '9:16', cut: true, loud: true, fade: true, trans: 'fade', grade: 'vivid', res: '1080', mute: false },
+    square: { aspect: '1:1', cut: false, loud: true, fade: true, trans: 'fade', grade: 'warm', res: '1080', mute: false },
+    youtube: { aspect: '16:9', cut: false, loud: true, fade: true, trans: 'dip', grade: 'normal', res: '1080', mute: false, title: true },
+    music: { aspect: '16:9', cut: false, loud: false, fade: true, trans: 'fade', grade: 'vintage', res: '1080', mute: true, title: true },
+    talk: { aspect: '16:9', cut: true, loud: true, fade: true, trans: 'cut', grade: 'normal', res: '1080', mute: false }
+  };
+  async function soundOf(c) {
+    try {
+      const ab = await ctx.decodeAudioData((await c.file.arrayBuffer()).slice(0)), sr = ab.sampleRate, a = Math.floor(c.in * sr), b = Math.min(ab.length, Math.ceil(c.out * sr)), d = ab.getChannelData(0);
+      let sum = 0, n = 0; for (let i = a; i < b; i += 4) { sum += d[i] * d[i]; n++; }
+      return n ? 10 * Math.log10(sum / n + 1e-12) : null;
+    } catch (_) { return null; }
+  }
+  function sizeOf() { const c = clips[0]; if (!c) return 'landscape'; const w = c.v.videoWidth, h = c.v.videoHeight; return h > w * 1.1 ? 'portrait' : w > h * 1.1 ? 'landscape' : 'square'; }
+  async function apply(cfg) {
+    const log = []; if (!clips.length) return log; pause();
+    let as = cfg.aspect; if (!as || as === 'auto') { const o = sizeOf(); as = o === 'portrait' ? '9:16' : o === 'square' ? '1:1' : '16:9'; }
+    aspect = as; $('aspect').value = as; log.push('Video shape set to ' + as + '.');
+    if (cfg.cut) {
+      const orig = clips.slice(); let removed = 0;
+      for (const oc of orig) {
+        const i = clips.indexOf(oc); if (i < 0) continue;
+        const r = await findSilence(oc, -42, 0.6);
+        if (r && r.pauses) { removed += r.removed; await cutSilence(i, r.keep); }
+      }
+      log.push(removed > 0 ? 'Cut ' + removed.toFixed(1) + ' seconds of silent pauses.' : 'No long pauses to cut.');
+    }
+    if (cfg.loud) {
+      let n = 0; const levels = [];
+      for (const c of clips) { const db = await soundOf(c); levels.push(db); }
+      const have = levels.filter((x) => x != null && x > -70); const target = -20;
+      clips.forEach((c, k) => { const db = levels[k]; if (db == null || db <= -70) return; c.vol = clamp(Math.pow(10, (target - db) / 20), 0.3, 2); applyVol(c); n++; });
+      log.push(n ? 'Evened out the loudness of ' + n + ' clip' + (n === 1 ? '' : 's') + '.' : 'No sound found to even out.');
+    }
+    if (cfg.mute) { clips.forEach((c) => { c.mute = true; applyVol(c); }); log.push('Video sound switched off.'); }
+    clips.forEach((c, k) => { c.fi = 0; c.fo = 0; c.trans = 'cut'; c.grade = { ...(GRADES[cfg.grade] || GRADES.normal) }; if (k > 0 && cfg.trans && cfg.trans !== 'cut') { c.trans = cfg.trans; c.tdur = Math.min(0.6, Math.max(0.2, len(c) / 3)); } });
+    if (cfg.grade && cfg.grade !== 'normal') log.push('Look: ' + cfg.grade + '.');
+    if (clips.length > 1 && cfg.trans && cfg.trans !== 'cut') log.push('Joined the clips with a ' + (cfg.trans === 'fade' ? 'crossfade' : cfg.trans === 'dip' ? 'dip to black' : cfg.trans) + '.');
+    if (cfg.fade) {
+      const f = clips[0], l = clips[clips.length - 1]; f.fi = Math.min(0.5, len(f) / 4); l.fo = Math.min(0.7, len(l) / 4); log.push('Fade in at the start and out at the end.');
+    }
+    if (cfg.title && cfg.title.text) {
+      texts.length = 0; texts.push({ text: cfg.title.text, start: 0, end: Math.min(3, Math.max(1, total() - 0.2)), pos: cfg.title.pos || 'middle', size: as === '16:9' ? 72 : 64, color: '#ffffff', font: 'sans', style: 'outline', anim: 'fade', alen: 0.5 });
+      log.push('Added the title "' + cfg.title.text + '".');
+    }
+    if (music) {
+      musicGain.gain.value = clamp(cfg.mvol == null ? 0.3 : cfg.mvol, 0, 1); $('mvol').value = Math.round(musicGain.gain.value * 100);
+      duck.on = !cfg.mute; $('duck').checked = duck.on; log.push(duck.on ? 'Music added, and it dips under speech.' : 'Music added.');
+    }
+    if (cfg.res) { $('xres').value = cfg.res; }
+    refresh(); seek(0); log.push('Total length ' + fmt(total()) + '. Press Export when you are happy.');
+    return log;
+  }
+  const auto = () => { const o = sizeOf(); return apply({ aspect: 'auto', cut: true, loud: true, fade: true, trans: clips.length > 1 ? 'fade' : 'cut', grade: 'normal', mute: false, mvol: 0.3, res: o === 'portrait' ? '1080' : '720' }); };
+  function hubSum() {
+    const n = clips.length, t = total();
+    $('hsum').textContent = n ? n + ' video' + (n === 1 ? '' : 's') + ', ' + fmt(t) + (music ? ', with music.' : '.') : 'No videos yet. Add one or more, in the order you want them.';
+    $('hauto').disabled = $('hgo').disabled = !n;
+  }
+  const fill = (ul, log) => { ul.replaceChildren(...log.map((t) => { const li = document.createElement('li'); li.textContent = t; return li; })); };
+  $('hadd').onclick = () => $('hfile').click();
+  $('hfile').onchange = async () => { for (const f of [...$('hfile').files]) await addFile(f); $('hfile').value = ''; hubSum(); };
+  $('hmus').onclick = () => $('hmusic').click();
+  $('hmusic').onchange = async () => { const f = $('hmusic').files[0]; $('hmusic').value = ''; if (f) { await loadMusic(f); hubSum(); } };
+  $('hauto').onclick = async () => { $('hauto').disabled = true; say('Working on it...'); try { const l = await auto(); fill($('hauto-log'), l); say('Done. Check the preview, then export.'); } finally { hubSum(); } };
+  const gcfg = () => ({ aspect: $('gaspect').value, cut: $('gcut').checked, loud: $('gloud').checked, fade: $('gfade').checked, mute: $('gmute').checked, trans: $('gtrans').value, grade: $('ggrade').value, res: $('gres').value, mvol: (+$('gmvol').value || 0) / 100, title: $('gtitle').value.trim() ? { text: $('gtitle').value.trim(), pos: $('gtpos').value } : null });
+  function setG(t) {
+    const x = TPL[t]; if (!x) return;
+    $('gaspect').value = x.aspect; $('gcut').checked = x.cut; $('gloud').checked = x.loud; $('gfade').checked = x.fade; $('gmute').checked = x.mute; $('gtrans').value = x.trans; $('ggrade').value = x.grade; $('gres').value = x.res;
+  }
+  $('gtpl').onchange = () => setG($('gtpl').value);
+  ['gaspect', 'gcut', 'gloud', 'gfade', 'gmute', 'gtrans', 'ggrade', 'gres'].forEach((id) => $(id).addEventListener('change', () => { $('gtpl').value = 'custom'; }));
+  $('hgo').onclick = async () => { $('hgo').disabled = true; say('Working on it...'); try { const l = await apply(gcfg()); fill($('hg-log'), l); say('Done. Check the preview, then export.'); } finally { hubSum(); } };
+  setG('social');
+  const showFiles = () => { const pro = $('tab-p').getAttribute('aria-selected') === 'true'; $('hubfiles').hidden = pro; };
+  ['tab-a', 'tab-g', 'tab-p'].forEach((id) => $(id).addEventListener('click', showFiles));
+  $('tab-p').addEventListener('keydown', showFiles); $('tab-a').addEventListener('keydown', showFiles); $('tab-g').addEventListener('keydown', showFiles);
+  window.GVVideoKit = { apply, auto, templates: TPL, refreshSummary: hubSum };
+  if (/[?&]tab=pro\b/.test(location.search)) $('tab-p').click();
+
   if (/[?&]gvtest\b/.test(location.search)) window.__ve = {
-    addFile, loadMusic, exportVideo, seek, play, pause, ctx, estimateShift, smoothPath, parseSubs, importSubs, exportSrt, keyPixels, stabilise, lenOf, srcAt, tAt, hasFilter,
+    addFile, loadMusic, exportVideo, seek, hubSum, play, pause, ctx, estimateShift, smoothPath, parseSubs, importSubs, exportSrt, keyPixels, stabilise, lenOf, srcAt, tAt, hasFilter,
     get clips() { return clips; }, get texts() { return texts; }, get duckGain() { return musicDuck.gain.value; }, get screen() { return !!scr; }, get overlays() { return overlays; }, get drawings() { return drawings; }, get active() { return active; }, get voices() { return voices; }, addOverlay, findSilence, cutSilence, recordVoice, draw,
     get state() { return { clips: clips.map((c) => ({ vol: c.vol, mute: c.mute, xf: c.xf, dur: c.dur, in: c.in, out: c.out, fi: c.fi, fo: c.fo, trans: c.trans, speed: c.speed, speed2: c.speed2 })), texts: texts.length, tl, total: total(), playing }; }
   };
