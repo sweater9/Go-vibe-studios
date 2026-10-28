@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -1767,7 +1767,7 @@ def test_home(browser, base):
     errs = []
     ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 900})
     pg.goto(base + "index.html?gvtest"); pg.wait_for_function("() => window.__home")
-    check("home lists every tool with a link", pg.locator("a.card").count() == 15 and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "metronome.html", "looper.html", "chords.html", "editor.html", "video.html", "master.html", "convert.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
+    check("home lists every tool with a link", pg.locator("a.card").count() == 16 and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "visualizer.html", "metronome.html", "looper.html", "chords.html", "editor.html", "video.html", "master.html", "convert.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
     check("four groups with headings", pg.locator(".grp h2").count() == 4 and pg.inner_text(".grp h2 >> nth=0") == "Make")
     check("the web font loads from this site", pg.evaluate("document.fonts.check('16px \"Bricolage Grotesque\"')"))
     check("beat strip has 4 rows of 16 steps and starts with a boom bap pattern", pg.locator(".st").count() == 64 and pg.locator('.st[aria-pressed="true"]').count() == 3 + 2 + 8)
@@ -2391,6 +2391,34 @@ def test_spectrogram(browser, base):
     ctx.close()
 
 
+# ---------------------------------------------------------------- visualizer
+def test_visualizer(browser, base):
+    print("music visualizer")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "visualizer.html?gvtest")
+    check("the controls are hidden until a file is chosen", not pg.is_visible("#viz") and pg.is_visible("#drop"))
+    pg.evaluate("""() => { const c = __viz.ctxA, sr = 22050, b = c.createBuffer(2, sr * 4, sr); for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < d.length; i++) d[i] = 0.5 * Math.sin(2 * Math.PI * 1000 * i / sr) * (i < sr * 2 ? 1 : 0.05); } __viz.setBuffer(b, 'my_song.wav'); }""")
+    check("the controls appear and the title is filled from the file name", pg.is_visible("#viz") and pg.input_value("#vtitle") == "my song")
+    a = pg.evaluate("(() => { const r = __viz.analyse(0.5, 64); return Array.from(r.bars); })()")
+    peak = max(range(len(a)), key=lambda i: a[i])
+    check("a 1 kHz tone lights the bars near 1 kHz", 0.2 < peak / 64 < 0.7 and a[peak] > 0.5 and a[0] < 0.2, str(peak))
+    q = pg.evaluate("(() => { let r; for (let i = 0; i < 40; i++) r = __viz.analyse(3.0, 64); return Array.from(r.bars).reduce((x, y) => Math.max(x, y), 0); })()")
+    check("the bars fall when the sound gets quiet", q < a[peak] - 0.1, str(q))
+    for st in ["bars", "mirror", "circle", "wave"]:
+        pg.select_option("#vstyle", st)
+        n = pg.evaluate("() => { __viz.draw(0.5); const d = __viz.cv.getContext('2d').getImageData(0, 0, __viz.cv.width, __viz.cv.height).data; let c = 0; for (let i = 0; i < d.length; i += 4 * 97) if (d[i] > 90 || d[i + 2] > 120) c++; return c; }")
+        check("the " + st + " style draws something", n > 20, str(n))
+    pg.select_option("#xasp", "9:16"); pg.wait_for_timeout(100)
+    check("the preview follows the shape", pg.evaluate("__viz.cv.height > __viz.cv.width"))
+    pg.select_option("#xasp", "16:9"); pg.select_option("#xres", "480"); pg.select_option("#xfps", "24"); pg.fill("#xlen", "2")
+    r = pg.evaluate("async () => { const x = await __viz.exportVideo(); return x ? { kind: x.kind, size: x.blob.size, W: x.W, H: x.H } : null; }")
+    check("export makes a video file", r and r["kind"] in ("mp4", "webm") and r["size"] > 3000 and r["H"] == 480, str(r))
+    check("a download link and a player appear", pg.is_visible("#xdl") and pg.is_visible("#xout") and "GoVibe visualizer" in (pg.get_attribute("#xdl", "download") or ""))
+    check("no errors", not errs, str(errs))
+    ctx.close()
+
+
 # ---------------------------------------------------------------- metronome
 def test_metronome(browser, base):
     print("metronome")
@@ -2702,7 +2730,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

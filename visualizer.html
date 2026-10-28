@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Music visualizer — GoVibe Mix</title>
+<meta name="description" content="Turn a song into a music video. Reactive bars, circle or waveform, your cover art and title, exported as MP4 in your browser. No upload, no account.">
+<link rel="canonical" href="https://govibemix.com/visualizer.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Music visualizer — GoVibe Mix">
+<meta property="og:description" content="Turn a song into a music video. Reactive bars, circle or waveform, your cover art and title, exported as MP4 in your browser. No upload, no account.">
+<meta property="og:url" content="https://govibemix.com/visualizer.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="studio.html">Studio</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+  <a class="link" href="index.html#tools">All tools</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>Music visualizer</h1>
+  <p class="lead">Drop in a song and get a video that moves with it. Choose the look, add a cover and a title, then save an MP4 for YouTube, Instagram or TikTok. It is made on your device and nothing is uploaded.</p>
+
+  <div class="drop" id="drop" role="button" tabindex="0"><strong>Drop an audio file here</strong> or press to choose one<p class="status" id="dropmsg">MP3, WAV, OGG or M4A.</p></div>
+  <input type="file" id="file" accept="audio/*" hidden>
+
+  <div id="viz" class="hidden">
+    <div class="panel" style="text-align:center">
+      <canvas id="cv" width="960" height="540" style="max-width:100%;max-height:70vh;border-radius:12px;background:#0b0b14" role="img" aria-label="Visualizer preview"></canvas>
+      <div class="row" style="justify-content:center;margin-top:10px;align-items:center">
+        <button class="btn primary" id="play">▶ Play</button>
+        <input type="range" id="seek" min="0" max="1000" value="0" aria-label="Position" style="flex:1;min-width:140px">
+        <span id="time" aria-live="off">0:00 / 0:00</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Look</h2>
+      <div class="row" style="align-items:flex-end">
+        <label class="ctl">Style<select id="vstyle"><option value="bars">Bars</option><option value="mirror">Mirror bars</option><option value="circle">Circle</option><option value="wave">Waveform</option></select></label>
+        <label class="ctl">Colours<select id="vpal"><option value="violet">Violet and cyan</option><option value="sunset">Sunset</option><option value="neon">Neon</option><option value="ice">Ice</option><option value="fire">Fire</option><option value="mono">Mono</option><option value="custom">Custom</option></select></label>
+        <label class="ctl">First colour<input type="color" id="vc1" value="#8b5cf6"></label>
+        <label class="ctl">Second colour<input type="color" id="vc2" value="#22d3ee"></label>
+        <label class="ctl">Background<select id="vbg"><option value="gradient">Gradient</option><option value="solid">Solid</option><option value="image">Cover image</option></select></label>
+        <label class="ctl">Cover image<input type="file" id="vimg" accept="image/*"></label>
+      </div>
+      <div class="row" style="align-items:flex-end;margin-top:10px">
+        <label class="ctl">Image darkness<input type="range" id="vdark" min="0" max="90" value="45"></label>
+        <label class="ctl">Reaction<input type="range" id="vsens" min="40" max="200" value="110"></label>
+        <label class="ctl">Bars<select id="vbars"><option value="24">24</option><option value="48">48</option><option value="64">64</option><option value="96">96</option></select></label>
+        <label class="ctl"><span><input type="checkbox" id="vpulse" checked> Pulse with the bass</span></label>
+        <label class="ctl"><span><input type="checkbox" id="vprog" checked> Progress bar</span></label>
+      </div>
+      <div class="row" style="align-items:flex-end;margin-top:10px">
+        <label class="ctl">Title<input type="text" id="vtitle" maxlength="80"></label>
+        <label class="ctl">Subtitle<input type="text" id="vsub" maxlength="80"></label>
+        <label class="ctl">Text position<select id="vtpos"><option value="bottom">Bottom</option><option value="center">Middle</option><option value="top">Top</option></select></label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Make the video</h2>
+      <div class="row" style="align-items:flex-end">
+        <label class="ctl">Shape<select id="xasp"><option value="16:9">Wide 16:9</option><option value="9:16">Tall 9:16</option><option value="1:1">Square 1:1</option></select></label>
+        <label class="ctl">Quality<select id="xres"><option value="720">720p</option><option value="1080">1080p</option><option value="480">480p</option></select></label>
+        <label class="ctl">Frames per second<select id="xfps"><option value="30">30</option><option value="60">60</option><option value="24">24</option></select></label>
+        <label class="ctl">Format<select id="xfmt"><option value="mp4">MP4</option><option value="webm">WebM</option></select></label>
+        <label class="ctl">Start (seconds)<input type="number" id="xstart" min="0" value="0"></label>
+        <label class="ctl">Length (seconds, up to 600)<input type="number" id="xlen" min="1" max="600" value="60"></label>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn primary" id="xgo">Make video</button>
+        <button class="btn hidden" id="xcancel">Cancel</button>
+      </div>
+      <progress id="xprog" class="hidden" max="100" value="0" aria-label="Export progress" style="width:100%;margin-top:10px"></progress>
+      <p class="status" id="xstatus" role="status"></p>
+      <video id="xout" class="hidden" controls style="max-width:100%;max-height:60vh;margin-top:10px;border-radius:12px"></video>
+      <p><a class="btn hidden" id="xdl" href="#">Download</a></p>
+      <p class="status">Fast export needs a current Chrome, Edge or Safari. Other browsers record in real time instead, so keep the tab open.</p>
+    </div>
+  </div>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/spectrum.js"></script>
+<script src="js/visualizer.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>
