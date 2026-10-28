@@ -5,7 +5,7 @@
   const chansOf = (b) => [...Array(b.numberOfChannels)].map((_, i) => b.getChannelData(i));
   const finish = async (chs, rate, suffix) => { const f = $('ofmt').value, blob = await Q.encode(chs, rate, f, 192, (p) => say('Encoding MP3… ' + Math.round(p * 100) + '%')); Q.save(blob, name + suffix + '.' + f); return blob; };
   async function open(f) {
-    try { say('Reading ' + f.name + '…'); buf = await Q.decode(f); } catch (_) { return say(tool === 'video' ? 'Could not read the sound of that file. Try an MP4, MOV, WebM or MKV that your browser can play.' : 'Could not read that file. Try an MP3, WAV, OGG or M4A.'); }
+    try { say('Reading ' + f.name + '…'); buf = await Q.decode(f); } catch (e) { return say((tool === 'video' ? 'Could not read the sound of that file: ' : 'Could not read that file: ') + ((e && e.message) || 'unknown error')); }
     name = Q.clean(f.name); $('main2').classList.remove('hidden'); $('drop').classList.add('hidden'); say(name + ' · ' + Q.fmt(buf.duration) + ', ' + buf.numberOfChannels + ' channel' + (buf.numberOfChannels > 1 ? 's' : '') + '.'); if (api.onOpen) api.onOpen();
   }
   const api = {};

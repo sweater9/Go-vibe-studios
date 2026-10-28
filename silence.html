@@ -36,7 +36,7 @@
   <p class="lead">Cut the quiet gaps out of a recording, a voice note, a podcast or a lecture. You choose how quiet counts as silence and how long a gap has to be. Nothing is uploaded.</p>
   <div class="panel">
     <div class="drop" id="drop" data-input="file" role="button" tabindex="0"><strong>Drop a file here</strong> or press to choose one<p class="status">MP3, WAV, OGG, M4A and more.</p></div>
-    <input type="file" id="file" accept="audio/*" hidden aria-label="File to open">
+    <input type="file" id="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.flac,.caf,.aif,.aiff,.3gp,.amr,video/mp4" hidden aria-label="File to open">
     <div id="main2" class="hidden">
       <div class="row" style="align-items:flex-end"><label class="ctl" style="flex:1;min-width:150px">Silence below <output id="vthr"></output><input type="range" id="sthr" min="-70" max="-20" step="1" value="-45"></label><label class="ctl" style="flex:1;min-width:150px">Gaps longer than <output id="vmin"></output><input type="range" id="smin" min="0.1" max="3" step="0.05" value="0.4"></label><label class="ctl" style="flex:1;min-width:150px">Keep around speech <output id="vpad"></output><input type="range" id="spad" min="0" max="0.5" step="0.05" value="0.1"></label></div>
       <p class="status" id="sinfo"></p>

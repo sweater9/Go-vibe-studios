@@ -11,7 +11,7 @@
   }
   const readout = () => { const p = P(); $('vr').textContent = Math.round(p.rate * 100) + '%' + (p.rate < 1 ? ' (slower, lower)' : p.rate > 1 ? ' (faster, higher)' : ''); $('vw').textContent = Math.round(p.wet * 100) + '%'; $('vo').textContent = p.room + ' s'; $('vbs').textContent = (p.bass > 0 ? '+' : '') + p.bass + ' dB'; };
   async function open(f) {
-    try { say('Reading ' + f.name + '…'); stop(); buf = await Q.decode(f); } catch (_) { return say('Could not read that file. Try an MP3, WAV, OGG or M4A.'); }
+    try { say('Reading ' + f.name + '…'); stop(); buf = await Q.decode(f); } catch (e) { return say('Could not read that file: ' + ((e && e.message) || 'unknown error')); }
     name = Q.clean(f.name); off = 0; $('smain').classList.remove('hidden'); $('sdrop').classList.add('hidden'); readout(); say(name + ' · ' + Q.fmt(buf.duration) + '.');
   }
   Q.hook($('sdrop'), open);

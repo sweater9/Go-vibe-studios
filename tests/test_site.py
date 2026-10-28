@@ -2593,6 +2593,11 @@ def test_audio(browser, base):
     open_ = "async (w) => { const f = eval(w); await __aud.open(new File([f(%s)], '%s')); await new Promise((r) => setTimeout(r, 400)); }"
     pg.goto(base + "audio.html?gvtest")
     check("the tabs are hidden until a file is chosen", not pg.is_visible("#rmain") and pg.is_visible("#rdrop"))
+    pg.set_input_files("#rfile", {"name": "broken.m4a", "mimeType": "audio/x-m4a", "buffer": b"not really audio at all"}); pg.wait_for_timeout(800)
+    check("an unreadable file explains why, with its type", "Could not read that file" in pg.inner_text("#status") and ".m4a" in pg.inner_text("#status"), pg.inner_text("#status"))
+    pg.set_input_files("#rfile", os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "tone.m4a")); pg.wait_for_selector("#rmain:not(.hidden)", timeout=10000); pg.wait_for_timeout(600)
+    check("an M4A file opens and Auto listens to it", "Loudness" in pg.inner_text("#afind") and "tone" in pg.inner_text("#fname"), pg.inner_text("#fname"))
+    pg.click("#again")
     pg.evaluate("async (w) => { const f = eval(w); await __aud.open(new File([f([[10, 0.05, 440]], 2)], 'quiet music.wav')); await new Promise((r) => setTimeout(r, 400)); }", wavjs)
     check("Auto is the selected tab and shows what it heard", pg.get_attribute("#tab-a", "aria-selected") == "true" and "Loudness" in pg.inner_text("#afind") and "LUFS" in pg.inner_text("#afind"), pg.inner_text("#afind")[:100])
     check("a quiet piece of music is planned for the streaming level", "-14 LUFS" in pg.inner_text("#aplan") and "Remove" not in pg.inner_text("#aplan"), pg.inner_text("#aplan"))

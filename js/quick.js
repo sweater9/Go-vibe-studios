@@ -1,7 +1,10 @@
 /* GoVibe Mix — shared helpers for the quick audio tools (cutter, booster): decode a file, draw its waveform, encode WAV or MP3, save. Everything stays on this device. */
 window.GVQuick = (() => {
   let ctx = null; const AC = () => (ctx = ctx || new (window.AudioContext || window.webkitAudioContext)());
-  const decode = async (file) => AC().decodeAudioData(await file.arrayBuffer());
+  const decode = async (file) => {
+    let data; try { data = await file.arrayBuffer(); } catch (e) { throw new Error('the browser could not open the file (' + ((e && e.name) || 'error') + '). If it is in cloud storage, download it to the device first.'); }
+    try { return await AC().decodeAudioData(data); } catch (e) { const t = file.type || 'unknown type', ext = (file.name.match(/\.([a-z0-9]+)$/i) || [, ''])[1].toLowerCase(); throw new Error('this browser could not decode ' + (ext ? '.' + ext : 'it') + ' (' + t + ', ' + (file.size / 1048576).toFixed(1) + ' MB). ' + ((e && e.message) || '')); }
+  };
   const fmt = (s) => { s = Math.max(0, s); const m = Math.floor(s / 60); return m + ':' + (s - m * 60).toFixed(2).padStart(5, '0'); };
   const clean = (n) => String(n || 'audio').replace(/\.[a-z0-9]{2,4}$/i, '');
   const peaks = (buf, n) => { const out = new Float32Array(n), ch = [...Array(buf.numberOfChannels)].map((_, c) => buf.getChannelData(c)), step = buf.length / n; for (let i = 0; i < n; i++) { let m = 0; const a = Math.floor(i * step), b = Math.max(a + 1, Math.floor((i + 1) * step)), k = Math.max(1, Math.floor((b - a) / 64)); for (const d of ch) for (let j = a; j < b; j += k) { const v = Math.abs(d[j]); if (v > m) m = v; } out[i] = m; } return out; };

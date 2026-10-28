@@ -7,7 +7,7 @@
   function setSel(a, b) { $('cs').value = a.toFixed(2); $('ce').value = b.toFixed(2); $('csr').value = a; $('cer').value = b; info(); }
   const info = () => { const [a, b] = sel(); $('cinfo').textContent = 'Selected ' + Q.fmt(a) + ' to ' + Q.fmt(b) + ' · ' + (b - a).toFixed(2) + ' s of ' + buf.duration.toFixed(2) + ' s'; paint(); };
   async function open(f) {
-    try { say('Reading ' + f.name + '…'); stop(); buf = await Q.decode(f); } catch (_) { return say('Could not read that file. Try an MP3, WAV, OGG or M4A.'); }
+    try { say('Reading ' + f.name + '…'); stop(); buf = await Q.decode(f); } catch (e) { return say('Could not read that file: ' + ((e && e.message) || 'unknown error')); }
     name = Q.clean(f.name); pk = Q.peaks(buf, 1200); $('cut').classList.remove('hidden'); $('cdrop').classList.add('hidden');
     ['cs', 'ce', 'csr', 'cer'].forEach((i) => { $(i).max = buf.duration; $(i).step = 0.01; }); setSel(0, buf.duration); say(name + ' · ' + Q.fmt(buf.duration) + ', ' + buf.numberOfChannels + ' channel' + (buf.numberOfChannels > 1 ? 's' : '') + ', ' + buf.sampleRate + ' Hz.');
   }

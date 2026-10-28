@@ -14,7 +14,7 @@
   const db = (x) => (x > 1e-6 ? 20 * Math.log10(x) : -120);
   const peakOf = (b) => { let m = 0; for (let c = 0; c < b.numberOfChannels; c++) { const d = b.getChannelData(c); for (let i = 0; i < d.length; i++) { const v = Math.abs(d[i]); if (v > m) m = v; } } return m; };
   async function open(f) {
-    try { say('Reading ' + f.name + '…'); stop(); buf = await Q.decode(f); } catch (_) { return say('Could not read that file. Try an MP3, WAV, OGG or M4A.'); }
+    try { say('Reading ' + f.name + '…'); stop(); buf = await Q.decode(f); } catch (e) { return say('Could not read that file: ' + ((e && e.message) || 'unknown error')); }
     name = Q.clean(f.name); peakIn = peakOf(buf); $('bmain').classList.remove('hidden'); $('bdrop').classList.add('hidden'); readout(); say(name + ' · ' + Q.fmt(buf.duration) + '. Loudest peak ' + db(peakIn).toFixed(1) + ' dBFS.');
   }
   Q.hook($('bdrop'), open);

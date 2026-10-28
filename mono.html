@@ -36,7 +36,7 @@
   <p class="lead">Turn a stereo file into mono, keep only the left or right side, swap the channels, or check what is in the middle. Nothing is uploaded.</p>
   <div class="panel">
     <div class="drop" id="drop" data-input="file" role="button" tabindex="0"><strong>Drop a file here</strong> or press to choose one<p class="status">MP3, WAV, OGG, M4A and more.</p></div>
-    <input type="file" id="file" accept="audio/*" hidden aria-label="File to open">
+    <input type="file" id="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.flac,.caf,.aif,.aiff,.3gp,.amr,video/mp4" hidden aria-label="File to open">
     <div id="main2" class="hidden">
       <p class="status" id="minfo"></p>
       <div class="row" style="align-items:flex-end"><label class="ctl" style="min-width:220px">What to do<select id="mmode"><option value="mix">Stereo to mono (mix both sides)</option><option value="dual">Mono in both ears (two identical channels)</option><option value="left">Keep the left side only</option><option value="right">Keep the right side only</option><option value="swap">Swap left and right</option><option value="side">Keep only what differs between the sides</option></select></label><label class="ctl" style="min-width:0">Format<select id="ofmt"><option value="mp3">MP3</option><option value="wav">WAV</option></select></label><button class="btn primary" id="go">Convert and save</button><button class="btn mini" id="again">Choose another file</button></div>

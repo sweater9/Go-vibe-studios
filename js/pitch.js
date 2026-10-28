@@ -6,7 +6,7 @@
   const semis = (p) => p.semi + p.cents / 100;
   const readout = () => { const p = P(); $('vs').textContent = Math.round(p.speed * 100) + '%'; $('vp').textContent = (semis(p) > 0 ? '+' : '') + semis(p).toFixed(2).replace(/\.?0+$/, '') + ' semitones'; };
   async function open(f) {
-    try { say('Reading ' + f.name + '…'); stop(); buf = await Q.decode(f); } catch (_) { return say('Could not read that file. Try an MP3, WAV, OGG or M4A.'); }
+    try { say('Reading ' + f.name + '…'); stop(); buf = await Q.decode(f); } catch (e) { return say('Could not read that file: ' + ((e && e.message) || 'unknown error')); }
     if (buf.duration > MAX) { buf = null; return say('That file is longer than 12 minutes. Cut it shorter in the Audio cutter first.'); }
     name = Q.clean(f.name); out = null; key = ''; $('pmain').classList.remove('hidden'); $('pdrop').classList.add('hidden'); $('pla').max = $('plb').max = Math.floor(buf.duration); $('plb').value = Math.floor(buf.duration); $('pla').value = 0; readout(); say(name + ' · ' + Q.fmt(buf.duration) + '.');
   }

@@ -37,7 +37,7 @@
   <div class="panel">
     <h2>Cut or trim</h2>
     <div class="drop" id="cdrop" data-input="cfile" role="button" tabindex="0"><strong>Drop an audio file here</strong> or press to choose one<p class="status">MP3, WAV, OGG, M4A and more.</p></div>
-    <input type="file" id="cfile" accept="audio/*" hidden aria-label="Audio file to cut">
+    <input type="file" id="cfile" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.flac,.caf,.aif,.aiff,.3gp,.amr,video/mp4" hidden aria-label="Audio file to cut">
     <div id="cut" class="hidden">
       <canvas id="wave" width="1200" height="160" style="width:100%;height:120px;border-radius:10px;cursor:pointer;touch-action:none" role="img" aria-label="Waveform. Click to move the nearest edge of the selection."></canvas>
       <p class="status" id="cinfo" aria-live="off"></p>
@@ -63,7 +63,7 @@
   <div class="panel">
     <h2>Join files</h2>
     <p class="status">Add two or more files, put them in order, and save them as one track. A short crossfade smooths the joins.</p>
-    <div class="row" style="align-items:flex-end"><button class="btn" id="jadd">Add files…</button><input type="file" id="jfile" accept="audio/*" multiple hidden aria-label="Audio files to join">
+    <div class="row" style="align-items:flex-end"><button class="btn" id="jadd">Add files…</button><input type="file" id="jfile" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.flac,.caf,.aif,.aiff,.3gp,.amr,video/mp4" multiple hidden aria-label="Audio files to join">
       <label class="ctl" style="min-width:0">Crossfade<select id="jx"><option value="0">None</option><option value="0.5">0.5 s</option><option value="2">2 s</option><option value="5">5 s</option></select></label>
       <label class="ctl" style="min-width:0">Format<select id="jfmt"><option value="mp3">MP3</option><option value="wav">WAV</option></select></label>
       <button class="btn primary" id="jgo" disabled>Join and save</button></div>

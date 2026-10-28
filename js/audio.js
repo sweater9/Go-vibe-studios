@@ -1,7 +1,7 @@
 /* GoVibe Mix — the Audio page: one file, three ways to work. Auto listens to the file on this device and picks the steps. Guided lets you choose a job and the steps. Pro opens the full Audio Editor. Steps run in a fixed order and nothing leaves the device. */
 (() => {
   const Q = window.GVQuick, M = window.GVMaster, $ = (id) => document.getElementById(id), say = (t) => { $('status').textContent = t; };
-  let buf = null, name = 'audio', file = null, found = null, src = null; const result = { a: null, g: null };
+  let buf = null, name = 'audio', file = null, found = null, before = null, src = null; const result = { a: null, g: null };
   const STEPS = ['denoise', 'rumble', 'silence', 'trim', 'mono', 'tone', 'loud', 'fade'];
   const RECIPES = {
     podcast: { label: 'Podcast or voice cleanup', info: 'Removes background noise, cuts low rumble, trims long pauses, mixes to mono and levels the voice to about minus 16 LUFS.', on: { denoise: 1, rumble: 1, silence: 1, mono: 1, loud: 1 }, set: { dn: '0.8', hp: '80', sil: 'normal', loud: '-16' } },
@@ -87,10 +87,10 @@
 
   /* ---------- shared: loading, results, saving ---------- */
   async function open(f) {
-    try { say('Reading ' + f.name + '…'); stopPlay(); buf = await Q.decode(f); } catch (_) { return say('Could not read that file. Try an MP3, WAV, OGG or M4A.'); }
+    try { say('Reading ' + f.name + '…'); stopPlay(); buf = await Q.decode(f); } catch (e) { return say('Could not read that file: ' + ((e && e.message) || 'unknown error') + ' Try an MP3 or WAV.'); }
     file = f; name = Q.clean(f.name); result.a = result.g = null; ['a', 'g'].forEach((p) => $(p + 'res').classList.add('hidden'));
     $('fname').textContent = name + ' · ' + Q.fmt(buf.duration) + ', ' + buf.numberOfChannels + (buf.numberOfChannels > 1 ? ' channels' : ' channel') + ', ' + buf.sampleRate + ' Hz'; $('rmain').classList.remove('hidden'); $('rdrop').classList.add('hidden');
-    say('Listening to the file…'); setTimeout(() => { found = listen(chansOf(buf), buf.sampleRate); table('g', meters(chansOf(buf), buf.sampleRate), null); table('a', found, null); showFindings(); pick($('recipe').value); say('Ready. Auto has a suggestion, or switch tabs to choose for yourself.'); }, 30);
+    say('Listening to the file…'); setTimeout(() => { try { found = listen(chansOf(buf), buf.sampleRate); before = found; table('g', found, null); table('a', found, null); showFindings(); pick($('recipe').value); say('Ready. Auto has a suggestion, or switch tabs to choose for yourself.'); } catch (e) { say('The file opened, but listening to it failed: ' + ((e && e.message) || 'error') + ' Use the Guided or Pro tab instead.'); } }, 30);
   }
   Q.hook($('rdrop'), open);
   function table(p, b, a) { const row = (l, x, y) => '<tr><th scope="row">' + l + '</th><td>' + x + '</td><td>' + y + '</td></tr>'; $(p + 'cmp').innerHTML = '<thead><tr><th scope="col">Measure</th><th scope="col">Before</th><th scope="col">After</th></tr></thead><tbody>' + row('Length', Q.fmt(b.dur), a ? Q.fmt(a.dur) : '—') + row('Channels', b.ch, a ? a.ch : '—') + row('Loudness', f1(b.lufs, 'LUFS'), a ? f1(a.lufs, 'LUFS') : '—') + row('True peak', f1(b.tp, 'dBTP'), a ? f1(a.tp, 'dBTP') : '—') + '</tbody>'; }
@@ -98,7 +98,7 @@
     if (!buf) return null; const btn = p === 'a' ? $('ago') : $('rgo'); btn.disabled = true; stopPlay();
     try {
       const out = await run(chansOf(buf), buf.sampleRate, c, say); if (!out.chs[0].length) throw new Error('Nothing is left after those steps.');
-      result[p] = { chs: out.chs, rate: buf.sampleRate, notes: out.notes, label: p === 'a' ? 'auto' : RECIPES[$('recipe').value].label.split(' ')[0].toLowerCase() }; table(p, meters(chansOf(buf), buf.sampleRate), meters(out.chs, buf.sampleRate)); $(p + 'res').classList.remove('hidden');
+      result[p] = { chs: out.chs, rate: buf.sampleRate, notes: out.notes, label: p === 'a' ? 'auto' : RECIPES[$('recipe').value].label.split(' ')[0].toLowerCase() }; table(p, before, meters(out.chs, buf.sampleRate)); $(p + 'res').classList.remove('hidden');
       $(p + 'done').textContent = out.notes.length ? 'Done: ' + out.notes.join(', ') + '.' : 'No steps were selected, so the file is unchanged.'; say('Done. Compare the numbers, preview it, then save.');
     } catch (e) { say('Could not finish: ' + e.message); }
     btn.disabled = false; return result[p];

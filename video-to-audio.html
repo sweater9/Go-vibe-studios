@@ -36,7 +36,7 @@
   <p class="lead">Pull the sound out of a video and save it as an MP3 or WAV. The file is read on your device and never uploaded.</p>
   <div class="panel">
     <div class="drop" id="drop" data-input="file" role="button" tabindex="0"><strong>Drop a file here</strong> or press to choose one<p class="status">MP4, MOV, WebM, MKV and more.</p></div>
-    <input type="file" id="file" accept="video/*,audio/*" hidden aria-label="File to open">
+    <input type="file" id="file" accept="video/*,audio/*,.m4a,.mp4,.mov,.mkv,.webm,.mp3,.wav,.aac,.ogg" hidden aria-label="File to open">
     <div id="main2" class="hidden">
       <div class="row" style="align-items:flex-end"><label class="ctl" style="min-width:0">Format<select id="ofmt"><option value="mp3">MP3</option><option value="wav">WAV</option></select></label><button class="btn primary" id="go">Save the audio</button><button class="btn mini" id="again">Choose another file</button></div>
       <p class="status">Works with the video types your browser can play, such as MP4, MOV, WebM and MKV. Very large videos may be too big for your device to open.</p>
