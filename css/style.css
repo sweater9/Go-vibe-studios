@@ -238,3 +238,5 @@ textarea { background: var(--bg); color: var(--text); border: 1px solid var(--li
 #mmplan:empty { display: none; }
 
 .jrow { display: flex; gap: 6px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); } .jrow span { flex: 1; overflow-wrap: anywhere; }
+
+.rstep { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-end; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); } .ropt { display: flex; gap: 10px; flex-wrap: wrap; }
