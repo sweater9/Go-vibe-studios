@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Silence remover — GoVibe Mix</title>
+<meta name="description" content="Remove silence from audio. Set the threshold and gap length, see how much is cut, and save. Free, private, nothing uploaded.">
+<link rel="canonical" href="https://govibemix.com/silence.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Silence remover — GoVibe Mix">
+<meta property="og:description" content="Remove silence from audio. Set the threshold and gap length, see how much is cut, and save. Free, private, nothing uploaded.">
+<meta property="og:url" content="https://govibemix.com/silence.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-tool="silence">
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="studio.html">Studio</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+  <a class="link" href="index.html#tools">All tools</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>Silence remover</h1>
+  <p class="lead">Cut the quiet gaps out of a recording, a voice note, a podcast or a lecture. You choose how quiet counts as silence and how long a gap has to be. Nothing is uploaded.</p>
+  <div class="panel">
+    <div class="drop" id="drop" data-input="file" role="button" tabindex="0"><strong>Drop a file here</strong> or press to choose one<p class="status">MP3, WAV, OGG, M4A and more.</p></div>
+    <input type="file" id="file" accept="audio/*" hidden aria-label="File to open">
+    <div id="main2" class="hidden">
+      <div class="row" style="align-items:flex-end"><label class="ctl" style="flex:1;min-width:150px">Silence below <output id="vthr"></output><input type="range" id="sthr" min="-70" max="-20" step="1" value="-45"></label><label class="ctl" style="flex:1;min-width:150px">Gaps longer than <output id="vmin"></output><input type="range" id="smin" min="0.1" max="3" step="0.05" value="0.4"></label><label class="ctl" style="flex:1;min-width:150px">Keep around speech <output id="vpad"></output><input type="range" id="spad" min="0" max="0.5" step="0.05" value="0.1"></label></div>
+      <p class="status" id="sinfo"></p>
+      <div class="row" style="align-items:flex-end"><label class="ctl" style="min-width:0">Format<select id="ofmt"><option value="mp3">MP3</option><option value="wav">WAV</option></select></label><button class="btn primary" id="go">Remove silence and save</button><button class="btn mini" id="again">Choose another file</button></div>
+    </div>
+    <p class="status" id="status" role="status"></p>
+  </div>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/quick.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>

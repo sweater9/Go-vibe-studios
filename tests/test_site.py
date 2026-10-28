@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "mono", "tone", "video-to-audio", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -1767,8 +1767,8 @@ def test_home(browser, base):
     errs = []
     ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 900})
     pg.goto(base + "index.html?gvtest"); pg.wait_for_function("() => window.__home")
-    check("home lists every tool with a link", pg.locator("a.card").count() == 20 and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "slowed.html", "pitch.html", "cutter.html", "booster.html", "visualizer.html", "metronome.html", "looper.html", "chords.html", "editor.html", "video.html", "master.html", "convert.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
-    check("four groups with headings", pg.locator(".grp h2").count() == 4 and pg.inner_text(".grp h2 >> nth=0") == "Make")
+    check("home lists every tool with a link", pg.locator("a.card").count() == 20 and all(pg.locator(f'.quick a[href="{h}"]').count() == 1 for h in ["silence.html", "mono.html", "tone.html", "video-to-audio.html"]) and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "slowed.html", "pitch.html", "cutter.html", "booster.html", "visualizer.html", "metronome.html", "looper.html", "chords.html", "editor.html", "video.html", "master.html", "convert.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
+    check("five groups with headings", pg.locator(".grp h2").count() == 5 and pg.inner_text(".grp h2 >> nth=0") == "Make")
     check("the web font loads from this site", pg.evaluate("document.fonts.check('16px \"Bricolage Grotesque\"')"))
     check("beat strip has 4 rows of 16 steps and starts with a boom bap pattern", pg.locator(".st").count() == 64 and pg.locator('.st[aria-pressed="true"]').count() == 3 + 2 + 8)
     pg.locator('button[aria-label="Clap step 3"]').click(); check("tapping a square toggles it", pg.locator('button[aria-label="Clap step 3"]').get_attribute("aria-pressed") == "true" and pg.evaluate("__home.grid.Clap[2]") == 1)
@@ -2530,6 +2530,60 @@ def test_pitchtools(browser, base):
     ctx.close()
 
 
+# ---------------------------------------------------------------- small utilities
+def test_utilities(browser, base):
+    print("silence remover, stereo and mono, tone generator, video to audio")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    wavjs = """(parts, ch) => { const sr = 22050, n = parts.reduce((a, p) => a + p[0] * sr, 0), v = new DataView(new ArrayBuffer(44 + n * 2 * ch)), w = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); }; w(0, 'RIFF'); v.setUint32(4, 36 + n * 2 * ch, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, ch, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 2 * ch, true); v.setUint16(32, 2 * ch, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2 * ch, true); let i = 0; for (const [s, a, hz, a2] of parts) for (let k = 0; k < s * sr; k++, i++) { for (let c = 0; c < ch; c++) v.setInt16(44 + (i * ch + c) * 2, Math.sin(2 * Math.PI * hz * k / sr) * (c ? (a2 == null ? a : a2) : a) * 32767, true); } return v.buffer; }"""
+    pg.goto(base + "silence.html?gvtest")
+    pg.evaluate("async (w) => { const f = eval(w); await __util.open(new File([f([[1, 0.5, 440], [2, 0, 1], [1, 0.5, 440], [1.5, 0, 1], [1, 0.5, 440]], 1)], 'talk.wav')); }", wavjs)
+    check("the silence page opens a file and counts the gaps", "2 silent parts found" in pg.inner_text("#sinfo"), pg.inner_text("#sinfo"))
+    r = pg.evaluate("__util.run()")
+    check("removing the gaps keeps the sound and a little padding", r["cuts"] == 2 and 3.3 < r["dur"] < 3.9, str(r))
+    pg.evaluate("__util.set(-45, 2.5, 0.1)")
+    check("a longer minimum gap finds nothing", pg.evaluate("__util.run()")["cuts"] == 0)
+    pg.evaluate("__util.set(-45, 0.4, 0.1)"); pg.select_option("#ofmt", "wav")
+    with pg.expect_download() as dl:
+        pg.click("#go")
+    check("saving names the file", dl.value.suggested_filename == "talk no silence.wav", dl.value.suggested_filename)
+    pg.goto(base + "mono.html?gvtest")
+    pg.evaluate("async (w) => { const f = eval(w); await __util.open(new File([f([[1, 0.8, 440, 0.2]], 2)], 'wide.wav')); }", wavjs)
+    check("the stereo page describes the file", "Stereo file" in pg.evaluate("__util.info()"))
+    a = pg.evaluate("[__util.proc('mix').length, __util.proc('swap').length, __util.proc('left').length, __util.proc('dual').length]")
+    check("modes give the right number of channels", a == [1, 2, 1, 2], str(a))
+    pg.evaluate("1")
+    m = pg.evaluate("(() => { const L = __util.proc('left')[0], R = __util.proc('right')[0], M = __util.proc('mix')[0]; return [L[2], R[2], M[2]]; })()")
+    check("mix is the average of left and right", abs(m[2] - (m[0] + m[1]) / 2) < 1e-6 and m[0] != m[1], str(m))
+    pg.select_option("#mmode", "swap"); pg.select_option("#ofmt", "wav")
+    with pg.expect_download() as dl:
+        pg.click("#go")
+    check("saving names the file by mode", dl.value.suggested_filename == "wide swap.wav", dl.value.suggested_filename)
+    pg.goto(base + "tone.html?gvtest")
+    pg.evaluate("__util.set(1000, 'sine', 2)")
+    r = pg.evaluate("async () => { const o = await __util.render(), d = o.getChannelData(0); let z = 0, pk = 0; for (let i = 1; i < d.length; i++) { if (d[i - 1] < 0 && d[i] >= 0) z++; pk = Math.max(pk, Math.abs(d[i])); } return { dur: o.duration, hz: z / o.duration, pk }; }")
+    check("a 1 kHz sine lasts 2 seconds at the set volume", abs(r["dur"] - 2) < 0.01 and abs(r["hz"] - 1000) < 12 and abs(r["pk"] - 0.3) < 0.02, str(r))
+    pg.evaluate("__util.set(200, 'sine', 2, 2000)")
+    r = pg.evaluate("async () => { const o = await __util.render(), d = o.getChannelData(0), n = d.length, cnt = (a, b) => { let z = 0; for (let i = a + 1; i < b; i++) if (d[i - 1] < 0 && d[i] >= 0) z++; return z; }; return [cnt(0, n >> 2), cnt(n - (n >> 2), n)]; }")
+    check("a sweep rises in pitch", r[1] > r[0] * 2, str(r))
+    pg.select_option("#ofmt", "wav")
+    with pg.expect_download() as dl:
+        pg.click("#go")
+    check("saving names the file by pitch", dl.value.suggested_filename == "tone 200Hz.wav", dl.value.suggested_filename)
+    pg.goto(base + "video-to-audio.html?gvtest")
+    ok = pg.evaluate("""async () => { const c = document.createElement('canvas'); c.width = 64; c.height = 64; const g = c.getContext('2d'), ac = new AudioContext(), d = ac.createMediaStreamDestination(), o = ac.createOscillator(); o.frequency.value = 440; o.connect(d); o.start(); const s = c.captureStream(10); d.stream.getAudioTracks().forEach((t) => s.addTrack(t));
+      const mt = ['video/webm;codecs=vp8,opus', 'video/webm'].find((m) => MediaRecorder.isTypeSupported(m)); if (!mt) return 'nomedia'; const rec = new MediaRecorder(s, { mimeType: mt }), parts = []; rec.ondataavailable = (e) => parts.push(e.data); const done = new Promise((r) => { rec.onstop = r; }); rec.start(); const t0 = performance.now(); await new Promise((r) => { const f = () => { g.fillStyle = 'hsl(' + (performance.now() / 5) % 360 + ',80%,50%)'; g.fillRect(0, 0, 64, 64); performance.now() - t0 > 1600 ? r() : requestAnimationFrame(f); }; f(); }); rec.stop(); await done; o.stop();
+      await __util.open(new File(parts, 'clip.webm', { type: 'video/webm' })); return __util.buf ? __util.buf.duration : 0; }""")
+    check("the sound of a video file can be read", ok == "nomedia" or (isinstance(ok, (int, float)) and ok > 0.8), str(ok))
+    if ok != "nomedia":
+        pg.select_option("#ofmt", "wav")
+        with pg.expect_download() as dl:
+            pg.click("#go")
+        check("saving names the file after the video", dl.value.suggested_filename == "clip.wav", dl.value.suggested_filename)
+    check("no errors", not errs, str(errs))
+    ctx.close()
+
+
 # ---------------------------------------------------------------- metronome
 def test_metronome(browser, base):
     print("metronome")
@@ -2885,7 +2939,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

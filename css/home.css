@@ -95,3 +95,9 @@ a.tool.wide .sr { display: none; }
   .hero h1 .l > span, .hero .lead, .hero .ctas, .st { animation: none; } .grp::before { transition: none; transform: scaleX(1); }
   a.tool, .shot img, .go, .cta, .playbtn { transition: none; } a.tool:hover { transform: none; } a.tool:hover .shot img { transform: none; }
 }
+
+.quick { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.quick a { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: #ffffff08; color: var(--text); text-decoration: none; transition: border-color .15s, transform .15s; }
+.quick a:hover { border-color: var(--accent); transform: translateY(-2px); } .quick a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.quick b { font-size: 15px; } .quick span { font-size: 13px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .quick a, .quick a:hover { transition: none; transform: none; } }
