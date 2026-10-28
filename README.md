@@ -89,6 +89,7 @@ Each deck refines its BPM to 0.01 and finds where beat 1 falls (checked on synth
 
 - **Full view** (button, or `F`): hides the site navigation, tabs and footer, enlarges the waveforms and uses the browser's full screen where available. `Esc` leaves it.
 - **Light / dark console** (button, or `T`): a light chassis with dark screens, knobs and buttons, like real hardware. It is remembered in this browser and only affects the DJ page. Both themes pass the automated accessibility scan.
+- **Import from rekordbox, Traktor or Serato** (`js/djimport.js`): reads a rekordbox XML export, a Traktor `collection.nml`, or a Serato `database V2` or `.crate` file on your device. Tempo, Camelot key, rating, notes, hot cues, beat grid and playlists fill gaps in tracks you already have (matched by file name); other tracks wait as entries and take their data when you add the audio.
 - **Ratings and notes** in the Library: 1–5 stars and a short note per track, saved with the track. Filter by minimum rating, sort by rating, and search also looks in notes.
 
 ## Library backup, colour tags and set history

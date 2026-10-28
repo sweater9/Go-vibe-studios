@@ -2615,6 +2615,50 @@ def test_chords(browser, base):
     ctx.close()
 
 
+# ---------------------------------------------------------------- DJ library import
+def test_djimport(browser, base):
+    print("DJ library import from rekordbox, Traktor and Serato")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "dj.html?gvtest")
+    k = pg.evaluate("() => { const c = GVDJImport.camelot; return [c('Am'), c('C'), c('F#m'), c('Db'), c('Bbm'), c('8a'), c('E'), c('nope')]; }")
+    check("musical keys convert to Camelot", k == ["8A", "8B", "11A", "3B", "3A", "8A", "12B", None], str(k))
+    rb = """<?xml version="1.0" encoding="UTF-8"?><DJ_PLAYLISTS Version="1.0.0"><COLLECTION Entries="2">
+      <TRACK TrackID="1" Name="Alpha" Size="1234" TotalTime="200" AverageBpm="126.00" Tonality="Am" Rating="204" Comments="peak time" Location="file://localhost/C:/Music/Alpha%20Song.mp3"><TEMPO Inizio="0.25" Bpm="126.00" Metro="4/4" Battito="1"/><POSITION_MARK Name="" Type="0" Start="12.5" Num="0"/><POSITION_MARK Name="" Type="0" Start="40" Num="2"/><POSITION_MARK Name="" Type="0" Start="5" Num="-1"/></TRACK>
+      <TRACK TrackID="2" Name="Beta" Size="999" TotalTime="180" AverageBpm="120.00" Tonality="F#m" Rating="0" Location="file://localhost/C:/Music/Beta.mp3"/></COLLECTION>
+      <PLAYLISTS><NODE Type="0" Name="ROOT" Count="1"><NODE Name="Friday" Type="1" KeyType="0" Entries="2"><TRACK Key="1"/><TRACK Key="2"/></NODE></NODE></PLAYLISTS></DJ_PLAYLISTS>"""
+    r = pg.evaluate("""async (x) => { const d = GVDJImport.rekordbox(x); const t = d.tracks[0]; return { n: d.tracks.length, name: t.name, bpm: t.bpm, key: t.key, rating: t.rating, notes: t.notes, cues: t.cues, t0: t.grid.t0, pl: d.playlists }; }""", rb)
+    check("rekordbox: tracks, key, rating, cues and grid are read", r["n"] == 2 and r["name"] == "Alpha Song.mp3" and r["bpm"] == 126 and r["key"] == "8A" and r["rating"] == 4 and r["notes"] == "peak time" and r["cues"][0] == 12.5 and r["cues"][2] == 40 and r["cues"][1] is None and r["t0"] == 0.25, str(r))
+    check("rekordbox: playlists are read", r["pl"] == [{"name": "Friday", "files": ["Alpha Song.mp3", "Beta.mp3"]}], str(r["pl"]))
+    nml = """<?xml version="1.0" encoding="UTF-8"?><NML VERSION="19"><COLLECTION ENTRIES="1"><ENTRY TITLE="Gamma"><LOCATION DIR="/:Users/:me/:Music/:" FILE="Gamma.mp3" VOLUME="C:"/><INFO PLAYTIME="210" RANKING="255" COMMENT="warm"/><TEMPO BPM="128.000"/><MUSICAL_KEY VALUE="21"/><CUE_V2 NAME="AutoGrid" TYPE="4" START="500" HOTCUE="-1"/><CUE_V2 NAME="Drop" TYPE="0" START="30000" HOTCUE="1"/></ENTRY></COLLECTION>
+      <PLAYLISTS><NODE TYPE="FOLDER" NAME="$ROOT"><SUBNODES COUNT="1"><NODE TYPE="PLAYLIST" NAME="Warm"><PLAYLIST ENTRIES="1" TYPE="LIST"><ENTRY><PRIMARYKEY TYPE="TRACK" KEY="C:/:Users/:me/:Music/:Gamma.mp3"/></ENTRY></PLAYLIST></NODE></SUBNODES></NODE></PLAYLISTS></NML>"""
+    r = pg.evaluate("""(x) => { const d = GVDJImport.traktor(x), t = d.tracks[0]; return { name: t.name, bpm: t.bpm, key: t.key, rating: t.rating, notes: t.notes, cue1: t.cues[1], t0: t.grid.t0, pl: d.playlists }; }""", nml)
+    check("Traktor: tempo, key, ranking, hot cue, grid and playlist are read", r["name"] == "Gamma.mp3" and r["bpm"] == 128 and r["key"] == "8A" and r["rating"] == 5 and r["cue1"] == 30 and r["t0"] == 0.5 and r["pl"] == [{"name": "Warm", "files": ["Gamma.mp3"]}], str(r))
+    r = pg.evaluate("""() => { const u16 = (s) => { const b = new Uint8Array(s.length * 2); for (let i = 0; i < s.length; i++) { b[i * 2] = s.charCodeAt(i) >> 8; b[i * 2 + 1] = s.charCodeAt(i) & 255; } return b; };
+      const rec = (tag, p) => { const o = new Uint8Array(8 + p.length), dv = new DataView(o.buffer); for (let i = 0; i < 4; i++) o[i] = tag.charCodeAt(i); dv.setUint32(4, p.length); o.set(p, 8); return o; };
+      const cat = (a) => { const o = new Uint8Array(a.reduce((n, x) => n + x.length, 0)); let p = 0; a.forEach((x) => { o.set(x, p); p += x.length; }); return o; };
+      const db = cat([rec('vrsn', u16('2.0/Serato Scratch LIVE Database')), rec('otrk', cat([rec('pfil', u16('C:/Music/Delta.mp3')), rec('tbpm', u16('132.00')), rec('tkey', u16('Dm'))]))]);
+      const crate = cat([rec('vrsn', u16('1.0/Serato ScratchLive Crate')), rec('otrk', rec('ptrk', u16('Music/Delta.mp3'))), rec('otrk', rec('ptrk', u16('Music/Epsilon.mp3')))]);
+      const a = GVSerato = null; return { d: GVDJImport.serato(db, 'database V2'), c: GVDJImport.serato(crate, 'Subcrates/Parent%%Night.crate') }; }""".replace("const a = GVSerato = null; ", ""))
+    check("Serato database: path, tempo and key are read", r["d"]["tracks"][0]["name"] == "Delta.mp3" and r["d"]["tracks"][0]["bpm"] == 132 and r["d"]["tracks"][0]["key"] == "7A", str(r["d"]))
+    check("Serato crate: the playlist name and files are read", r["c"]["playlists"] == [{"name": "Night", "files": ["Delta.mp3", "Epsilon.mp3"]}], str(r["c"]))
+    pg.evaluate("""async () => { const b = (n) => new Blob([n]); window.__fx = null; }""")
+    # apply: one track already in the library, others wait
+    pg.evaluate("""async () => { await __lib.addFiles([]); const L = __lib; await GVStore.lib.put({ id: 'Beta.mp3|50', name: 'Beta.mp3', size: 50, dur: 10, bpm: null, key: null, grid: null, cues: [null,null,null,null,null,null,null,null], rating: 0, tag: '', notes: '', added: 1, played: 0 }); await L.reload(); }""")
+    res = pg.evaluate("""async (x) => { const f = new File([x], 'collection.xml', { type: 'text/xml' }); const r = await __lib.importDJ(f); return { r, recs: __lib.recs.map((q) => ({ id: q.id, name: q.name, bpm: q.bpm, key: q.key, miss: !!q.missing })), lists: __lib.lists().map((l) => ({ name: l.name, n: l.ids.length })) }; }""", rb)
+    check("import updates a track you already have and adds the rest", res["r"]["updated"] == 1 and res["r"]["added"] == 1 and res["r"]["plists"] == 1, str(res["r"]))
+    beta = [q for q in res["recs"] if q["name"] == "Beta.mp3"][0]
+    check("the existing track got its tempo and key", beta["bpm"] == 120 and beta["key"] == "11A", str(beta))
+    check("a playlist was built from both", res["lists"] == [{"name": "Friday", "n": 2}], str(res["lists"]))
+    ad = pg.evaluate("""async () => { const w = __lib.recs.find((q) => q.name === 'Alpha Song.mp3'); const f = new File([new Uint8Array(8)], 'Alpha Song.mp3'); const before = w.id; return { before, listIds: __lib.lists()[0].ids.slice() }; }""")
+    check("waiting entries use the file size when the source gives it", ad["before"] == "Alpha Song.mp3|1234", str(ad))
+    ad2 = pg.evaluate("""async () => { const sr = 8000, n = sr, b = new DataView(new ArrayBuffer(44 + n * 2)), w = (o, t) => { for (let i = 0; i < t.length; i++) b.setUint8(o + i, t.charCodeAt(i)); }; w(0, 'RIFF'); b.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); b.setUint32(16, 16, true); b.setUint16(20, 1, true); b.setUint16(22, 1, true); b.setUint32(24, sr, true); b.setUint32(28, sr * 2, true); b.setUint16(32, 2, true); b.setUint16(34, 16, true); w(36, 'data'); b.setUint32(40, n * 2, true); for (let i = 0; i < n; i++) b.setInt16(44 + i * 2, Math.sin(i / 9) * 9000, true);
+      const f = new File([b.buffer], 'Alpha Song.mp3'); await __lib.addFiles([f]); const q = __lib.recs.filter((x) => x.name === 'Alpha Song.mp3'); return { count: q.length, id: q[0].id, miss: !!q[0].missing, key: q[0].key, cues: q[0].cues[0], inList: __lib.lists()[0].ids.includes(q[0].id), n: __lib.lists()[0].ids.length }; }""")
+    check("adding the real file fills the waiting entry and keeps its playlist", ad2["count"] == 1 and not ad2["miss"] and ad2["id"] == "Alpha Song.mp3|" + str(8044 - 0 if False else 16044) and ad2["inList"] and ad2["n"] == 2 and ad2["cues"] == 12.5, str(ad2))
+    check("no errors", not errs, str(errs))
+    ctx.close()
+
+
 # ---------------------------------------------------------------- DJ: beat jump, ordering, mix maker
 def test_mixmaker(browser, base):
     print("DJ: beat jump 8, harmonic ordering and the mix maker")
@@ -2730,7 +2774,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

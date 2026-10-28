@@ -38,6 +38,8 @@
       <button class="btn mini" id="libexpjson">Export data only (.json)</button>
       <button class="btn mini" id="libimp">Import backup…</button>
       <input type="file" id="libimpfile" accept=".zip,.json,application/zip,application/json" hidden aria-label="Import a library backup">
+      <button class="btn mini" id="libimpdj">Import from rekordbox, Traktor or Serato…</button>
+      <input type="file" id="libimpdjfile" accept=".xml,.nml,.crate,application/xml,text/xml" hidden aria-label="Import a rekordbox, Traktor or Serato library file">
     </div>
     <p class="status" id="libstatus" role="status"></p>
     <div class="libwrap"><table class="libtbl" aria-label="Library tracks"><thead><tr><th scope="col">Title</th><th scope="col">BPM</th><th scope="col">Key</th><th scope="col">Length</th><th scope="col">Rating</th><th scope="col">Tag</th><th scope="col">Notes</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead><tbody id="libbody"></tbody></table></div>
@@ -127,12 +129,15 @@
     const i = recs.findIndex((r) => r.id === rec.id); if (i >= 0) recs[i] = rec; else recs.push(rec);
     try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (_) {}
   }
+  async function adopt(rec, id, f) { const old = rec.id; if (old === id) return; await GVStore.lib.del(old); recs = recs.filter((r) => r !== rec); rec.id = id; rec.size = f.size; lists.forEach((l) => { l.ids = l.ids.map((x) => (x === old ? id : x)); }); saveLists(); recs.push(rec); }
   async function addFiles(files) {
     if (busy) return say('Still analysing. Wait a moment.'); busy = true;
     let n = 0;
     for (const f of files) {
       try {
-        const id = idOf(f), have = recs.find((r) => r.id === id);
+        const id = idOf(f);
+        let have = recs.find((r) => r.id === id);
+        if (!have) { const w = recs.find((r) => r.missing && r.name.toLowerCase() === f.name.toLowerCase()); if (w) { await adopt(w, id, f); have = w; } }
         if (have && have.missing) { delete have.missing; await save(have, f); n++; render(); continue; }
         if (have) { say(f.name + ' is already in the library.'); continue; }
         say('Analysing ' + f.name + '…'); await new Promise((r) => setTimeout(r, 20));
@@ -198,6 +203,14 @@
     try { say('Importing…'); const r = await importFile(f); say('Imported: ' + r.withAudio + ' with audio, ' + r.updated + ' updated' + (r.metaOnly ? ', ' + r.metaOnly + ' waiting for their audio files (add the files to restore them)' : '') + '.'); } catch (e) { say('Could not import: ' + e.message); }
   };
 
+  $('libimpdj').onclick = () => $('libimpdjfile').click();
+  const hook = () => ({ recs: () => recs, lists: () => lists, save, cues8, newId, pending: [], done: () => { saveLists(); paintLists(); render(); } });
+  async function importDJ(file) { return GVDJImport.apply(await GVDJImport.parse(file), hook()); }
+  $('libimpdjfile').onchange = async () => {
+    const f = $('libimpdjfile').files[0]; $('libimpdjfile').value = ''; if (!f) return;
+    try { say('Reading ' + f.name + '…'); const r = await importDJ(f); say('Imported from ' + r.source + ': ' + r.updated + ' of your tracks updated, ' + r.added + ' waiting for their audio, ' + r.plists + ' playlist' + (r.plists === 1 ? '' : 's') + '. Add the audio files with the same names to use them.'); } catch (e) { say('Could not import: ' + e.message); }
+  };
+
   /* ---------- hooks from the decks ---------- */
   A.onFile = async (d, file) => {                                  // a file was loaded straight into a deck
     try {
@@ -239,5 +252,5 @@
   pane.addEventListener('dragover', prevent);
   pane.addEventListener('drop', (e) => { prevent(e); const f = audioOnly(e.dataTransfer); if (f.length) addFiles(f); });
   reload();
-  if (/[?&]gvtest\b/.test(location.search)) window.__lib = { lists: () => lists, newList, putIn, takeOut, moveIn, paintLists, exportData, exportZip, importFile, addFiles, reload, get recs() { return recs; }, loadTo, render };   // test hook
+  if (/[?&]gvtest\b/.test(location.search)) window.__lib = { lists: () => lists, newList, putIn, takeOut, moveIn, paintLists, exportData, exportZip, importFile, importDJ, addFiles, reload, get recs() { return recs; }, loadTo, render };   // test hook
 })();
