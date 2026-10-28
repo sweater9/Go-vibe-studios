@@ -236,3 +236,5 @@ footer { border-top: 1px solid rgba(255, 255, 255, .06); margin-top: 20px; paddi
 .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; } @media (max-width: 700px) { .twocol { grid-template-columns: 1fr; } .pcs { grid-template-columns: repeat(6, 1fr); } }
 textarea { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font: 14px ui-monospace, monospace; width: 100%; }
 #mmplan:empty { display: none; }
+
+.jrow { display: flex; gap: 6px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); } .jrow span { flex: 1; overflow-wrap: anywhere; }
