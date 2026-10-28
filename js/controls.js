@@ -20,7 +20,7 @@
     add(p + '.loop', 'Deck ' + n + ' loop on / off', 'button', () => click(d.el.loop), K[3]);
     for (let h = 1; h <= A.CUES; h++) add(p + '.hot' + h, 'Deck ' + n + ' hot cue ' + h, 'button', () => click(d.el['hot' + h]), K[3 + h]);
     [['r8', '1/8'], ['r4', '1/4'], ['r2', '1/2'], ['r1', '1 beat']].forEach(([k, l]) => add(p + '.roll' + k, 'Deck ' + n + ' loop roll ' + l + ' (hold)', 'hold', (on) => (on ? d.rollStart(+d.el[k].dataset.beats, d.el[k]) : d.rollEnd(d.el[k]))));
-    [['jm4', '−4 beats'], ['jm1', '−1 beat'], ['jp1', '+1 beat'], ['jp4', '+4 beats']].forEach(([k, l]) => add(p + '.' + k, 'Deck ' + n + ' jump ' + l, 'button', () => click(d.el[k])));
+    [['jm8', '−8 beats'], ['jp8', '+8 beats'], ['jm4', '−4 beats'], ['jm1', '−1 beat'], ['jp1', '+1 beat'], ['jp4', '+4 beats']].forEach(([k, l]) => add(p + '.' + k, 'Deck ' + n + ' jump ' + l, 'button', () => click(d.el[k])));
   });
   add('xfl', 'Crossfader towards A', 'button', () => xfStep(-5), '[');
   add('xfr', 'Crossfader towards B', 'button', () => xfStep(5), ']');

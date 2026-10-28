@@ -96,5 +96,6 @@
     beginTransition(Math.min(+$('amlen').value, 8, queue[S.idx + 1].buf.duration * 0.5));
   };
 
+  A.amQueue = queue; A.amPaint = paint; A.amState = S;
   if (/[?&]gvtest\b/.test(location.search)) window.__am = { queue, S, addBuffer };   // test hook
 })();

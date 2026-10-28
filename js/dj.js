@@ -94,8 +94,8 @@
         </div>
         <div class="nudgerow" role="group" aria-label="Deck ${n} beat jump and pitch bend">
           <button class="btn mini" data-r="nudgem" aria-label="Pitch bend down (hold)">◀ Bend</button>
-          <button class="btn mini" data-r="jm4" aria-label="Back 4 beats">−4</button><button class="btn mini" data-r="jm1" aria-label="Back 1 beat">−1</button>
-          <button class="btn mini" data-r="jp1" aria-label="Forward 1 beat">+1</button><button class="btn mini" data-r="jp4" aria-label="Forward 4 beats">+4</button>
+          <button class="btn mini" data-r="jm8" aria-label="Back 8 beats">−8</button><button class="btn mini" data-r="jm4" aria-label="Back 4 beats">−4</button><button class="btn mini" data-r="jm1" aria-label="Back 1 beat">−1</button>
+          <button class="btn mini" data-r="jp1" aria-label="Forward 1 beat">+1</button><button class="btn mini" data-r="jp4" aria-label="Forward 4 beats">+4</button><button class="btn mini" data-r="jp8" aria-label="Forward 8 beats">+8</button>
           <button class="btn mini" data-r="nudgep" aria-label="Pitch bend up (hold)">Bend ▶</button>
           <label class="snap"><input type="checkbox" data-r="snap" checked> Snap</label>
         </div>
@@ -137,7 +137,7 @@
       const q = (k) => [this.roots.deck, this.roots.wave, this.roots.strip].map((r) => r.querySelector('[data-r="' + k + '"]')).find(Boolean) || null;
       this.q = q;
       if (window.GVKnobs) [this.roots.deck, this.roots.strip].forEach((r) => GVKnobs.upgradeAll(r));
-      this.el = {}; ['bpm', 'key', 'meter', 'zoom', 'jog', 'platter', 'nudgem', 'nudgep', 'jm4', 'jm1', 'jp1', 'jp4', 'zspan', 'snap', 'gm', 'gp', 'gm1', 'gp1', 'gh', 'ghalf', 'gdbl', 'gtap', 'hotdel', 'r8', 'r4', 'r2', 'r1', 'fxtype', 'fxamt', 'xfas', 'hot5', 'hot6', 'hot7', 'hot8', 'ginfo', 'lbeats', 'hot1', 'hot2', 'hot3', 'hot4', 'hotclr', 'filt', 'echo', 'rev', 'name', 'wave', 'pos', 'dur', 'play', 'cue', 'loop', 'load', 'file', 'tv', 'tempo', 'reset', 'low', 'mid', 'high', 'vol'].forEach((k) => (this.el[k] = q(k)));
+      this.el = {}; ['bpm', 'key', 'meter', 'zoom', 'jog', 'platter', 'nudgem', 'nudgep', 'jm8', 'jm4', 'jm1', 'jp1', 'jp4', 'jp8', 'zspan', 'snap', 'gm', 'gp', 'gm1', 'gp1', 'gh', 'ghalf', 'gdbl', 'gtap', 'hotdel', 'r8', 'r4', 'r2', 'r1', 'fxtype', 'fxamt', 'xfas', 'hot5', 'hot6', 'hot7', 'hot8', 'ginfo', 'lbeats', 'hot1', 'hot2', 'hot3', 'hot4', 'hotclr', 'filt', 'echo', 'rev', 'name', 'wave', 'pos', 'dur', 'play', 'cue', 'loop', 'load', 'file', 'tv', 'tempo', 'reset', 'low', 'mid', 'high', 'vol'].forEach((k) => (this.el[k] = q(k)));
       this.g = this.el.wave.getContext('2d'); this.gz = this.el.zoom.getContext('2d');
       const e = this.el;
       e.load.onclick = () => e.file.click();
@@ -146,7 +146,7 @@
       e.cue.onclick = () => this.cueBtn();
       e.loop.onclick = () => this.toggleLoop();
       e.tempo.oninput = () => this.setTempoPct(+e.tempo.value);
-      e.jm4.onclick = () => this.jump(-4); e.jm1.onclick = () => this.jump(-1); e.jp1.onclick = () => this.jump(1); e.jp4.onclick = () => this.jump(4);
+      e.jm8.onclick = () => this.jump(-8); e.jp8.onclick = () => this.jump(8); e.jm4.onclick = () => this.jump(-4); e.jm1.onclick = () => this.jump(-1); e.jp1.onclick = () => this.jump(1); e.jp4.onclick = () => this.jump(4);
       e.gm.onclick = () => this.nudgeGrid(-0.01); e.gp.onclick = () => this.nudgeGrid(0.01); e.gm1.onclick = () => this.nudgeGrid(-0.001); e.gp1.onclick = () => this.nudgeGrid(0.001);
       e.ghalf.onclick = () => this.scaleGrid(0.5); e.gdbl.onclick = () => this.scaleGrid(2); e.gtap.onclick = () => this.tap();
       e.xfas.value = this.xfAssign; e.xfas.onchange = () => { this.xfAssign = e.xfas.value; applyXf(); };

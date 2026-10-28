@@ -2587,6 +2587,98 @@ def test_chords(browser, base):
     ctx.close()
 
 
+# ---------------------------------------------------------------- DJ: beat jump, ordering, mix maker
+def test_mixmaker(browser, base):
+    print("DJ: beat jump 8, harmonic ordering and the mix maker")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "dj.html?gvtest")
+    j = pg.evaluate("""() => { const { decks, ctx } = __dj, sr = 22050, b = ctx.createBuffer(1, sr * 60, sr), A = decks[0]; const d = b.getChannelData(0); for (let t = 0; t < d.length; t += sr / 2) for (let k = 0; k < 300; k++) d[Math.round(t) + k] = Math.sin(k / 5) * Math.exp(-k / 60);
+      A.setBuffer(b, 'x'); A.el.snap.checked = false; A.seek(20); A.el.jp8.click(); const f = A.position(); A.el.jm8.click(); const back = A.position(); return { f, back, per: A.grid ? A.grid.period : null }; }""")
+    check("beat jump +8 and -8 move eight beats", j["per"] and abs(j["f"] - 20 - 8 * j["per"]) < 0.02 and abs(j["back"] - 20) < 0.02, str(j))
+    check("the new jump buttons are labelled", pg.get_by_role("button", name="Forward 8 beats").count() >= 2 and pg.get_by_role("button", name="Back 8 beats").count() >= 2)
+    r = pg.evaluate("""() => { const M = GVMixPlan, T = (n, d, b, k) => ({ name: n, duration: d, bpm: b, key: k, grid: b ? { t0: 0.2, period: 60 / b } : null });
+      const out = {}; out.same = M.keyCost('8A', '8A'); out.rel = M.keyCost('8A', '8B'); out.next = M.keyCost('8A', '9A'); out.far = M.keyCost('8A', '2B'); out.wrap = M.keyCost('12A', '1A');
+      out.tempo = [M.tempoGap(124, 128), M.tempoGap(62, 124), M.tempoGap(128, 64)];
+      const items = [{ bpm: 124, key: '8A' }, { bpm: 126, key: '2B' }, { bpm: 122, key: '9A' }, { bpm: 128, key: '8B' }, { bpm: 124, key: '7A' }, { bpm: 90, key: '2A' }];
+      const o = M.order(items, 'first'); out.order = o; out.before = M.pathCost(items, [0, 1, 2, 3, 4, 5]); out.after = M.pathCost(items, o);
+      out.lowest = M.order(items, 'lowest')[0]; out.firstKept = o[0]; out.perm = [...o].sort().join('');
+      const p = M.plan([T('a.wav', 200, 124, '8A'), T('b.wav', 180, 126, '9A'), T('c.mp3', 220, 62, '9B')], { target: 'avg', beats: 16 });
+      out.target = p.target; out.rates = p.items.map((i) => +i.rate.toFixed(3)); out.played = p.items.map((i) => i.played);
+      out.overlap = p.items.slice(0, -1).map((a, i) => +(a.end - p.items[i + 1].start).toFixed(2)); out.spb = p.spb;
+      out.beatsAligned = p.items.slice(0, -1).every((a, i) => { const b = p.items[i + 1], x = (b.start - (a.start + (a.srcStart - a.srcStart) / a.rate)) / p.spb; return Math.abs(x - Math.round(x)) < 1e-6; });
+      out.inBeforeOut = p.items.slice(1, -1).every((i) => i.fadeOut.t0 >= i.fadeIn.t1 - 1e-9);
+      out.list = M.tracklist(p).split('\\n').length; out.first = M.tracklist(p).split('\\n')[0]; out.stamp = [M.stamp(0), M.stamp(75), M.stamp(3725)];
+      out.maxCap = M.plan([T('a.wav', 3000, 124, '8A'), T('b.wav', 3000, 124, '8A')], { target: 'avg' }).total;
+      return out; }""")
+    check("key cost: same 0, relative key and neighbour 1, wrap-around works, far keys cost a lot", r["same"] == 0 and r["rel"] == 1 and r["next"] == 1 and r["wrap"] == 1 and r["far"] >= 6, str(r))
+    check("tempo gap understands half and double time", r["tempo"] == [4, 0, 0], str(r["tempo"]))
+    check("ordering keeps the first track first and uses every track once", r["firstKept"] == 0 and r["perm"] == "012345", str(r["order"]))
+    check("ordering improves the flow score", r["after"] < r["before"], f'{r["before"]} -> {r["after"]}')
+    check("the slow 90 BPM track is chosen as the opener when asked", r["lowest"] == 5, str(r["lowest"]))
+    check("the mix tempo folds the 62 BPM track to double time and averages", 124 < r["target"] < 126, str(r["target"]))
+    check("every track plays within a few percent of the mix tempo", all(0.97 < x < 1.03 for x in r["rates"]), str(r["rates"]))
+    check("transitions overlap by 16 beats and tracks start on the beat", all(abs(o - 16 * r["spb"]) < 0.01 for o in r["overlap"]) and r["beatsAligned"], str(r["overlap"]))
+    check("each track is fully in before it starts to fade out", r["inBeforeOut"])
+    check("tracklist has one line per track with timestamps", r["list"] == 3 and r["first"].startswith("00:00  a  (124 BPM, 8A)") and r["stamp"] == ["00:00", "01:15", "1:02:05"], r["first"] + str(r["stamp"]))
+    # the queue: ordering on the page
+    pg.click("#tab-am")
+    pg.evaluate("""async () => { const { ctx } = __dj; const mk = (bpm, secs, sr = 22050) => { const b = ctx.createBuffer(1, sr * secs, sr), d = b.getChannelData(0), beat = Math.round(sr * 60 / bpm);
+        for (let i = 0; i < d.length; i += beat) for (let k = 0; k < 400 && i + k < d.length; k++) d[i + k] = Math.sin(k / 6) * Math.exp(-k / 80); return b; };
+      const g = (bpm) => ({ t0: 0, period: 60 / bpm, bpm });
+      await __am.addBuffer(mk(120, 30), 'first track.wav', { bpm: 120, key: '8A', grid: g(120) });
+      await __am.addBuffer(mk(124, 30), 'far.wav', { bpm: 124, key: '2B', grid: g(124) });
+      await __am.addBuffer(mk(122, 30), 'near.wav', { bpm: 122, key: '9A', grid: g(122) });
+      await __am.addBuffer(mk(126, 30), 'next.wav', { bpm: 126, key: '8B', grid: g(126) }); }""")
+    check("four tracks are in the queue", pg.locator("#amlist li").count() == 4)
+    pg.click("#amorder")
+    names = pg.evaluate("__am.queue.map((q) => q.name)")
+    check("Order for the best flow puts compatible keys together and keeps track one first", names[0] == "first track.wav" and names[-1] == "far.wav" and "Key path" in pg.inner_text("#amstatus"), str(names))
+    check("the list on the page follows the new order", pg.locator("#amlist li .nm").all_inner_texts()[-1].endswith("far.wav"), str(pg.locator("#amlist li .nm").all_inner_texts()))
+    pg.click("#mmplanbtn")
+    check("the plan shows every track and a tracklist", pg.locator("#mmplan tbody tr").count() == 4 and pg.input_value("#mmlist").count(chr(10)) == 3 and pg.input_value("#mmlist").startswith("00:00  first track"), pg.input_value("#mmlist"))
+    # render a real mix of click tracks and measure the beat spacing through the transitions
+    pg.evaluate("() => { __am.queue.length = 0; }")
+    pg.evaluate("""async () => { const { ctx } = __dj; const mk = (bpm, off, secs, sr = 22050) => { const b = ctx.createBuffer(1, Math.round(sr * secs), sr), d = b.getChannelData(0), beat = sr * 60 / bpm;
+        for (let t = off * sr; t < d.length; t += beat) { const i0 = Math.round(t); for (let k = 0; k < 500 && i0 + k < d.length; k++) d[i0 + k] += 0.8 * Math.sin(k / 4) * Math.exp(-k / 90); } return b; };
+      const g = (bpm, off) => ({ t0: off, period: 60 / bpm, bpm });
+      await __am.addBuffer(mk(120, 0.1, 40), 'one.wav', { bpm: 120, key: '8A', grid: g(120, 0.1) });
+      await __am.addBuffer(mk(126, 0.23, 40), 'two.wav', { bpm: 126, key: '9A', grid: g(126, 0.23) });
+      await __am.addBuffer(mk(123, 0.31, 40), 'three.wav', { bpm: 123, key: '9B', grid: g(123, 0.31) }); }""")
+    pg.select_option("#mmlen", "8"); pg.select_option("#mmtempo", "custom"); pg.fill("#mmbpm", "120")
+    check("choosing a custom tempo shows the BPM box", pg.locator("#mmbpm").is_visible())
+    res = pg.evaluate("""async () => { const r = await __mm.render(); if (!r) return null; const { L, R, rate, plan } = r;
+      // onset detection on the mixed signal: absolute value envelope, local peaks above a threshold with a refractory period
+      const n = L.length, env = new Float32Array(n); for (let i = 0; i < n; i++) env[i] = Math.abs(L[i]) / 32768; const hits = []; let last = -1e9; const thr = 0.12, gap = Math.round(rate * 0.2);
+      for (let i = 1; i < n - 1; i++) if (env[i] > thr && env[i] >= env[i - 1] && env[i] >= env[i + 1] && i - last > gap) { let j = i; hits.push(i / rate); last = i; }
+      const gaps = hits.slice(1).map((h, i) => h - hits[i]);
+      let pkL = 0; for (let i = 0; i < n; i += 7) pkL = Math.max(pkL, Math.abs(L[i]));
+      return { secs: n / rate, total: plan.total, hits: hits.length, gaps: gaps.map((x) => +x.toFixed(4)), spb: plan.spb, peak: pkL / 32768, items: plan.items.map((i) => [+i.start.toFixed(2), +i.end.toFixed(2), +i.rate.toFixed(4)]) }; }""")
+    check("the mix rendered", res is not None, str(res)[:200])
+    if res:
+        okgaps = [g for g in res["gaps"] if abs(g - res["spb"]) < 0.02]
+        check("the rendered length matches the plan", abs(res["secs"] - res["total"]) < 0.05, f'{res["secs"]} vs {res["total"]}')
+        check("beats stay evenly spaced at 120 BPM through both transitions", len(res["gaps"]) > 150 and len(okgaps) >= len(res["gaps"]) - 6, f'{len(okgaps)}/{len(res["gaps"])} spb={res["spb"]} odd={[g for g in res["gaps"] if abs(g - res["spb"]) >= 0.02][:8]}')
+        check("the mix has level but does not clip", 0.2 < res["peak"] <= 1.0, str(res["peak"]))
+    wavhdr = pg.evaluate("""async () => { const b = __mm.wavBlob(__mm.result), u = new DataView(await b.slice(0, 44).arrayBuffer()); return { riff: String.fromCharCode(u.getUint8(0), u.getUint8(1), u.getUint8(2), u.getUint8(3)), ch: u.getUint16(22, true), rate: u.getUint32(24, true), size: b.size, dataLen: u.getUint32(40, true) }; }""")
+    check("the WAV is stereo 16 bit with a matching size", wavhdr["riff"] == "RIFF" and wavhdr["ch"] == 2 and wavhdr["size"] == 44 + wavhdr["dataLen"], str(wavhdr))
+    check("the download button is ready and the status says so", pg.locator("#mmdl").is_enabled() and "Mix ready" in pg.inner_text("#mmstatus"), pg.inner_text("#mmstatus"))
+    with pg.expect_download() as dl:
+        pg.click("#mmdl")
+    check("the mix downloads as a WAV", dl.value.suggested_filename == "GoVibe mix.wav")
+    pg.select_option("#mmfmt", "mp3")
+    with pg.expect_download(timeout=60000) as dl2:
+        pg.click("#mmdl")
+    d = open(dl2.value.path(), "rb").read(); i = 0
+    if d[:3] == b"ID3": i = 10 + ((d[6] << 21) | (d[7] << 14) | (d[8] << 7) | d[9])
+    check("the mix downloads as a valid MP3", dl2.value.suggested_filename == "GoVibe mix.mp3" and d[i] == 0xFF and (d[i + 1] & 0xE0) == 0xE0, str(len(d)))
+    with pg.expect_download() as dl3:
+        pg.click("#mmdlt")
+    check("the tracklist downloads as text", dl3.value.suggested_filename == "GoVibe mix tracklist.txt" and "one" in open(dl3.value.path()).read())
+    check("no errors on the DJ page", not errs, str(errs))
+    ctx.close()
+
+
 # ---------------------------------------------------------------- offline support
 def test_offline(browser, base):
     print("offline support")
@@ -2610,7 +2702,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

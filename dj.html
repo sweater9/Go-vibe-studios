@@ -142,8 +142,36 @@
       <button class="btn" id="amskip">Skip to next</button>
       <button class="btn danger" id="amclear">Clear queue</button>
     </div>
+    <div class="row" style="align-items:flex-end;margin:6px 0">
+      <label class="ctl">Order
+        <select id="amstart" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="first">Keep the first track first</option><option value="lowest">Start with the slowest track</option></select>
+      </label>
+      <button class="btn" id="amorder">Order for the best flow</button>
+    </div>
     <ol id="amlist" class="amlist" aria-label="Track queue"></ol>
     <p class="status" id="amstatus" role="status"></p>
+    <h3 style="margin:18px 0 6px">Mix maker</h3>
+    <p class="status">Turn the queue into one continuous mix file. Every track is brought to the same tempo, the beats are lined up and the bass is swapped across each transition. Rendering runs faster than real time on your device. Mixes can be up to 30 minutes long.</p>
+    <div class="row" style="align-items:flex-end;margin:10px 0">
+      <label class="ctl">Mix tempo
+        <select id="mmtempo" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="avg">Average of the tracks</option><option value="first">Tempo of the first track</option><option value="custom">Choose a tempo</option></select>
+      </label>
+      <label class="ctl hidden">BPM <input type="number" id="mmbpm" min="60" max="200" value="124" style="width:90px"></label>
+      <label class="ctl">Transition
+        <select id="mmlen" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="8">8 beats</option><option value="16" selected>16 beats</option><option value="32">32 beats</option></select>
+      </label>
+      <label class="ctl">File
+        <select id="mmfmt" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="wav">WAV</option><option value="mp3">MP3 (192 kbps)</option></select>
+      </label>
+      <button class="btn" id="mmplanbtn">Preview plan</button>
+      <button class="btn primary" id="mmgo">Render mix</button>
+      <button class="btn" id="mmdl" disabled>Download mix</button>
+    </div>
+    <progress id="mmprog" max="100" value="0" class="hidden" aria-label="Rendering progress" style="width:100%"></progress>
+    <p class="status" id="mmstatus" role="status"></p>
+    <div id="mmplan" class="libwrap"></div>
+    <label class="ctl" style="min-width:0;margin-top:10px">Tracklist <textarea id="mmlist" rows="6" readonly spellcheck="false"></textarea></label>
+    <div class="row" style="margin-top:8px"><button class="btn" id="mmcopy">Copy tracklist</button><button class="btn" id="mmdlt">Download tracklist</button></div>
     </div>
     <div role="tabpanel" id="pane-beat" aria-labelledby="tab-beat" class="tabpane" hidden>
       <h2 id="beattitle">Beat maker</h2>
@@ -187,6 +215,8 @@
 <script src="js/stems.js"></script>
 <script src="js/jog.js"></script>
 <script src="js/automix.js"></script>
+<script src="js/mixplan.js"></script>
+<script src="js/mixmaker.js"></script>
 <script src="js/recorder.js"></script>
 <script src="js/zip.js"></script>
 <script src="js/library.js"></script>
