@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -1767,7 +1767,7 @@ def test_home(browser, base):
     errs = []
     ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 900})
     pg.goto(base + "index.html?gvtest"); pg.wait_for_function("() => window.__home")
-    check("home lists every tool with a link", pg.locator("a.card").count() == 18 and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "cutter.html", "booster.html", "visualizer.html", "metronome.html", "looper.html", "chords.html", "editor.html", "video.html", "master.html", "convert.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
+    check("home lists every tool with a link", pg.locator("a.card").count() == 20 and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "slowed.html", "pitch.html", "cutter.html", "booster.html", "visualizer.html", "metronome.html", "looper.html", "chords.html", "editor.html", "video.html", "master.html", "convert.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
     check("four groups with headings", pg.locator(".grp h2").count() == 4 and pg.inner_text(".grp h2 >> nth=0") == "Make")
     check("the web font loads from this site", pg.evaluate("document.fonts.check('16px \"Bricolage Grotesque\"')"))
     check("beat strip has 4 rows of 16 steps and starts with a boom bap pattern", pg.locator(".st").count() == 64 and pg.locator('.st[aria-pressed="true"]').count() == 3 + 2 + 8)
@@ -2479,6 +2479,57 @@ def test_quicktools(browser, base):
     ctx.close()
 
 
+# ---------------------------------------------------------------- slowed and pitch tools
+def test_pitchtools(browser, base):
+    print("slowed and reverb maker, pitch and speed changer")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    wavjs = """(secs, hz, amp) => { const sr = 22050, n = sr * secs, v = new DataView(new ArrayBuffer(44 + n * 2)), w = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); }; w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true); for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.sin(2 * Math.PI * hz * i / sr) * amp * 32767, true); return v.buffer; }"""
+    pg.goto(base + "slowed.html?gvtest")
+    check("the controls are hidden until a file is chosen", not pg.is_visible("#smain") and pg.is_visible("#sdrop"))
+    pg.evaluate("async (w) => { const f = eval(w); await __slow.open(new File([f(4, 440, 0.4)], 'Song.wav')); }", wavjs)
+    check("the controls open and the readouts show", pg.is_visible("#smain") and "80%" in pg.inner_text("#vr"), pg.inner_text("#vr"))
+    pg.evaluate("__slow.set(50, 0, 2, 0)")
+    r = pg.evaluate("async () => { const o = await __slow.render(); const d = o.chs[0]; let z = 0; for (let i = 1; i < d.length; i++) if (d[i - 1] < 0 && d[i] >= 0) z++; return { dur: o.dur, hz: z / (d.length / o.rate) }; }")
+    check("half speed doubles the length", abs(r["dur"] - 8) < 0.05, str(r))
+    check("half speed lowers the pitch by an octave", abs(r["hz"] - 220) < 6, str(r))
+    pg.evaluate("__slow.set(100, 50, 2, 0)")
+    r = pg.evaluate("async () => { const o = await __slow.render(); return { dur: o.dur, tail: Math.max(...o.chs[0].slice(o.chs[0].length - 2000).map(Math.abs)) }; }")
+    check("reverb adds a tail to the end", abs(r["dur"] - 6) < 0.05, str(r))
+    pg.evaluate("__slow.set(130, 0, 2, 0)")
+    r = pg.evaluate("async () => (await __slow.render()).dur")
+    check("sped up is shorter", abs(r - 4 / 1.3) < 0.05, str(r))
+    pg.click('[data-preset="130,15,1.5,0"]')
+    check("a preset moves the sliders", pg.input_value("#srate") == "130" and pg.input_value("#swet") == "15")
+    pg.select_option("#sfmt", "wav")
+    with pg.expect_download() as dl:
+        pg.click("#sgo")
+    check("saving names the file after the change", dl.value.suggested_filename == "Song sped up reverb.wav", dl.value.suggested_filename)
+    pg.goto(base + "pitch.html?gvtest")
+    pg.evaluate("async (w) => { const f = eval(w); await __pitch.open(new File([f(6, 440, 0.4)], 'Tune.wav')); }", wavjs)
+    freq = "async () => { const o = await __pitch.process(); const d = o.ch[0]; let z = 0; for (let i = 1; i < d.length; i++) if (d[i - 1] < 0 && d[i] >= 0) z++; return { dur: d.length / o.rate, hz: z / (d.length / o.rate) }; }"
+    pg.evaluate("__pitch.set(100, 12, 0, false)")
+    r = pg.evaluate(freq)
+    check("up an octave doubles the pitch and keeps the length", abs(r["hz"] - 880) < 25 and abs(r["dur"] - 6) < 0.1, str(r))
+    pg.evaluate("__pitch.set(50, 0, 0, false)")
+    r = pg.evaluate(freq)
+    check("half speed doubles the length and keeps the pitch", abs(r["dur"] - 12) < 0.1 and abs(r["hz"] - 440) < 15, str(r))
+    pg.evaluate("__pitch.set(200, 0, 0, true)")
+    r = pg.evaluate(freq)
+    check("tape mode moves speed and pitch together", abs(r["dur"] - 3) < 0.1 and abs(r["hz"] - 880) < 20, str(r))
+    pg.evaluate("__pitch.set(100, 0, 50, false)")
+    r = pg.evaluate(freq)
+    check("fine tune of 50 cents raises the pitch by half a semitone", abs(r["hz"] - 440 * 2 ** (0.5 / 12)) < 8, str(r))
+    pg.click('[data-preset="75,0"]')
+    check("a preset sets the speed", pg.input_value("#pspeed") == "75" and "75%" in pg.inner_text("#vs"))
+    pg.select_option("#pfmt", "wav")
+    with pg.expect_download(timeout=30000) as dl:
+        pg.click("#pgo")
+    check("saving downloads the changed file", dl.value.suggested_filename.startswith("Tune (75%"), dl.value.suggested_filename)
+    check("no errors", not errs, str(errs))
+    ctx.close()
+
+
 # ---------------------------------------------------------------- metronome
 def test_metronome(browser, base):
     print("metronome")
@@ -2834,7 +2885,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

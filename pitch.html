@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pitch and speed changer — GoVibe Mix</title>
+<meta name="description" content="Change the pitch or speed of a song on its own, loop a section to practise and save the result. Free, private, and nothing is uploaded.">
+<link rel="canonical" href="https://govibemix.com/pitch.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Pitch and speed changer — GoVibe Mix">
+<meta property="og:description" content="Change the pitch or speed of a song on its own, loop a section to practise and save the result. Free, private, and nothing is uploaded.">
+<meta property="og:url" content="https://govibemix.com/pitch.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="studio.html">Studio</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+  <a class="link" href="index.html#tools">All tools</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>Pitch and speed changer</h1>
+  <p class="lead">Change the key or the tempo of a song on their own. Slow a hard part down to learn it, or move a track into a key you can sing, then loop the bit you are working on. Nothing is uploaded.</p>
+  <div class="panel">
+    <div class="drop" id="pdrop" data-input="pfile" role="button" tabindex="0"><strong>Drop an audio file here</strong> or press to choose one<p class="status">MP3, WAV, OGG, M4A and more, up to 12 minutes.</p></div>
+    <input type="file" id="pfile" accept="audio/*" hidden aria-label="Audio file">
+    <div id="pmain" class="hidden">
+      <div class="row"><button class="btn" data-preset="75,0">Practice at 75%</button><button class="btn" data-preset="50,0">Half speed</button><button class="btn" data-preset="100,-2">Down 2 semitones</button><button class="btn" data-preset="100,2">Up 2 semitones</button><button class="btn" data-preset="100,0">Reset</button></div>
+      <div class="row" style="margin-top:10px;align-items:flex-end">
+        <label class="ctl" style="flex:1;min-width:150px">Speed <output id="vs"></output><input type="range" id="pspeed" min="50" max="200" step="1" value="100"></label><label class="ctl" style="flex:1;min-width:150px">Pitch <output id="vp"></output><input type="range" id="psemi" min="-12" max="12" step="1" value="0"></label><label class="ctl" style="min-width:110px">Fine tune (cents)<input type="number" id="pcents" min="-99" max="99" step="1" value="0"></label>
+      </div>
+      <div class="row" style="margin-top:8px"><label class="row time" style="gap:6px"><input type="checkbox" id="ptape"> Tape mode: speed and pitch move together</label></div>
+      <div class="row" style="margin-top:8px;align-items:flex-end">
+        <label class="row time" style="gap:6px"><input type="checkbox" id="ploop"> Loop a section</label>
+        <label class="ctl" style="min-width:0">From (s)<input type="number" id="pla" min="0" value="0"></label><label class="ctl" style="min-width:0">To (s)<input type="number" id="plb" min="1" value="10"></label>
+      </div>
+      <div class="row" style="margin-top:12px;align-items:flex-end">
+        <button class="btn" id="pplay">▶ Play</button><button class="btn" id="pplayo">Hear the original</button>
+        <label class="ctl" style="min-width:0">Format<select id="pfmt"><option value="mp3">MP3</option><option value="wav">WAV</option></select></label>
+        <button class="btn primary" id="pgo">Save</button><button class="btn mini" id="pagain">Choose another file</button>
+      </div>
+    </div>
+    <p class="status" id="status" role="status"></p>
+  </div>
+  <p class="status">Large changes can add a slight warble, as with any pitch shifter. For slowed and reverb or nightcore, where speed and pitch move together, use the <a href="slowed.html">Slowed and reverb maker</a>.</p>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/stretch.js"></script>
+<script src="js/quick.js"></script>
+<script src="js/pitch.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>

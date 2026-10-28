@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slowed and reverb maker — GoVibe Mix</title>
+<meta name="description" content="Make slowed and reverb, sped up or nightcore versions of a song with live preview. Free, private, and nothing is uploaded.">
+<link rel="canonical" href="https://govibemix.com/slowed.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Slowed and reverb maker — GoVibe Mix">
+<meta property="og:description" content="Make slowed and reverb, sped up or nightcore versions of a song with live preview. Free, private, and nothing is uploaded.">
+<meta property="og:url" content="https://govibemix.com/slowed.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="studio.html">Studio</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+  <a class="link" href="index.html#tools">All tools</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>Slowed and reverb maker</h1>
+  <p class="lead">Slow a song down for that dreamy sound, speed it up for a nightcore edit, add reverb and save it. Speed and pitch move together, like a record. Nothing is uploaded.</p>
+  <div class="panel">
+    <div class="drop" id="sdrop" data-input="sfile" role="button" tabindex="0"><strong>Drop an audio file here</strong> or press to choose one<p class="status">MP3, WAV, OGG, M4A and more.</p></div>
+    <input type="file" id="sfile" accept="audio/*" hidden aria-label="Audio file">
+    <div id="smain" class="hidden">
+      <div class="row"><button class="btn" data-preset="80,40,3,3">Slowed and reverb</button><button class="btn" data-preset="85,30,2.5,0">Lightly slowed</button><button class="btn" data-preset="125,0,2,0">Sped up</button><button class="btn" data-preset="130,15,1.5,0">Nightcore</button><button class="btn" data-preset="100,0,2,0">Reset</button></div>
+      <div class="row" style="margin-top:10px;align-items:flex-end">
+        <label class="ctl" style="flex:1;min-width:150px">Speed <output id="vr"></output><input type="range" id="srate" min="50" max="200" step="1" value="80"></label><label class="ctl" style="flex:1;min-width:150px">Reverb <output id="vw"></output><input type="range" id="swet" min="0" max="100" step="1" value="40"></label><label class="ctl" style="flex:1;min-width:150px">Room size <output id="vo"></output><input type="range" id="sroom" min="0.5" max="6" step="0.5" value="3"></label><label class="ctl" style="flex:1;min-width:150px">Bass <output id="vbs"></output><input type="range" id="sbass" min="-6" max="12" step="1" value="3"></label>
+      </div>
+      <div class="row" style="margin-top:12px;align-items:flex-end">
+        <button class="btn" id="splay">▶ Preview</button><button class="btn mini" id="sback">Back to start</button>
+        <label class="ctl" style="min-width:0">Format<select id="sfmt"><option value="mp3">MP3</option><option value="wav">WAV</option></select></label>
+        <button class="btn primary" id="sgo">Save</button><button class="btn mini" id="sagain">Choose another file</button>
+      </div>
+    </div>
+    <p class="status" id="status" role="status"></p>
+  </div>
+  <p class="status">Want the speed to change without the pitch moving? Use the <a href="pitch.html">Pitch and speed changer</a>.</p>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/quick.js"></script>
+<script src="js/slowed.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>
