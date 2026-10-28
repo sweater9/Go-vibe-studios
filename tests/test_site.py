@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "mono", "tone", "video-to-audio", "recipes", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "mono", "tone", "video-to-audio", "audio", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -1767,7 +1767,7 @@ def test_home(browser, base):
     errs = []
     ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 900})
     pg.goto(base + "index.html?gvtest"); pg.wait_for_function("() => window.__home")
-    check("home lists every tool with a link", pg.locator("a.card").count() == 21 and all(pg.locator(f'.quick a[href="{h}"]').count() == 1 for h in ["silence.html", "mono.html", "tone.html", "video-to-audio.html"]) and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "recipes.html", "slowed.html", "pitch.html", "cutter.html", "booster.html", "visualizer.html", "metronome.html", "looper.html", "chords.html", "editor.html", "video.html", "master.html", "convert.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
+    check("home lists every tool with a link", pg.locator("a.card").count() == 21 and all(pg.locator(f'.quick a[href="{h}"]').count() == 1 for h in ["silence.html", "mono.html", "tone.html", "video-to-audio.html"]) and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "audio.html", "slowed.html", "pitch.html", "cutter.html", "booster.html", "visualizer.html", "metronome.html", "looper.html", "chords.html", "editor.html", "video.html", "master.html", "convert.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
     check("five groups with headings", pg.locator(".grp h2").count() == 5 and pg.inner_text(".grp h2 >> nth=0") == "Make")
     check("the web font loads from this site", pg.evaluate("document.fonts.check('16px \"Bricolage Grotesque\"')"))
     check("beat strip has 4 rows of 16 steps and starts with a boom bap pattern", pg.locator(".st").count() == 64 and pg.locator('.st[aria-pressed="true"]').count() == 3 + 2 + 8)
@@ -2585,41 +2585,57 @@ def test_utilities(browser, base):
 
 
 # ---------------------------------------------------------------- audio recipes
-def test_recipes(browser, base):
-    print("audio recipes")
+def test_audio(browser, base):
+    print("audio page: Auto, Guided and Pro")
     errs = []
     ctx, pg = new_page(browser, errs)
     wavjs = """(parts, ch, noise) => { const sr = 22050, n = parts.reduce((a, p) => a + p[0] * sr, 0), v = new DataView(new ArrayBuffer(44 + n * 2 * ch)), w = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); }; w(0, 'RIFF'); v.setUint32(4, 36 + n * 2 * ch, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, ch, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 2 * ch, true); v.setUint16(32, 2 * ch, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2 * ch, true); let i = 0; for (const [s, a, hz] of parts) for (let k = 0; k < s * sr; k++, i++) { for (let c = 0; c < ch; c++) v.setInt16(44 + (i * ch + c) * 2, (Math.sin(2 * Math.PI * hz * k / sr) * a + (noise || 0) * (Math.random() * 2 - 1)) * 32767, true); } return v.buffer; }"""
-    pg.goto(base + "recipes.html?gvtest")
-    check("the recipe controls are hidden until a file is chosen", not pg.is_visible("#rmain") and pg.is_visible("#rdrop"))
-    pg.evaluate("async (w) => { const f = eval(w); await __rec.open(new File([f([[10, 0.1, 440]], 2)], 'tone.wav')); }", wavjs)
-    check("the file opens and the before numbers show", pg.is_visible("#rmain") and "LUFS" in pg.inner_text("#cmp"), pg.inner_text("#cmp")[:80])
+    open_ = "async (w) => { const f = eval(w); await __aud.open(new File([f(%s)], '%s')); await new Promise((r) => setTimeout(r, 400)); }"
+    pg.goto(base + "audio.html?gvtest")
+    check("the tabs are hidden until a file is chosen", not pg.is_visible("#rmain") and pg.is_visible("#rdrop"))
+    pg.evaluate("async (w) => { const f = eval(w); await __aud.open(new File([f([[10, 0.05, 440]], 2)], 'quiet music.wav')); await new Promise((r) => setTimeout(r, 400)); }", wavjs)
+    check("Auto is the selected tab and shows what it heard", pg.get_attribute("#tab-a", "aria-selected") == "true" and "Loudness" in pg.inner_text("#afind") and "LUFS" in pg.inner_text("#afind"), pg.inner_text("#afind")[:100])
+    check("a quiet piece of music is planned for the streaming level", "-14 LUFS" in pg.inner_text("#aplan") and "Remove" not in pg.inner_text("#aplan"), pg.inner_text("#aplan"))
+    pg.click("#ago"); pg.wait_for_selector("#ares:not(.hidden)", timeout=30000)
+    r = pg.evaluate("GVMaster.analyze(__aud.result.a.chs, __aud.result.a.rate)")
+    check("Auto brings the music to about -14 LUFS under the peak limit", abs(r["lufs"] + 14) < 0.8 and r["truePeakDb"] < -0.9, str(r))
+    pg.evaluate("async (w) => { const f = eval(w); await __aud.open(new File([f([[1, 0.4, 300], [2, 0, 1], [1, 0.4, 300], [2, 0, 1]], 2, 0.04)], 'interview.wav')); await new Promise((r) => setTimeout(r, 400)); }", wavjs)
+    f = pg.evaluate("(() => { const x = __aud.found; return { speech: x.speechLike, noisy: x.noisy, silent: x.silentSec, kind: x.kind }; })()")
+    check("a noisy voice with pauses is recognised", f["speech"] and f["noisy"] and f["silent"] > 3 and f["kind"] == "speech", str(f))
+    plan = pg.inner_text("#aplan")
+    check("the plan lists noise, silence, mono and loudness", all(k in plan for k in ["background noise", "silences", "mono", "LUFS"]), plan)
+    pg.select_option("#akind", "music")
+    check("telling Auto it is music changes the plan", "silences" not in pg.inner_text("#aplan") and "-14" in pg.inner_text("#aplan"), pg.inner_text("#aplan"))
+    pg.select_option("#akind", "speech")
+    pg.click("#ago"); pg.wait_for_selector("#ares:not(.hidden)", timeout=40000)
+    r = pg.evaluate("(() => { const o = __aud.result.a, x = __aud.found; return { ch: o.chs.length, n: o.chs[0].length / o.rate, notes: o.notes, fl: x.floor, top: x.top, sf: x.silentFrac, rel: x.plan.cfg.rel, sil: x.plan.cfg.sil }; })()")
+    check("Auto on the interview removes the gaps and makes it mono", r["ch"] == 1 and r["n"] < 3.5 and any("noise" in x for x in r["notes"]), str(r))
+    pg.evaluate("async (w) => { const f = eval(w); await __aud.open(new File([f([[8, 0.2, 440, ]], 1)], 'x.wav')); }", wavjs)
+    pg.evaluate("async (w) => { const f = eval(w); const a = f([[8, 0.1, 220]], 1); await __aud.open(new File([a], 'fine.wav')); await new Promise((r) => setTimeout(r, 400)); }", wavjs)
+    pg.click("#tab-g")
+    check("Guided opens on its own panel", pg.is_visible("#pane-g") and not pg.is_visible("#pane-a"))
     pg.select_option("#recipe", "podcast")
     on = pg.evaluate("['denoise', 'rumble', 'silence', 'mono', 'loud', 'trim', 'fade'].map((s) => document.getElementById('on-' + s).checked)")
     check("the podcast recipe ticks its steps", on == [True, True, True, True, True, False, False], str(on))
     pg.select_option("#recipe", "ringtone"); pg.fill("#tstart", "2"); pg.fill("#tlen", "3")
-    r = pg.evaluate("async () => { const o = await __rec.apply(); const d = o.chs[0]; let pk = 0; for (let i = 0; i < d.length; i++) pk = Math.max(pk, Math.abs(d[i])); return { n: d.length / o.rate, first: Math.abs(d[0]), pk, ch: o.chs.length }; }")
-    check("ringtone keeps 3 seconds, fades in and peaks at -1 dB", abs(r["n"] - 3) < 0.01 and r["first"] < 0.01 and abs(r["pk"] - 0.891) < 0.02 and r["ch"] == 2, str(r))
-    check("the after numbers appear", pg.is_visible("#rres") and "Done:" in pg.inner_text("#rdone"), pg.inner_text("#rdone"))
-    pg.select_option("#recipe", "music")
-    r = pg.evaluate("async () => { const o = await __rec.apply(); return GVMaster.analyze(o.chs, o.rate); }")
-    check("release ready music reaches about -14 LUFS under the true peak limit", abs(r["lufs"] + 14) < 0.8 and r["truePeakDb"] < -0.9, str(r))
-    pg.evaluate("async (w) => { const f = eval(w); await __rec.open(new File([f([[1, 0.4, 440], [2, 0, 1], [1, 0.4, 440]], 1)], 'talk.wav')); }", wavjs)
-    pg.select_option("#recipe", "note")
-    r = pg.evaluate("async () => { const o = await __rec.apply(); return { n: o.chs[0].length / o.rate, ch: o.chs.length, notes: o.notes }; }")
-    check("voice note removes the silence and stays mono", r["n"] < 3.0 and r["ch"] == 1 and any("silent gap" in x for x in r["notes"]), str(r))
-    pg.evaluate("async (w) => { const f = eval(w); await __rec.open(new File([f([[3, 0.3, 300]], 2, 0.05)], 'noisy.wav')); }", wavjs)
-    pg.select_option("#recipe", "podcast")
-    r = pg.evaluate("async () => { const o = await __rec.apply(); return { n: o.chs[0].length / o.rate, ch: o.chs.length, notes: o.notes }; }")
-    check("podcast cleanup runs noise reduction and finishes", r["ch"] == 1 and any("noise" in x for x in r["notes"]) and 2.5 < r["n"] < 3.1, str(r))
+    pg.click("#rgo"); pg.wait_for_selector("#gres:not(.hidden)", timeout=30000)
+    r = pg.evaluate("(() => { const o = __aud.result.g, d = o.chs[0]; let pk = 0; for (let i = 0; i < d.length; i++) pk = Math.max(pk, Math.abs(d[i])); return { n: d.length / o.rate, first: Math.abs(d[0]), pk }; })()")
+    check("ringtone keeps 3 seconds, fades in and peaks at -1 dB", abs(r["n"] - 3) < 0.01 and r["first"] < 0.01 and abs(r["pk"] - 0.891) < 0.02, str(r))
     pg.select_option("#recipe", "custom")
     on = pg.evaluate("['denoise', 'rumble', 'silence', 'mono', 'loud', 'trim', 'fade'].some((s) => document.getElementById('on-' + s).checked)")
     check("choosing your own steps clears the ticks", on is False)
-    pg.select_option("#recipe", "quiet"); pg.select_option("#rfmt", "wav")
-    pg.click("#rgo"); pg.wait_for_selector("#rres:not(.hidden)", timeout=30000)
+    pg.click("#tab-a"); pg.evaluate("async (w) => { const f = eval(w); await __aud.open(new File([f([[1, 0.4, 300], [2, 0, 1], [1, 0.4, 300]], 1, 0.04)], 'voice.wav')); await new Promise((r) => setTimeout(r, 400)); }", wavjs)
+    pg.click("#atoguided")
+    steps = pg.evaluate("['denoise', 'silence', 'loud'].map((s) => document.getElementById('on-' + s).checked)")
+    check("Change these steps carries Auto's plan into Guided", pg.is_visible("#pane-g") and steps == [True, True, True], str(steps))
+    pg.click("#rgo"); pg.wait_for_selector("#gres:not(.hidden)", timeout=40000); pg.select_option("#gfmt", "wav")
     with pg.expect_download() as dl:
-        pg.click("#rsave")
-    check("saving names the file after the recipe", dl.value.suggested_filename == "noisy (fix).wav", dl.value.suggested_filename)
+        pg.click("#gsave")
+    check("saving names the file after the recipe", dl.value.suggested_filename.startswith("voice (") and dl.value.suggested_filename.endswith(").wav"), dl.value.suggested_filename)
+    pg.click("#tab-p")
+    check("Pro offers the editor", pg.is_visible("#topro"))
+    pg.click("#topro"); pg.wait_for_url("**/editor.html?from=audio*", timeout=15000); pg.wait_for_timeout(2500)
+    check("the file arrives in the Audio Editor under its own name", "voice" in pg.inner_text("body") and pg.evaluate("!!document.querySelector('canvas')"), pg.url)
     check("no errors", not errs, str(errs))
     ctx.close()
 
@@ -2979,7 +2995,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_recipes, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

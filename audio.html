@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audio: clean up, level and finish a file — GoVibe Mix</title>
+<meta name="description" content="One page for audio. Auto listens and fixes, Guided lets you pick the job and steps, Pro opens the full editor. Free, private, nothing is uploaded.">
+<link rel="canonical" href="https://govibemix.com/audio.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Audio: clean up, level and finish a file — GoVibe Mix">
+<meta property="og:description" content="One page for audio. Auto listens and fixes, Guided lets you pick the job and steps, Pro opens the full editor. Free, private, nothing is uploaded.">
+<meta property="og:url" content="https://govibemix.com/audio.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="studio.html">Studio</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+  <a class="link" href="index.html#tools">All tools</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>Audio</h1>
+  <p class="lead">Drop in a file once, then work the way you like. Auto listens to it and picks the fixes. Guided lets you choose the job and the steps. Pro opens the full editor. Everything runs on your device, so nothing is uploaded.</p>
+  <div class="panel">
+    <div class="drop" id="rdrop" data-input="rfile" role="button" tabindex="0"><strong>Drop an audio file here</strong> or press to choose one<p class="status">MP3, WAV, OGG, M4A and more.</p></div>
+    <input type="file" id="rfile" accept="audio/*" hidden aria-label="Audio file">
+    <div id="rmain" class="hidden">
+      <div class="row" style="align-items:center;justify-content:space-between"><strong id="fname"></strong><button class="btn mini" id="again">Choose another file</button></div>
+      <div role="tablist" aria-label="How do you want to work?" class="ttabs" style="margin-top:12px">
+        <button role="tab" class="ttab" id="tab-a" aria-selected="true" aria-controls="pane-a">Auto</button>
+        <button role="tab" class="ttab" id="tab-g" aria-selected="false" aria-controls="pane-g" tabindex="-1">Guided</button>
+        <button role="tab" class="ttab" id="tab-p" aria-selected="false" aria-controls="pane-p" tabindex="-1">Pro</button>
+      </div>
+      <div role="tabpanel" id="pane-a" aria-labelledby="tab-a">
+        <h2>What I heard</h2>
+        <table class="libtbl" aria-label="What was found in the file"><tbody id="afind"></tbody></table>
+        <label class="ctl" style="max-width:280px;margin-top:10px">This file is<select id="akind"><option value="auto">Let Auto decide</option><option value="speech">Speech or a voice</option><option value="music">Music</option></select></label>
+        <h2>What I will do</h2>
+        <ul id="aplan"></ul>
+        <div class="row" style="margin-top:10px"><button class="btn primary" id="ago">Make it better</button><button class="btn" id="atoguided">Change these steps</button></div>
+        <div id="ares" class="hidden">
+        <p class="status" id="adone" role="status"></p>
+        <table class="libtbl" id="acmp" aria-label="Before and after"></table>
+        <div class="row" style="align-items:flex-end;margin-top:10px"><button class="btn" id="aplay">▶ Preview result</button><button class="btn" id="aplayo">Hear the original</button>
+          <label class="ctl" style="min-width:0">Format<select id="afmt"><option value="mp3">MP3</option><option value="wav">WAV</option></select></label><button class="btn primary" id="asave">Save</button></div>
+      </div>
+      </div>
+      <div role="tabpanel" id="pane-g" aria-labelledby="tab-g" hidden>
+        <label class="ctl" style="max-width:360px">What do you want to do?<select id="recipe"><option value="podcast">Podcast or voice cleanup</option><option value="note">Voice note or lecture</option><option value="music">Release ready music</option><option value="ringtone">Ringtone or sample</option><option value="quiet">Fix a quiet recording</option><option value="custom">Choose my own steps</option></select></label>
+        <p class="status" id="rinfo"></p>
+        <h2>Steps</h2>
+        <p class="status">Ticked steps run in this order.</p>
+        <ul class="rsteps" style="list-style:none;padding:0;margin:0"><li class="rstep"><label class="row time" style="gap:8px"><input type="checkbox" id="on-denoise"> <b>1. Reduce background noise</b></label><span class="ropt"><label class="ctl" style="min-width:0">Strength<select id="dn"><option value="0.5">Light</option><option value="0.8">Normal</option><option value="1">Strong</option></select></label></span></li><li class="rstep"><label class="row time" style="gap:8px"><input type="checkbox" id="on-rumble"> <b>2. Cut low rumble</b></label><span class="ropt"><label class="ctl" style="min-width:0">Cut below<select id="hp"><option value="60">60 Hz</option><option value="80">80 Hz</option><option value="100">100 Hz</option><option value="150">150 Hz</option></select></label></span></li><li class="rstep"><label class="row time" style="gap:8px"><input type="checkbox" id="on-silence"> <b>3. Remove long silences</b></label><span class="ropt"><label class="ctl" style="min-width:0">How much<select id="sil"><option value="gentle">Gentle</option><option value="normal">Normal</option><option value="tight">Tight</option></select></label></span></li><li class="rstep"><label class="row time" style="gap:8px"><input type="checkbox" id="on-trim"> <b>4. Keep only part of it</b></label><span class="ropt"><label class="ctl" style="min-width:0">Start (s)<input type="number" id="tstart" min="0" max="36000" step="0.1" value="0"></label><label class="ctl" style="min-width:0">Length (s, 0 for the rest)<input type="number" id="tlen" min="0" max="36000" step="0.1" value="0"></label></span></li><li class="rstep"><label class="row time" style="gap:8px"><input type="checkbox" id="on-mono"> <b>5. Make mono</b></label><span class="ropt"></span></li><li class="rstep"><label class="row time" style="gap:8px"><input type="checkbox" id="on-tone"> <b>6. Bass and treble</b></label><span class="ropt"><label class="ctl" style="min-width:0">Bass (dB)<input type="number" id="bass" min="-12" max="12" step="1" value="0"></label><label class="ctl" style="min-width:0">Treble (dB)<input type="number" id="treble" min="-12" max="12" step="1" value="0"></label></span></li><li class="rstep"><label class="row time" style="gap:8px"><input type="checkbox" id="on-loud"> <b>7. Set the loudness</b></label><span class="ropt"><label class="ctl" style="min-width:0">Target<select id="loud"><option value="-16">Podcast, −16 LUFS</option><option value="-14">Streaming, −14 LUFS</option><option value="-9">Loud, −9 LUFS</option><option value="peak">Loudest peak at −1 dB</option></select></label></span></li><li class="rstep"><label class="row time" style="gap:8px"><input type="checkbox" id="on-fade"> <b>8. Fade in and out</b></label><span class="ropt"><label class="ctl" style="min-width:0">In (s)<input type="number" id="fin" min="0" max="30" step="0.05" value="0"></label><label class="ctl" style="min-width:0">Out (s)<input type="number" id="fout" min="0" max="30" step="0.05" value="0"></label></span></li></ul>
+        <div class="row" style="margin-top:12px"><button class="btn primary" id="rgo">Apply</button></div>
+        <div id="gres" class="hidden">
+        <p class="status" id="gdone" role="status"></p>
+        <table class="libtbl" id="gcmp" aria-label="Before and after"></table>
+        <div class="row" style="align-items:flex-end;margin-top:10px"><button class="btn" id="gplay">▶ Preview result</button><button class="btn" id="gplayo">Hear the original</button>
+          <label class="ctl" style="min-width:0">Format<select id="gfmt"><option value="mp3">MP3</option><option value="wav">WAV</option></select></label><button class="btn primary" id="gsave">Save</button></div>
+      </div>
+      </div>
+      <div role="tabpanel" id="pane-p" aria-labelledby="tab-p" hidden>
+        <h2>Full control</h2>
+        <p>The Audio Editor gives you the waveform and a spectrogram, selections, cut, copy and paste, fades, EQ, a noise gate, pitch and speed, background noise removal and more, with undo. Your file goes straight in, so you do not need to choose it again.</p>
+        <p class="status">When you are done there, you can save as WAV or MP3.</p>
+        <button class="btn primary" id="topro">Open in the Audio Editor</button>
+      </div>
+    </div>
+    <p class="status" id="status" role="status"></p>
+  </div>
+  <p class="status">Looking for one small job? The single tools are here too: <a href="cutter.html">Audio cutter</a>, <a href="booster.html">Volume booster</a>, <a href="silence.html">Silence remover</a>, <a href="slowed.html">Slowed and reverb</a> and <a href="pitch.html">Pitch and speed changer</a>.</p>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/quick.js"></script>
+<script src="js/master-dsp.js"></script>
+<script src="js/denoise.js"></script>
+<script src="js/store.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/tabs.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>

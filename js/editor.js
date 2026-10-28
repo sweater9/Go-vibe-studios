@@ -51,8 +51,8 @@
 
   // Hand-off from the beat maker, recorder and studio
   { const from = new URLSearchParams(location.search).get('from');
-  if ((from === 'create' || from === 'record' || from === 'studio') && window.GVStore)
-    GVStore.get('handoff').then((b) => { if (b) { b.name = from === 'record' ? 'recording' : from === 'studio' ? 'studio mix' : 'generated track'; loadFile(b); GVStore.del('handoff'); } }).catch(() => {});
+  if ((from === 'create' || from === 'record' || from === 'studio' || from === 'audio') && window.GVStore)
+    GVStore.get('handoff').then((b) => { if (b) { b.name = from === 'audio' ? (new URLSearchParams(location.search).get('name') || 'audio file') : from === 'record' ? 'recording' : from === 'studio' ? 'studio mix' : 'generated track'; loadFile(b); GVStore.del('handoff'); } }).catch(() => {});
   }
 
   /* ---------- history ---------- */

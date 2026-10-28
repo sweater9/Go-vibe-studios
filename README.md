@@ -104,7 +104,7 @@ Each deck refines its BPM to 0.01 and finds where beat 1 falls (checked on synth
 - **Mastering** (`master.html`, `js/master-dsp.js`, `js/master-worker.js`): ITU BS.1770 K weighted loudness with gating, 4 times oversampled true peak, shelves, glue compressor, stereo width and a look ahead limiter, run in a worker. Verified against pyloudnorm in the tests.
 - **Video editor** upgrades: per clip fade in and out, and transitions into a clip (crossfade, dip to black, wipe, slide) built from the last frame of the previous clip. Export is still real time through MediaRecorder.
 - **Loop maker** (`samples.html`, `js/samples.js`): drum, bass, chord and melody loops from the Studio instruments in a chosen key and tempo, rendered offline with the tail folded back so they repeat cleanly. WAV, MIDI (format 0) and hand-off to the Studio as an editable track.
-- **Audio recipes** (`recipes.html`, `js/recipes.js`): presets over a fixed order chain that reuses `GVDenoise` and `GVMaster`.
+- **Audio** (`audio.html`, `js/audio.js`): one file, three tabs. Auto measures the file and plans the steps, Guided offers job presets over the same fixed order chain (reusing `GVDenoise` and `GVMaster`), Pro hands the file to the Audio Editor.
 - **Quick utilities** (`silence.html`, `mono.html`, `tone.html`, `video-to-audio.html`, `js/utils.js`).
 - **Slowed and reverb maker** (`slowed.html`, `js/slowed.js`) and **Pitch and speed changer** (`pitch.html`, `js/pitch.js`, `js/stretch.js`).
 - **Audio cutter and joiner** (`cutter.html`, `js/cutter.js`) and **Volume and bass booster** (`booster.html`, `js/boost.js`), sharing `js/quick.js` for decode, waveform, WAV and MP3 encoding.
