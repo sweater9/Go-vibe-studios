@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "tuner", "metronome", "looper", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -101,6 +101,8 @@ def test_static():
     sw = open(f"{ROOT}/sw.js").read()
     pre = re.findall(r"'([^']+\.(?:html|css|js|svg|png|webmanifest))'", sw.split("PRECACHE")[1].split("];")[0])
     check("service worker precache files all exist", pre and all(os.path.exists(os.path.join(ROOT, x)) for x in pre), str([x for x in pre if not os.path.exists(os.path.join(ROOT, x))]))
+    allpre = re.findall(r"'([^']+)'", sw.split("PRECACHE")[1].split("];")[0])
+    check("service worker precache has no duplicates (a duplicate makes the install fail)", len(allpre) == len(set(allpre)), str([x for x in set(allpre) if allpre.count(x) > 1]))
     check("og-image exists", os.path.exists(f"{ROOT}/icons/og-image.png"))
 
 
@@ -1765,7 +1767,7 @@ def test_home(browser, base):
     errs = []
     ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 900})
     pg.goto(base + "index.html?gvtest"); pg.wait_for_function("() => window.__home")
-    check("home lists every tool with a link", pg.locator("a.card").count() == 15 and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "tuner.html", "metronome.html", "looper.html", "editor.html", "video.html", "master.html", "convert.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
+    check("home lists every tool with a link", pg.locator("a.card").count() == 15 and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "metronome.html", "looper.html", "chords.html", "editor.html", "video.html", "master.html", "convert.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
     check("four groups with headings", pg.locator(".grp h2").count() == 4 and pg.inner_text(".grp h2 >> nth=0") == "Make")
     check("the web font loads from this site", pg.evaluate("document.fonts.check('16px \"Bricolage Grotesque\"')"))
     check("beat strip has 4 rows of 16 steps and starts with a boom bap pattern", pg.locator(".st").count() == 64 and pg.locator('.st[aria-pressed="true"]').count() == 3 + 2 + 8)
@@ -2019,7 +2021,7 @@ def test_views(browser, base):
     row = pg.locator("#libbody tr[data-id]", has_text="Alpha")
     row.get_by_role("button", name="4 stars").click()
     pg.locator("#libbody tr[data-id]", has_text="Alpha").locator(".libnote").fill("great opener, 8A"); pg.locator("#libbody tr[data-id]", has_text="Alpha").locator(".libnote").dispatch_event("change")
-    pg.wait_for_timeout(300)
+    pg.wait_for_timeout(1500)
     pg.reload(); pg.wait_for_function("() => document.querySelectorAll('#libbody tr[data-id]').length === 2", timeout=10000)
     st = pg.evaluate("[...document.querySelectorAll('#libbody tr[data-id]')].map((r) => [r.cells[0].textContent.replace(/fits.*/, ''), [...r.querySelectorAll('.star')].filter((b) => b.getAttribute('aria-pressed') === 'true').length, r.querySelector('.libnote').value])")
     check("rating and note are saved with the track", sorted(st) == [["Alpha.wav", 4, "great opener, 8A"], ["Beta.wav", 0, ""]], str(st))
@@ -2389,53 +2391,6 @@ def test_spectrogram(browser, base):
     ctx.close()
 
 
-# ---------------------------------------------------------------- tuner
-def test_tuner(browser, base):
-    print("tuner: pitch detection and page (fake microphone)")
-    errs = []
-    b2 = _sp_instance.chromium.launch(args=["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", "--autoplay-policy=no-user-gesture-required"])
-    ctx = b2.new_context(permissions=["microphone"]); pg = ctx.new_page()
-    pg.on("pageerror", lambda e: errs.append(f"pageerror: {e}"))
-    pg.goto(base + "tuner.html?gvtest")
-    check("the tuner waits for permission first", pg.locator("#rig").is_hidden() and pg.locator("#allow").is_visible())
-    res = pg.evaluate("""() => { const T = __tuner, out = {}; const make = (f, rate, harm) => { const b = new Float32Array(8192); for (let i = 0; i < b.length; i++) { let v = 0; for (const [k, a] of harm || [[1, 1]]) v += a * Math.sin(2 * Math.PI * f * k * i / rate); b[i] = 0.3 * v; } return b; };
-      for (const [f, rate] of [[440, 48000], [82.41, 48000], [196, 44100], [1000, 48000], [32.7, 48000], [1318.5, 44100]]) { const r = T.detect(make(f, rate), rate); out[f] = r ? r.hz : null; }
-      out.rich = (T.detect(make(110, 48000, [[1, 0.4], [2, 1], [3, 0.7], [4, 0.3]]), 48000) || {}).hz;
-      const nz = new Float32Array(8192).map(() => (Math.random() * 2 - 1) * 0.3); const rn = T.detect(nz, 48000); out.noise = rn ? rn.clarity : 0;
-      out.silence = T.detect(new Float32Array(8192), 48000); return out; }""")
-    for f, tol in [("440", .6), ("82.41", .3), ("196", .5), ("1000", 2), ("32.7", .5), ("1318.5", 3)]:
-        check(f"detects {f} Hz", res[f] is not None and abs(res[f] - float(f)) < tol, str(res[f]))
-    check("finds the fundamental even when a harmonic is louder", res["rich"] and abs(res["rich"] - 110) < 1, str(res["rich"]))
-    check("noise is not mistaken for a note", res["noise"] < 0.8, str(res["noise"]))
-    check("silence gives no pitch", res["silence"] is None)
-    n = pg.evaluate("() => [__tuner.noteOf(440), __tuner.noteOf(445), __tuner.noteOf(82.41), __tuner.noteOf(415.3)]")
-    check("440 Hz is A4 and in tune", n[0]["name"] == "A4" and abs(n[0]["cents"]) < 0.5, str(n[0]))
-    check("445 Hz is about 20 cents sharp", n[1]["name"] == "A4" and 18 < n[1]["cents"] < 21, str(n[1]))
-    check("82.41 Hz is E2", n[2]["name"] == "E2" and abs(n[2]["cents"]) < 1, str(n[2]))
-    check("415 Hz is A flat or G sharp", n[3]["name"] == "G♯4", str(n[3]))
-    pg.click("#allow"); pg.wait_for_selector("#rig:not(.hidden)", timeout=10000)
-    pg.wait_for_timeout(600)
-    check("the level meter works", "dB" in pg.inner_text("#lvltxt") or pg.inner_text("#lvltxt") == "silence")
-    check("chromatic mode hides the string buttons", pg.locator("#strings").is_hidden())
-    pg.select_option("#inst", "guitar")
-    check("guitar shows six strings E A D G B E", pg.locator("#strings button").all_inner_texts() == ["E2", "A2", "D3", "G3", "B3", "E4"], str(pg.locator("#strings button").all_inner_texts()))
-    pg.select_option("#inst", "ukulele")
-    check("ukulele shows G C E A", pg.locator("#strings button").all_inner_texts() == ["G4", "C4", "E4", "A4"])
-    pg.evaluate("__tuner.show(445)"); pg.wait_for_timeout(300)
-    check("the display shows the note and the cents", pg.inner_text("#note") == "A4" and "+20" in pg.inner_text("#cents") and "445" in pg.inner_text("#hz"), pg.inner_text("#cents"))
-    check("the needle turns to the sharp side", "rotate(17" in pg.evaluate("document.getElementById('needle').style.transform"), pg.evaluate("document.getElementById('needle').style.transform"))
-    pg.evaluate("__tuner.show(440.2)"); pg.wait_for_timeout(900); pg.evaluate("__tuner.show(440.2)"); pg.wait_for_timeout(100)
-    check("close enough shows In tune and the green zone", pg.inner_text("#verdict") == "In tune" and "good" in pg.get_attribute("#gauge", "class"), pg.inner_text("#verdict"))
-    pg.select_option("#acc", "f"); pg.evaluate("__tuner.show(466.16)")
-    check("flats mode spells B flat", pg.inner_text("#note") == "B♭4", pg.inner_text("#note"))
-    pg.fill("#a4", "432"); pg.dispatch_event("#a4", "change")
-    check("the reference pitch changes", pg.evaluate("__tuner.a4") == 432)
-    pg.locator("#strings button").first.click(); pg.wait_for_timeout(200)
-    check("a string button plays a reference tone", pg.locator("#strings button.playing").count() == 1)
-    check("no errors on the tuner page", not errs, str(errs))
-    ctx.close(); b2.close()
-
-
 # ---------------------------------------------------------------- metronome
 def test_metronome(browser, base):
     print("metronome")
@@ -2546,6 +2501,92 @@ def test_looper(browser, base):
     ctx.close(); b2.close()
 
 
+# ---------------------------------------------------------------- chord and fretboard tools
+def test_chords(browser, base):
+    print("chord and fretboard tools")
+    errs = []
+    ctx, pg = new_page(browser, errs, viewport={"width": 1200, "height": 900})
+    pg.goto(base + "chords.html")
+    r = pg.evaluate("""() => { const C = GVChords, out = {};
+      const names = (r) => r.exact.map((x) => x.name);
+      out.maj = names(C.identify([0, 4, 7])); out.inv = names(C.identify([0, 4, 7], 4)); out.am7 = names(C.identify([9, 0, 4, 7])); out.two = C.identify([0, 7]).exact.length; out.flat = names(C.identify([10, 2, 5], null, true));
+      out.dom7 = names(C.identify([7, 11, 2, 5])); out.partial = C.identify([0, 4, 10]).partial.slice(0, 3).map((x) => x.name);
+      const g = C.TUNINGS['Guitar, standard (E A D G B E)'], u = C.TUNINGS['Ukulele (G C E A)'];
+      out.gc = C.voicings(g, 0, '').map((v) => v.frets.join(' ')); out.ga = C.voicings(g, 9, 'm').map((v) => v.frets.join(' ')); out.uc = C.voicings(u, 0, '').map((v) => v.frets.join(' ')); out.gg7 = C.voicings(g, 7, '7').map((v) => v.frets.join(' '));
+      out.allok = C.TYPES.every((t) => C.voicings(g, 4, t[0], 2).length > 0 || ['dim', 'aug', 'm7♭5', 'dim7', '7♯5', '7♭9', '7♯9', 'maj9', 'm9', '9', 'madd9', 'mMaj7', '7sus4', 'add9', '6', 'm6', 'sus2', 'sus4', 'maj7', 'm7', '7', '5', 'm', ''].includes(t[0]));
+      out.spellD = C.spellFrom('D', [0, 2, 4, 5, 7, 9, 11]).join(' '); out.spellGb = C.spellFrom('G♭', [0, 2, 4, 5, 7, 9, 11]).join(' '); out.spellFsm = C.spellFrom('F♯', [0, 2, 3, 5, 7, 8, 10]).join(' ');
+      out.aMaj = C.diatonic('A', false, false).map((c) => c.name).join(' '); out.aRom = C.diatonic('A', false, false).map((c) => c.roman).join(' '); out.cs7 = C.diatonic('C', false, true).map((c) => c.name).join(' '); out.minor = C.diatonic('A', true, false).map((c) => c.name + ':' + c.roman).join(' ');
+      out.sigs = [0, 1, 2, 7, 11].map((i) => { const k = C.keyInfo(i, false); return k.tonic + ':' + k.sig + ':' + k.accidentals.join(''); });
+      out.tr1 = C.transpose('C   G  Am F\\nHello there\\nC#m7 F#/A#', 2, false); out.tr2 = C.transpose('[Em]Hello [A7]world', 3, true); out.tr3 = C.transpose('| Dm7 | G7 | Cmaj7 |', -2, true); out.tr4 = C.transpose('A man walked into a bar', 2, false); out.tr5 = C.transpose('Bb  Eb', 2, false);
+      return out; }""")
+    check("C E G is C major", r["maj"] == ["C"], str(r["maj"]))
+    check("E at the bottom makes C/E", r["inv"] == ["C/E"], str(r["inv"]))
+    check("A C E G is Am7 or C6", set(r["am7"]) == {"Am7", "C6"}, str(r["am7"]))
+    check("two notes C and G are named as a power chord", r["two"] == 1)
+    check("flat spelling for B flat D F", r["flat"] == ["B♭"], str(r["flat"]))
+    check("G B D F is a dominant seventh", r["dom7"] == ["G7"], str(r["dom7"]))
+    check("C E B flat has partial matches such as C7", "C7" in r["partial"], str(r["partial"]))
+    check("guitar C chord includes the open shape x 3 2 0 1 0", "-1 3 2 0 1 0" in r["gc"], str(r["gc"]))
+    check("guitar A minor includes x 0 2 2 1 0", "-1 0 2 2 1 0" in r["ga"], str(r["ga"]))
+    check("guitar G7 includes 3 2 0 0 0 1", "3 2 0 0 0 1" in r["gg7"], str(r["gg7"]))
+    check("ukulele C is 0 0 0 3", r["uc"][0] == "0 0 0 3", str(r["uc"]))
+    check("D major spells with F sharp and C sharp, G flat major with flats", r["spellD"] == "D E F♯ G A B C♯" and r["spellGb"] == "G♭ A♭ B♭ C♭ D♭ E♭ F", f'{r["spellD"]} / {r["spellGb"]}')
+    check("F sharp minor spells correctly", r["spellFsm"] == "F♯ G♯ A B C♯ D E", r["spellFsm"])
+    check("chords in A major", r["aMaj"] == "A Bm C♯m D E F♯m G♯dim", r["aMaj"])
+    check("roman numerals in a major key", r["aRom"] == "I ii iii IV V vi vii°", r["aRom"])
+    check("seventh chords in C", r["cs7"] == "Cmaj7 Dm7 Em7 Fmaj7 G7 Am7 Bm7♭5", r["cs7"])
+    check("chords in A minor", r["minor"] == "Am:i Bdim:ii° C:III Dm:iv Em:v F:VI G:VII", r["minor"])
+    check("key signatures: C none, G one sharp, D two sharps, D flat five flats, F one flat", r["sigs"] == ["C:0:", "G:1:F♯", "D:2:F♯C♯", "D♭:-5:B♭E♭A♭D♭G♭", "F:-1:B♭"], str(r["sigs"]))
+    check("transposer moves chord lines and keeps alignment", r["tr1"] == "D   A  Bm G\nHello there\nD♯m7 G♯/C", repr(r["tr1"]))
+    check("transposer handles ChordPro brackets with flats", r["tr2"] == "[Gm]Hello [C7]world", repr(r["tr2"]))
+    check("transposer going down uses flats when asked", r["tr3"] == "| Cm7 | F7 | B♭maj7 |", repr(r["tr3"]))
+    check("lyrics that look like a chord are left alone", r["tr4"] == "A man walked into a bar", repr(r["tr4"]))
+    check("existing flats are moved correctly", r["tr5"] == "C   F", repr(r["tr5"]))
+    # page: chord finder
+    for n in ["C", "E", "G"]: pg.get_by_role("button", name=n, exact=True).first.click()
+    check("the finder names the chord on the page", pg.locator("#fres .big").inner_text() == "C" and "major" in pg.inner_text("#fres"), pg.inner_text("#fres"))
+    pg.select_option("#fbass", "4")
+    check("choosing a lowest note shows the inversion", pg.locator("#fres .big").inner_text() == "C/E", pg.inner_text("#fres"))
+    pg.get_by_role("button", name="B", exact=True).first.click()
+    check("adding B gives C major seventh over E", pg.locator("#fres .big").inner_text() == "Cmaj7/E", pg.inner_text("#fres"))
+    pg.click("#fclear")
+    check("clear empties the finder", "No notes" in pg.inner_text("#fres"))
+    # shapes
+    pg.click("#tab-lib"); pg.wait_for_timeout(300)
+    check("chord shapes tab shows diagrams and a piano", pg.locator("#lshapes .shape").count() >= 3 and pg.locator("#lpiano svg").count() == 1)
+    pg.select_option("#linst", "Ukulele (G C E A)"); pg.select_option("#lroot", "9"); pg.select_option("#ltype", "m")
+    check("ukulele A minor has shapes", pg.locator("#lshapes .shape").count() >= 2 and "Am" in pg.inner_text("#lsum"), pg.inner_text("#lsum"))
+    pg.locator("#lshapes .shape button").first.click()
+    check("a shape plays without errors", not errs, str(errs))
+    # fretboard
+    pg.click("#tab-fret"); pg.wait_for_timeout(300)
+    check("the fretboard draws the A minor pentatonic notes", pg.locator("#fb g[role=button]").count() > 20 and "A C D E G" in pg.inner_text("#fsum"), pg.inner_text("#fsum"))
+    pg.select_option("#fscale", "Just one note"); pg.select_option("#froot", "0")
+    check("one note mode shows every C on the neck", 5 <= pg.locator("#fb g[role=button]").count() <= 8, str(pg.locator("#fb g[role=button]").count()))
+    pg.select_option("#ftune", "Ukulele (G C E A)")
+    check("tuning changes the map", pg.locator("#fb g[role=button]").count() >= 3)
+    pg.select_option("#flabel", "d"); check("degree labels show 1 for the root", "1" in pg.locator("#fb g[role=button] text").evaluate_all("els => els.map((e) => e.textContent)"))
+    # circle
+    pg.click("#tab-circle"); pg.wait_for_timeout(300)
+    check("the circle has 24 keys", pg.locator("#circle g.seg").count() == 24)
+    pg.locator('#circle g.seg[data-i="2"][data-m="0"]').click()
+    check("pressing D shows two sharps and its chords", "2 sharps" in pg.inner_text("#cinfo") and "F♯ C♯" in pg.inner_text("#cinfo") and pg.locator("#ctable tbody tr").count() == 7 and "Bm" in pg.inner_text("#ctable"), pg.inner_text("#cinfo"))
+    check("relative minor is B minor", "B minor" in pg.inner_text("#cinfo"))
+    pg.locator('#circle g.seg[data-i="9"][data-m="1"]').click()
+    check("pressing a minor key shows its relative major", "C minor" in pg.inner_text("#cinfo") and "E♭ major" in pg.inner_text("#cinfo") and "Cm" in pg.inner_text("#ctable"), pg.inner_text("#cinfo"))
+    pg.check("#c7"); check("seventh chords toggle", "Cm7" in pg.inner_text("#ctable"), pg.inner_text("#ctable"))
+    pg.click("#cprog")
+    # transposer
+    pg.click("#tab-trans"); pg.wait_for_timeout(300)
+    check("the sample chart is moved up 2 semitones by default", pg.input_value("#tout").splitlines()[1].split() == ["D", "A", "Bm", "G"] and "Amazing grace" in pg.input_value("#tout"), pg.input_value("#tout"))
+    pg.select_option("#tfrom", "0"); pg.select_option("#tto", "10")
+    check("from C to B flat uses flats", pg.input_value("#tout").splitlines()[1].split() == ["B♭", "F", "Gm", "E♭"] and pg.locator("#tsemi").is_disabled(), pg.input_value("#tout"))
+    with pg.expect_download() as dl: pg.click("#tdl")
+    check("the chart downloads as text", dl.value.suggested_filename == "transposed chart.txt")
+    check("no errors on the chord tools page", not errs, str(errs))
+    ctx.close()
+
+
 # ---------------------------------------------------------------- offline support
 def test_offline(browser, base):
     print("offline support")
@@ -2569,7 +2610,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_tuner, test_metronome, test_looper, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

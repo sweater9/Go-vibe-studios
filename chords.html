@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chord finder, fretboard and circle of fifths — GoVibe Mix</title>
+<meta name="description" content="Free music theory tools: a chord finder, chord shapes for guitar and ukulele, a fretboard scale map, an interactive circle of fifths and a chord chart transposer. Runs in your browser.">
+<link rel="canonical" href="https://govibemix.com/chords.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Chord finder, fretboard and circle of fifths — GoVibe Mix">
+<meta property="og:description" content="A chord finder, chord shapes, fretboard scale map, circle of fifths and chord transposer. Free, in your browser.">
+<meta property="og:url" content="https://govibemix.com/chords.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="studio.html">Studio</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+  <a class="link" href="index.html#tools">All tools</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>Chord and fretboard tools</h1>
+  <p class="lead">Five theory tools in one place. Name a chord from its notes, see how to play it on guitar or ukulele, map a scale on the neck, explore the circle of fifths and move a chord chart to a new key. Press anything to hear it.</p>
+
+  <div role="tablist" aria-label="Theory tools" class="ttabs">
+    <button role="tab" class="ttab" id="tab-find" aria-selected="true" aria-controls="pane-find">Chord finder</button>
+    <button role="tab" class="ttab" id="tab-lib" aria-selected="false" aria-controls="pane-lib" tabindex="-1">Chord shapes</button>
+    <button role="tab" class="ttab" id="tab-fret" aria-selected="false" aria-controls="pane-fret" tabindex="-1">Fretboard</button>
+    <button role="tab" class="ttab" id="tab-circle" aria-selected="false" aria-controls="pane-circle" tabindex="-1">Circle of fifths</button>
+    <button role="tab" class="ttab" id="tab-trans" aria-selected="false" aria-controls="pane-trans" tabindex="-1">Transposer</button>
+  </div>
+
+  <div role="tabpanel" id="pane-find" aria-labelledby="tab-find">
+    <div class="panel">
+      <h2>Chord finder</h2>
+      <p class="status">Press the notes you have. The chord name appears below.</p>
+      <div class="row" style="align-items:flex-end">
+        <label class="ctl">Names<select id="fspell"><option value="s">Sharps (C♯)</option><option value="f">Flats (D♭)</option></select></label>
+        <label class="ctl">Lowest note (optional)<select id="fbass"></select></label>
+        <button class="btn" id="fclear">Clear</button><button class="btn" id="fplay">Play the notes</button>
+      </div>
+      <div class="pcs" id="fpcs" role="group" aria-label="Notes"></div>
+      <div id="fres" class="fres" role="status" aria-live="polite"></div>
+    </div>
+  </div>
+
+  <div role="tabpanel" id="pane-lib" aria-labelledby="tab-lib" hidden>
+    <div class="panel">
+      <h2>Chord shapes</h2>
+      <div class="row" style="align-items:flex-end">
+        <label class="ctl">Root<select id="lroot"></select></label>
+        <label class="ctl">Chord type<select id="ltype"></select></label>
+        <label class="ctl" style="min-width:260px">Instrument<select id="linst"></select></label>
+      </div>
+      <p class="status" id="lsum" role="status"></p>
+      <div id="lpiano" class="lpiano"></div>
+      <div id="lshapes" class="shapes"></div>
+    </div>
+  </div>
+
+  <div role="tabpanel" id="pane-fret" aria-labelledby="tab-fret" hidden>
+    <div class="panel">
+      <h2>Fretboard</h2>
+      <div class="row" style="align-items:flex-end">
+        <label class="ctl">Root<select id="froot"></select></label>
+        <label class="ctl">Scale<select id="fscale"></select></label>
+        <label class="ctl" style="min-width:260px">Instrument and tuning<select id="ftune"></select></label>
+        <label class="ctl">Show<select id="flabel"><option value="n">Note names</option><option value="d">Scale degrees</option></select></label>
+      </div>
+      <p class="status" id="fsum" role="status"></p>
+      <div class="fbwrap"><svg id="fb" role="group" aria-label="Fretboard"></svg></div>
+      <p class="status">The root is in purple. Press any note to hear it. Choose "Just one note" as the scale to find every place a single note lives.</p>
+    </div>
+  </div>
+
+  <div role="tabpanel" id="pane-circle" aria-labelledby="tab-circle" hidden>
+    <div class="panel">
+      <h2>Circle of fifths</h2>
+      <p class="status">Press a key. Major keys are on the outside and their relative minors inside.</p>
+      <div class="circlewrap"><svg id="circle" viewBox="-250 -250 500 500" role="group" aria-label="Circle of fifths"></svg>
+        <div class="cinfo" id="cinfo" role="status" aria-live="polite"></div></div>
+      <label class="row time" style="margin-top:10px"><input type="checkbox" id="c7"> Show four note (seventh) chords</label>
+      <div class="tblwrap"><table class="tbl" id="ctable"><thead><tr><th scope="col">Degree</th><th scope="col">Chord</th><th scope="col">Notes</th><th scope="col">Hear it</th></tr></thead><tbody></tbody></table></div>
+      <div class="row" style="margin-top:10px"><button class="btn primary" id="cprog">Play the chords I, V, vi, IV</button><span class="status" id="cprogtxt"></span></div>
+    </div>
+  </div>
+
+  <div role="tabpanel" id="pane-trans" aria-labelledby="tab-trans" hidden>
+    <div class="panel">
+      <h2>Chord chart transposer</h2>
+      <p class="status">Paste a chord chart. Lines made only of chords are moved to the new key. Lyrics, section names and ChordPro style [C] chords are handled too.</p>
+      <div class="row" style="align-items:flex-end">
+        <label class="ctl">Move by<select id="tsemi"></select></label>
+        <label class="ctl">Or from key<select id="tfrom"></select></label>
+        <label class="ctl">To key<select id="tto"></select></label>
+        <label class="ctl">Spelling<select id="tspell"><option value="a">Automatic</option><option value="s">Sharps</option><option value="f">Flats</option></select></label>
+      </div>
+      <div class="twocol">
+        <label class="ctl" style="min-width:0">Original chart<textarea id="tin" rows="12" spellcheck="false">[Verse]
+C        G       Am      F
+Amazing grace how sweet the sound
+C        G       C
+That saved a wretch like me</textarea></label>
+        <label class="ctl" style="min-width:0">Transposed<textarea id="tout" rows="12" readonly spellcheck="false"></textarea></label>
+      </div>
+      <div class="row" style="margin-top:10px"><button class="btn" id="tcopy">Copy</button><button class="btn" id="tdl">Download .txt</button><span class="status" id="tstat" role="status"></span></div>
+    </div>
+  </div>
+
+  <div class="prose">
+    <h2>Tips</h2>
+    <ul>
+      <li>The chord finder also names inversions. Choose a lowest note and C E G with E at the bottom becomes C/E.</li>
+      <li>Chord shapes are worked out from the instrument tuning, so they follow whichever tuning you pick.</li>
+      <li>On the circle, keys next to each other share almost every note, which is why they sound good together in a song or a DJ mix.</li>
+      <li>Moving a chart up or down by 2 semitones is a quick way to find a key that suits your voice. A capo does the same job on guitar.</li>
+      <li>Want the scale notes on a piano? Open the <a href="keys.html">Key and scale helper</a>.</li>
+    </ul>
+  </div>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/synth.js"></script>
+<script src="js/theory.js"></script>
+<script src="js/chords.js"></script>
+<script src="js/tabs.js"></script>
+<script src="js/chordspage.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>
