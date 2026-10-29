@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instrument tuner — GoVibe Mix</title>
+<meta name="description" content="A free instrument tuner for guitar, bass, ukulele, violin and cello. It listens through your microphone and shows how sharp or flat each note is. Nothing is recorded or uploaded.">
+<link rel="canonical" href="https://govibemix.com/tuner.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Instrument tuner — GoVibe Mix">
+<meta property="og:description" content="A free instrument tuner for guitar, bass, ukulele, violin and cello. It listens through your microphone and shows how sharp or flat each note is. Nothing is recorded or uploaded.">
+<meta property="og:url" content="https://govibemix.com/tuner.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="studio.html">Studio</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+  <a class="link" href="index.html#tools">All tools</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>Instrument tuner</h1>
+  <p class="lead">Tune a guitar, bass, ukulele, violin or cello, or check any note you sing or play. It listens through your microphone and shows how far each note is from being in tune. Nothing is recorded or sent anywhere.</p>
+  <div class="panel">
+    <div class="row" style="align-items:flex-end">
+      <button class="btn primary" id="go" aria-pressed="false">Start tuning</button>
+      <label class="ctl" style="min-width:180px">Instrument<select id="inst"><option value="chromatic">Any note (chromatic)</option><option value="guitar">Guitar</option><option value="bass">Bass guitar</option><option value="ukulele">Ukulele</option><option value="violin">Violin</option><option value="cello">Cello</option></select></label>
+      <label class="ctl" style="min-width:120px">A4 pitch (Hz)<input type="number" id="a4" min="400" max="480" step="1" value="440"></label>
+    </div>
+    <div class="tmeter" data-state="idle" role="img" aria-label="Tuning meter">
+      <div class="tnote" id="tnote" aria-live="polite">—</div>
+      <div class="tbar"><span class="tmark" style="left:50%"></span><span class="tneedle" id="needle" style="left:50%"></span></div>
+      <div class="tscale"><span>Flat</span><span>In tune</span><span>Sharp</span></div>
+      <div class="thz" id="thz">Play a note</div>
+      <div class="tcents" id="tcents"></div>
+    </div>
+    <div class="row" id="strings" style="margin-top:10px" role="group" aria-label="Reference tones for each string"></div>
+    <p class="status" id="status" role="status">Press Start tuning and allow the microphone. Play one string at a time.</p>
+  </div>
+  <div class="prose">
+    <h2>How to use it</h2>
+    <ul><li>Press Start tuning, allow the microphone, and play one note at a time in a quiet room.</li><li>The big letter is the nearest note. The needle moves right when you are sharp and left when you are flat. It turns green within 5 cents.</li><li>Choose an instrument to see its strings. Press a string to hear its reference tone, and tune by ear if you prefer.</li><li>A4 is normally 440 Hz. Change it only if you play with an instrument that is tuned differently.</li></ul>
+  </div>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/pitch-detect.js"></script>
+<script src="js/tuner.js"></script>
+<script src="js/pwa.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>

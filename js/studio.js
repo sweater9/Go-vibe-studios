@@ -329,11 +329,24 @@
       li.append(o, d); box.appendChild(li);
     });
   }
+  function refreshVersions() {
+    const box = $('vlist'); box.replaceChildren(); const items = IO.snaps(P.id);
+    if (!items.length) { const li = document.createElement('li'); li.className = 'status'; li.textContent = 'No saved versions yet. Save one before a big change, and come back to it if you change your mind.'; box.appendChild(li); return; }
+    items.forEach((it) => {
+      const li = document.createElement('li'); li.className = 'prow'; const nm = document.createElement('span');
+      nm.textContent = (it.name || 'Version') + ' · ' + (it.tracks || 0) + ' tracks · ' + new Date(it.ts).toLocaleString();
+      const r = document.createElement('button'); r.className = 'btn mini'; r.textContent = 'Restore'; r.setAttribute('aria-label', 'Restore version ' + (it.name || new Date(it.ts).toLocaleString()));
+      r.onclick = async () => { if (!confirm('Restore this version? Your current project is saved as a new version first, so nothing is lost.')) return; try { await saveNow(); await IO.snapshot(P, 'Before restoring ' + (it.name || 'a version')); await IO.restore(P.id, it.id); await openProject(P.id, true); say('Restored the version "' + (it.name || 'Version') + '".'); } catch (e) { say('Could not restore: ' + e.message); } };
+      const d = document.createElement('button'); d.className = 'btn mini'; d.textContent = 'Delete'; d.setAttribute('aria-label', 'Delete version ' + (it.name || new Date(it.ts).toLocaleString())); d.onclick = async () => { await IO.removeSnap(it.id); refreshVersions(); };
+      li.append(nm, r, d); box.appendChild(li);
+    });
+  }
+  $('vsave').onclick = async () => { await saveNow(); try { await IO.snapshot(P, $('vname').value || ''); $('vname').value = ''; refreshVersions(); say('Saved a version of this project.'); } catch (e) { say('Could not save a version: ' + e.message); } };
   async function loadBuffers() {
     for (const [aid, b] of blobs) { if (buffers.has(aid)) continue; try { ensureCtx(); const buf = await ctx.decodeAudioData(await b.arrayBuffer()); buffers.set(aid, buf); peaks.set(aid, Core.peaksOf(buf)); } catch (_) { say('Could not read audio for ' + ((P.assets[aid] || {}).name || 'a clip') + '.'); } }
   }
   function resetView() { stop(); undoS = []; redoS = []; syncUndo(); sel = { track: null, clip: null }; playhead = 0; scrollX = 0; $('time').textContent = fmtT(0); if (window.GVRoll) GVRoll.close(); }
-  async function openProject(id) { try { await saveNow(); const r = await IO.load(id); resetView(); P = r.p; blobs = r.blobs; buffers = new Map(); peaks = new Map(); await loadBuffers(); afterStructure(); syncScroll(); refreshProjects(); say('Opened ' + P.name + '.'); } catch (e) { say('Could not open that project: ' + e.message); } }
+  async function openProject(id, skipSave) { try { if (!skipSave) await saveNow(); const r = await IO.load(id); resetView(); P = r.p; blobs = r.blobs; buffers = new Map(); peaks = new Map(); await loadBuffers(); afterStructure(); syncScroll(); refreshProjects(); refreshVersions(); say('Opened ' + P.name + '.'); } catch (e) { say('Could not open that project: ' + e.message); } }
   function newProject() { resetView(); P = Core.newProject(); blobs = new Map(); buffers = new Map(); peaks = new Map(); afterStructure(); markDirty(); refreshProjects(); }
   $('pnew').onclick = async () => { await saveNow(); newProject(); say('Started a new project.'); };
   $('pexport').onclick = async () => { await saveNow(); const z = await IO.exportZip(P, blobs); dl(z, (P.name.replace(/[^\w\- ]+/g, '_') || 'project') + '.govibe-project.zip'); say('Backup downloaded. It holds the project and its audio.'); };
@@ -425,7 +438,7 @@
       if (from === 'samples') { try { const j = JSON.parse(localStorage.getItem('govibe.loop') || 'null'); localStorage.removeItem('govibe.loop'); if (j && j.spec) addLoop(j); } catch (_) { /* nothing handed over */ } }
     }
     if (!P.tracks.length && window.GVSession) { const s = GVSession.get(); if (s.bpm) { P.bpm = Math.max(30, Math.min(300, s.bpm)); $('bpm').value = P.bpm; } }
-    refreshProjects();
+    refreshProjects(); refreshVersions();
   }
   window.addEventListener('beforeunload', () => { if (dirty) saveNow(); });
   window.addEventListener('resize', () => { dirty = true; });

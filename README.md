@@ -109,6 +109,9 @@ Each deck refines its BPM to 0.01 and finds where beat 1 falls (checked on synth
 - **Slowed and reverb maker** (`slowed.html`, `js/slowed.js`) and **Pitch and speed changer** (`pitch.html`, `js/pitch.js`, `js/stretch.js`).
 - **Audio cutter and joiner** (`cutter.html`, `js/cutter.js`) and **Volume and bass booster** (`booster.html`, `js/boost.js`), sharing `js/quick.js` for decode, waveform, WAV and MP3 encoding.
 - **Music visualizer** (`visualizer.html`, `js/visualizer.js`): own FFT (`GVSpec`), bars, mirror, circle and waveform styles, cover image, title text, exports MP4 or WebM through WebCodecs and the vendored muxers, with a MediaRecorder fallback.
+- **Tuner** (`tuner.html`, `js/tuner.js`, `js/pitch-detect.js`): microphone pitch detection with the YIN method, cents meter, instrument presets and reference tones.
+- **Audio to MIDI** (`tomidi.html`, `js/tomidi.js`): follows a single melodic line, groups it into notes and writes a MIDI file through `GVMidi`.
+- **Studio versions**: named snapshots of a project (`GVStudioIO.snapshot/restore/removeSnap`); the sound files are shared and kept while any version needs them.
 - **Metronome** (`metronome.html`, `js/metronome.js`): lookahead scheduling on the audio clock, accents, subdivisions, swing, tap tempo, tempo trainer.
 - **Chord and fretboard tools** (`chords.html`, `js/chords.js`, `js/chordspage.js`): chord identification, a voicing search that works from the tuning (guitar, bass, ukulele, mandolin), key aware note spelling, circle of fifths and a chord chart transposer.
 - **Looper** (`looper.html`, `js/looper.js`): loop station that arms the recorder worklet at exact audio clock frames, so overdubs stay in time; latency fix, per layer volume and mute, WAV mix export.

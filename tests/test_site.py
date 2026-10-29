@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "mono", "tone", "video-to-audio", "audio", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "tuner", "tomidi", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "mono", "tone", "video-to-audio", "audio", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -1767,7 +1767,7 @@ def test_home(browser, base):
     errs = []
     ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 900})
     pg.goto(base + "index.html?gvtest"); pg.wait_for_function("() => window.__home")
-    check("home lists every tool with a link", pg.locator("a.card").count() == 21 and all(pg.locator(f'.quick a[href="{h}"]').count() == 1 for h in ["silence.html", "mono.html", "tone.html", "video-to-audio.html"]) and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "audio.html", "slowed.html", "pitch.html", "cutter.html", "booster.html", "visualizer.html", "metronome.html", "looper.html", "chords.html", "editor.html", "video.html", "master.html", "convert.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
+    check("home lists every tool with a link", pg.locator("a.card").count() == 23 and all(pg.locator(f'.quick a[href="{h}"]').count() == 1 for h in ["silence.html", "mono.html", "tone.html", "video-to-audio.html"]) and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "audio.html", "slowed.html", "pitch.html", "cutter.html", "booster.html", "visualizer.html", "metronome.html", "looper.html", "chords.html", "editor.html", "video.html", "master.html", "convert.html", "tuner.html", "tomidi.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
     check("five groups with headings", pg.locator(".grp h2").count() == 5 and pg.inner_text(".grp h2 >> nth=0") == "Make")
     check("the web font loads from this site", pg.evaluate("document.fonts.check('16px \"Bricolage Grotesque\"')"))
     check("beat strip has 4 rows of 16 steps and starts with a boom bap pattern", pg.locator(".st").count() == 64 and pg.locator('.st[aria-pressed="true"]').count() == 3 + 2 + 8)
@@ -3093,6 +3093,66 @@ def test_session(browser, base):
     ctx.close()
 
 
+def test_tuner_midi(browser, base):
+    print("tuner, audio to MIDI and studio versions")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "tuner.html?gvtest"); pg.wait_for_function("() => window.GVPitch && window.__tuner", timeout=8000)
+    SINE = "([hz, sr, n]) => { const d = new Float32Array(n); for (let i = 0; i < n; i++) d[i] = 0.5 * Math.sin(2 * Math.PI * hz * i / sr); return d; }"
+    res = pg.evaluate("""() => { const mk = (hz, sr = 44100, n = 4096) => { const d = new Float32Array(n); for (let i = 0; i < n; i++) d[i] = 0.5 * Math.sin(2 * Math.PI * hz * i / sr); return d; };
+      const out = {}; [82.41, 110, 196, 440, 659.25].forEach((hz) => { const r = GVPitch.yin(mk(hz), 44100, 30, 1500); out[hz] = r ? r.hz : null; });
+      const noise = new Float32Array(4096); for (let i = 0; i < noise.length; i++) noise[i] = Math.random() * 2 - 1; out.noise = GVPitch.yin(noise, 44100, 30, 1500);
+      out.near = GVPitch.nearest(445); out.name = GVPitch.name(69); out.low = GVPitch.nearest(436); return out; }""")
+    check("pitch detection finds sine waves within 0.3 percent", all(res[k] and abs(res[k] - float(k)) / float(k) < 0.003 for k in ["82.41", "110", "196", "440", "659.25"]))
+    check("noise has no clear pitch", res["noise"] is None or res["noise"]["clarity"] < 0.85)
+    check("note names and cents are right", res["name"] == "A4" and res["near"]["name"] == "A4" and 18 <= res["near"]["cents"] <= 22 and res["low"]["cents"] < 0)
+    pg.select_option("#inst", "guitar")
+    check("choosing an instrument lists its strings", pg.locator("#strings button").count() == 6 and pg.locator("#strings button").first.inner_text() == "E2")
+    pg.evaluate("() => __tuner.show({ hz: 440 })")
+    check("an in tune note turns the meter green", pg.locator(".tmeter").get_attribute("data-state") == "ok" and pg.inner_text("#tnote") == "A4" and "In tune" in pg.inner_text("#tcents"))
+    pg.evaluate("() => __tuner.show({ hz: 452 })")
+    check("a sharp note shows cents and the needle moves right", "too high" in pg.inner_text("#tcents") and float(pg.evaluate("() => parseFloat(document.getElementById('needle').style.left)")) > 55)
+    pg.fill("#a4", "432"); pg.dispatch_event("#a4", "change"); pg.evaluate("() => __tuner.show({ hz: 432 })")
+    check("changing A4 changes what counts as in tune", pg.inner_text("#tnote") == "A4" and "In tune" in pg.inner_text("#tcents"))
+    ctx.close()
+    b2 = _sp_instance.chromium.launch(args=["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", "--autoplay-policy=no-user-gesture-required"])
+    ctx2 = b2.new_context(permissions=["microphone"]); p2 = ctx2.new_page(); p2.goto(base + "tuner.html?gvtest"); p2.click("#go"); p2.wait_for_timeout(1500)
+    check("the tuner starts with a microphone and stops again", "Listening" in p2.inner_text("#status") and p2.evaluate("() => __tuner.running")); p2.click("#go"); check("stopping works", "Stopped" in p2.inner_text("#status") and not p2.evaluate("() => __tuner.running")); ctx2.close(); b2.close()
+    # ---------- audio to MIDI ----------
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "tomidi.html?gvtest"); pg.wait_for_function("() => window.__midi", timeout=8000)
+    out = pg.evaluate("""async () => { const sr = 44100, notes = [[60, 0.0, 0.5], [64, 0.6, 0.5], [67, 1.2, 0.5], [67, 1.8, 0.5]], d = new Float32Array(Math.round(sr * 2.5));
+      notes.forEach(([m, t, l]) => { const hz = 440 * Math.pow(2, (m - 69) / 12); for (let i = Math.round(t * sr); i < Math.round((t + l) * sr); i++) { const x = (i - t * sr) / sr; d[i] = 0.5 * Math.sin(2 * Math.PI * hz * i / sr) * Math.min(1, x * 40, (l - x) * 40); } });
+      const ns = await __midi.analyse(d, sr, { range: __midi.RANGES.voice }); const bytes = __midi.midiBytes(ns, 120, 2.5), back = GVMidi.read(bytes); return { ns, head: String.fromCharCode(...bytes.slice(0, 4)), back: JSON.stringify(back).length }; }""")
+    check("audio to MIDI finds the four notes", [n["p"] for n in out["ns"]] == [60, 64, 67, 67])
+    check("note times are close", all(abs(n["s"] - e) < 0.08 for n, e in zip(out["ns"], [0, 0.6, 1.2, 1.8])) and all(0.35 < n["d"] < 0.6 for n in out["ns"]))
+    check("the MIDI file is valid and can be read back", out["head"] == "MThd" and out["back"] > 100)
+    pg.evaluate("""async () => { const sr = 22050, d = new Float32Array(sr * 1); for (let i = 0; i < d.length; i++) d[i] = (Math.random() - 0.5) * 0.4; window.__noiseNotes = await __midi.analyse(d, sr, { range: __midi.RANGES.any }); }""")
+    check("noise gives no notes", pg.evaluate("() => window.__noiseNotes.length") == 0)
+    check("no page errors in tuner and audio to MIDI", not errs)
+    ctx.close()
+    # ---------- studio versions ----------
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "studio.html?gvtest"); pg.wait_for_function("() => window.__st", timeout=10000); pg.wait_for_timeout(500)
+    check("studio versions start empty", "No saved versions" in pg.inner_text("#vlist"))
+    pg.fill("#pname", "Version test"); pg.dispatch_event("#pname", "change")
+    pg.click("#vsave"); pg.wait_for_timeout(500)
+    check("saving a version lists it", pg.locator("#vlist li.prow").count() == 1)
+    pg.evaluate("() => { __st.P.bpm = 150; }") if pg.evaluate("() => !!window.__st.P") else None
+    pg.fill("#bpm", "150"); pg.dispatch_event("#bpm", "change"); pg.wait_for_timeout(200)
+    pg.fill("#vname", "Fast one"); pg.click("#vsave"); pg.wait_for_timeout(500)
+    check("versions are named and newest first", pg.locator("#vlist li.prow").count() == 2 and "Fast one" in pg.locator("#vlist li.prow").first.inner_text())
+    pg.once("dialog", lambda d: d.accept())
+    pg.locator("#vlist li.prow").nth(1).locator("button", has_text="Restore").click(); pg.wait_for_timeout(1200)
+    check("restoring brings the old tempo back", pg.input_value("#bpm") == "120")
+    check("restoring keeps the current work as a new version", pg.locator("#vlist li.prow").count() == 3 and "Before restoring" in pg.inner_text("#vlist"))
+    pg.once("dialog", lambda d: d.accept())
+    pg.locator("#vlist li.prow").first.locator("button", has_text="Delete").click(); pg.wait_for_timeout(400)
+    check("deleting a version removes it", pg.locator("#vlist li.prow").count() == 2)
+    check("no page errors in studio versions", not errs)
+    ctx.close()
+
+
 def main():
     srv, base = start_server()
     test_static()
@@ -3100,7 +3160,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

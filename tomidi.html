@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audio to MIDI — GoVibe Mix</title>
+<meta name="description" content="Turn a sung, whistled or played melody into a MIDI file. Free, runs in your browser, and your audio is never uploaded.">
+<link rel="canonical" href="https://govibemix.com/tomidi.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Audio to MIDI — GoVibe Mix">
+<meta property="og:description" content="Turn a sung, whistled or played melody into a MIDI file. Free, runs in your browser, and your audio is never uploaded.">
+<meta property="og:url" content="https://govibemix.com/tomidi.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="studio.html">Studio</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+  <a class="link" href="index.html#tools">All tools</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>Audio to MIDI</h1>
+  <p class="lead">Turn a melody you sang, whistled or played into a MIDI file. It finds one note at a time, so it works best on a single voice, bass or lead line with little background noise. Everything happens in your browser and the file never leaves your device.</p>
+  <div class="panel">
+    <div class="drop" id="rdrop" data-input="rfile" role="button" tabindex="0"><strong>Drop an audio file here</strong> or press to choose one<p class="status">MP3, WAV, OGG, M4A and more. Up to five minutes.</p></div>
+    <input type="file" id="rfile" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.flac,.caf,.aif,.aiff,.3gp,.amr,video/mp4" hidden aria-label="Choose an audio file">
+    <div id="rmain" hidden>
+      <div class="row" style="align-items:center;justify-content:space-between"><strong id="fname"></strong><button class="btn mini" id="again">Choose another file</button></div>
+      <div class="row" style="align-items:flex-end;margin-top:12px">
+        <label class="ctl" style="min-width:200px">The sound is<select id="kind"><option value="voice">A voice or whistle</option><option value="lead">A high instrument or lead</option><option value="bass">A bass</option><option value="any">Not sure</option></select></label>
+        <label class="ctl" style="min-width:120px">Tempo for the MIDI file<input type="number" id="tempo" min="30" max="300" value="120"></label>
+        <button class="btn primary" id="go">Find the notes</button>
+      </div>
+      <div id="res" hidden>
+        <canvas id="roll" width="1000" height="260" role="img" aria-label="The notes that were found, drawn as a piano roll" style="width:100%;height:auto;border-radius:10px;margin-top:12px"></canvas>
+        <div class="row" style="margin-top:10px"><button class="btn" id="play">▶ Hear the notes</button><button class="btn primary" id="save">Save MIDI file</button></div>
+      </div>
+    </div>
+    <p class="status" id="status" role="status"></p>
+  </div>
+  <div class="prose">
+    <h2>Tips for good results</h2>
+    <ul><li>Use a recording of one voice or instrument playing one note at a time. Chords and full songs will not come out right.</li><li>Record in a quiet room, close to the microphone. You can clean a noisy file first with the audio cleanup tool.</li><li>Set the tempo to match what you were playing along to, so the notes line up with the bars when you open the file in the Studio or another music program.</li><li>The result is a starting point. Open the MIDI file in the Studio piano roll to fix any notes that were missed.</li></ul>
+  </div>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/quick.js"></script>
+<script src="js/pitch-detect.js"></script>
+<script src="js/midi.js"></script>
+<script src="js/session.js"></script>
+<script src="js/tomidi.js"></script>
+<script src="js/pwa.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>

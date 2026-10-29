@@ -245,3 +245,10 @@ textarea { background: var(--bg); color: var(--text); border: 1px solid var(--li
 .tpl { appearance: none; text-align: left; background: var(--panel); border: 2px solid var(--line); color: var(--text); border-radius: 12px; padding: 12px; font: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
 .tpl span { color: var(--muted); font-size: 13px; } .tpl:hover { border-color: #6d4de0; } .tpl[aria-pressed="true"] { border-color: #6d4de0; background: rgba(109,77,224,.14); } .tpl:focus-visible { outline: 3px solid var(--warn); outline-offset: 2px; }
 .fine summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+.tmeter { margin: 18px 0 6px; text-align: center; } .tnote { font-size: 88px; line-height: 1; font-weight: 800; letter-spacing: -2px; }
+.tmeter[data-state="ok"] .tnote { color: #46e08a; } .tmeter[data-state="off"] .tnote { color: var(--text); } .tmeter[data-state="idle"] .tnote { color: var(--muted); }
+.tbar { position: relative; height: 14px; border-radius: 999px; background: linear-gradient(90deg, #ff6b8a55, #ffffff14 42%, #46e08a55 50%, #ffffff14 58%, #ff6b8a55); margin: 14px auto 4px; max-width: 520px; }
+.tmark { position: absolute; top: -6px; width: 2px; height: 26px; background: #46e08a; transform: translateX(-1px); }
+.tneedle { position: absolute; top: -4px; width: 12px; height: 22px; border-radius: 6px; background: #fff; transform: translateX(-6px); transition: left .12s ease-out; box-shadow: 0 0 10px #0008; }
+.tscale { display: flex; justify-content: space-between; max-width: 520px; margin: 0 auto; font-size: 12px; color: var(--muted); } .thz { margin-top: 10px; font-size: 18px; } .tcents { color: var(--muted); min-height: 1.4em; }
+#strings button.near { border-color: #46e08a; } #strings button[aria-pressed="true"] { background: #6d4de0; }
