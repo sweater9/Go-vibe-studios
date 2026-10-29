@@ -101,3 +101,9 @@ a.tool.wide .sr { display: none; }
 .quick a:hover { border-color: var(--accent); transform: translateY(-2px); } .quick a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .quick b { font-size: 15px; } .quick span { font-size: 13px; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .quick a, .quick a:hover { transition: none; transform: none; } }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 22px; }
+.chips .chiph { font-size: 13px; color: var(--muted); margin-right: 4px; }
+.chips a { padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: #ffffff08; color: var(--text); text-decoration: none; font-size: 14px; font-weight: 600; transition: border-color .15s, background .15s; }
+.chips a:hover { border-color: var(--accent); background: #ffffff10; } .chips a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chips a.chipall { border-style: dashed; color: var(--accent); }
