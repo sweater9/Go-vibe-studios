@@ -311,7 +311,7 @@
   function smoothPath(P, half) {
     return P.map((_, i) => { let s = 0, n = 0; for (let k = Math.max(0, i - half); k <= Math.min(P.length - 1, i + half); k++) { s += P[k]; n++; } return s / n; });
   }
-  const seekTo = (v, t) => new Promise((res) => { const done = () => { v.removeEventListener('seeked', done); clearTimeout(to); res(); }; const to = setTimeout(done, 2000); v.addEventListener('seeked', done); v.currentTime = t; });
+  const seekTo = (v, t) => new Promise((res) => { if (Math.abs(v.currentTime - t) < 0.002 && v.readyState >= 2) return res(); const done = () => { v.removeEventListener('seeked', done); clearTimeout(to); res(); }; const to = setTimeout(done, 1200); v.addEventListener('seeked', done); v.currentTime = t; });
   async function stabilise(i, onProgress) {
     const c = clips[i]; if (!c || busyStab) return false; busyStab = true; pause();
     try {
@@ -656,7 +656,7 @@
   }
 
   /* ---------- fast export: frames and sound are made as quickly as the device can, not in real time (WebCodecs) ---------- */
-  const loaded = {}; let fastFailed = false;
+  const loaded = {}; let fastFailed = false, slowAbort = false;
   const loadScript = (src) => new Promise((res, rej) => { if (loaded[src]) return res(); const sc = document.createElement('script'); sc.src = src; sc.onload = () => { loaded[src] = 1; res(); }; sc.onerror = () => rej(new Error('Could not load ' + src)); document.head.appendChild(sc); });
   const fastCapable = () => !!(window.VideoEncoder && window.AudioEncoder && window.VideoFrame && window.AudioData && window.OfflineAudioContext);
   async function pickCodecs(want, W, H, fps, bitrate) {
@@ -745,7 +745,8 @@
         active = loc.i; tl = t; await seekTo(c.v, c.in + srcAt(c, loc.off)); draw();
         const vf = new VideoFrame(cv, { timestamp: Math.round(f * 1e6 / fps), duration: Math.round(1e6 / fps) }); venc.encode(vf, { keyFrame: f % (fps * 2) === 0 }); vf.close();
         while (venc.encodeQueueSize > 12) await nap();
-        if (f % 5 === 0) { say('Exporting fast… ' + Math.min(99, Math.round(f / frames * 100)) + '% (keep this tab open)'); await nap(); }
+        if (f % 5 === 0) { const el = (performance.now() - t0) / 1000, left = f > 10 ? Math.round(el / f * (frames - f)) : null;
+          if (f === 45 && el / f * frames > T * 1.5 + 5) { fastFailed = true; slowAbort = true; return null; } say('Exporting fast… ' + Math.min(99, Math.round(f / frames * 100)) + '%' + (left != null ? ', about ' + (left > 90 ? Math.round(left / 60) + ' min' : left + ' s') + ' left' : '') + ' (keep this tab open)'); await nap(); }
       }
       if (exportCancelled) { say('Export cancelled.'); return null; }
       await venc.flush(); await aenc.flush(); if (fail) throw fail; muxer.finalize();
@@ -786,10 +787,10 @@
       return exportFast();
     }
     if ($('xmode').value === 'fast' && fastCapable() && !slow) {
-      fastFailed = false; const b = await exportFast(); if (b || exportCancelled || !fastFailed) return b;
+      fastFailed = false; slowAbort = false; const b = await exportFast(); if (b || exportCancelled || !fastFailed) return b;
     }
     const r = await exportRealtime();
-    if (r && $('xmode').value === 'fast') say($('status').textContent + (slow ? ' (Clips with a speed change use real time export.)' : fastCapable() ? ' (Fast export did not work here, so real time export was used.)' : ' (This browser has no fast export, so real time export was used.)'));
+    if (r && $('xmode').value === 'fast') say($('status').textContent + (slow ? ' (Clips with a speed change use real time export.)' : fastCapable() ? (slowAbort ? ' (Fast export was slower than real time on this device, so real time export was used.)' : ' (Fast export did not work here, so real time export was used.)') : ' (This browser has no fast export, so real time export was used.)'));
     return r;
   }
   $('export').onclick = exportVideo;
@@ -851,7 +852,7 @@
     refresh(); seek(0); log.push('Total length ' + fmt(total()) + '. Press Export when you are happy.');
     return log;
   }
-  const auto = () => { const o = sizeOf(); return apply({ aspect: 'auto', cut: true, loud: true, fade: true, trans: clips.length > 1 ? 'fade' : 'cut', grade: 'normal', mute: false, mvol: 0.3, res: o === 'portrait' ? '1080' : '720' }); };
+  const auto = () => apply({ aspect: 'auto', cut: true, loud: true, fade: true, trans: clips.length > 1 ? 'fade' : 'cut', grade: 'normal', mute: false, mvol: 0.3, res: '720' });
   function hubSum() {
     const n = clips.length, t = total();
     $('hsum').textContent = n ? n + ' video' + (n === 1 ? '' : 's') + ', ' + fmt(t) + (music ? ', with music.' : '.') : 'No videos yet. Add one or more, in the order you want them.';

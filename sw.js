@@ -1,7 +1,7 @@
 /* GoVibe Mix service worker: lets the site open offline after the first visit.
  * Network first (so a new deploy shows up right away), cached copy as the fallback.
  * Only same-origin GET requests are handled; API calls and downloads are never touched. */
-const CACHE = 'govibe-v51';
+const CACHE = 'govibe-v52';
 const PRECACHE = [
   'index.html', 'editor.html', 'video.html', 'dj.html', 'lessons.html', 'privacy.html', 'convert.html', 'record.html', 'metronome.html', 'looper.html', 'js/looper.js', 'chords.html', 'js/chords.js', 'js/chordspage.js', 'js/metronome.js', 'js/spectrum.js', 'visualizer.html', 'cutter.html', 'booster.html', 'slowed.html', 'pitch.html', 'js/slowed.js', 'js/pitch.js', 'js/stretch.js', 'silence.html', 'mono.html', 'tone.html', 'video-to-audio.html', 'js/utils.js', 'audio.html', 'js/audio.js', 'js/quick.js', 'js/cutter.js', 'js/boost.js', 'js/visualizer.js', 'studio.html', 'bpm.html', 'about.html', 'inside.html', 'faq.html', 'blog.html', 'blog-beatmatching.html', 'blog-camelot.html', 'blog-record-mix.html', 'blog-slowed-reverb.html', 'blog-change-key.html', 'blog-cut-mp3.html', 'blog-louder.html', 'blog-clean-audio.html', 'blog-vertical-video.html', 'terms.html',
   'css/style.css',
