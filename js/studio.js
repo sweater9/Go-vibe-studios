@@ -421,7 +421,7 @@
     const from = new URLSearchParams(location.search).get('from');
     if (from === 'record' && window.GVStore) { try { const b = await GVStore.get('studio-import'); if (b) { await GVStore.del('studio-import'); b.name = 'Recording.wav'; await importFiles([b]); } } catch (_) { /* nothing handed over */ } }
     else {
-      const items = IO.list(); if (items.length) await openProject(items[0].id);
+      const items = IO.list(), want = new URLSearchParams(location.search).get('project'); if (items.length) await openProject((items.find((x) => x.id === want) || items[0]).id);
       if (from === 'samples') { try { const j = JSON.parse(localStorage.getItem('govibe.loop') || 'null'); localStorage.removeItem('govibe.loop'); if (j && j.spec) addLoop(j); } catch (_) { /* nothing handed over */ } }
     }
     refreshProjects();

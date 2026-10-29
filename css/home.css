@@ -107,3 +107,9 @@ a.tool.wide .sr { display: none; }
 .chips a { padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: #ffffff08; color: var(--text); text-decoration: none; font-size: 14px; font-weight: 600; transition: border-color .15s, background .15s; }
 .chips a:hover { border-color: var(--accent); background: #ffffff10; } .chips a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .chips a.chipall { border-style: dashed; color: var(--accent); }
+
+.ws { margin: 0 0 26px; } .ws[hidden] { display: none; }
+.wsgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.wscol { padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: #ffffff08; } .wscol h3 { margin: 0 0 8px; font-size: 15px; }
+.wslist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; } .wslist span { color: var(--muted); font-size: 13px; } .wslist a, .wscol > a { color: var(--accent); font-weight: 600; }
+.wscol .chips { margin: 0; } .ws .status { margin-top: 10px; }

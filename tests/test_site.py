@@ -3039,6 +3039,27 @@ def test_videohub(browser, base):
     ctx.close()
 
 
+def test_workspace(browser, base):
+    print("home: My workspace")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "index.html?gvtest"); pg.wait_for_timeout(500)
+    check("workspace is hidden when nothing is saved", not pg.locator("#workspace").is_visible())
+    pg.evaluate("""() => { localStorage.setItem('govibe.recent', JSON.stringify([{h: 'slowed.html', t: 'Slowed and reverb', ts: 1}, {h: 'video.html', t: 'Video editor', ts: 2}, {h: '../evil', t: 'Bad', ts: 3}]));
+      localStorage.setItem('govibe.sprojects', JSON.stringify([{id: 'p1', name: 'My <b>song</b>', updated: 5, tracks: 3}])); }""")
+    pg.reload(); pg.wait_for_function("() => !document.getElementById('workspace').hidden", timeout=5000)
+    check("workspace lists recent tools and projects", pg.locator("#workspace .chips a").count() == 2 and pg.locator('#workspace a[href="studio.html?project=p1"]').count() == 1)
+    check("names are shown as text, never as markup", pg.locator("#workspace b").count() == 0 and "My <b>song</b>" in pg.inner_text("#workspace"))
+    check("workspace explains where the data lives", "this browser" in pg.inner_text("#workspace").lower())
+    ctx.close()
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "metronome.html"); pg.wait_for_timeout(300)
+    r = pg.evaluate("() => JSON.parse(localStorage.getItem('govibe.recent') || '[]')")
+    check("opening a tool remembers it", len(r) == 1 and r[0]["h"] == "metronome.html")
+    check("no page errors", not errs)
+    ctx.close()
+
+
 def main():
     srv, base = start_server()
     test_static()
@@ -3046,7 +3067,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip
