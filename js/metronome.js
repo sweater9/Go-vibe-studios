@@ -100,16 +100,17 @@
   }
   const toggle = () => (running ? stop() : start());
 
+  const remember = () => { if (window.GVSession) GVSession.set({ bpm }); };
   let taps = [];
   function tap() {
     const now = performance.now(); if (taps.length && now - taps[taps.length - 1] > 2000) taps = [];
     taps.push(now); if (taps.length > 8) taps.shift();
-    if (taps.length >= 2) { const iv = (taps[taps.length - 1] - taps[0]) / (taps.length - 1); setBpm(60000 / iv); $('status').textContent = 'Tap ' + taps.length + ' times or more for a steadier reading.'; }
+    if (taps.length >= 2) { const iv = (taps[taps.length - 1] - taps[0]) / (taps.length - 1); setBpm(60000 / iv); remember(); $('status').textContent = 'Tap ' + taps.length + ' times or more for a steadier reading.'; }
     else $('status').textContent = 'Keep tapping on the beat.';
   }
 
   $('go').onclick = toggle; $('tap').onclick = tap;
-  $('dn').onclick = () => setBpm(bpm - 1); $('up').onclick = () => setBpm(bpm + 1);
+  $('dn').onclick = () => { setBpm(bpm - 1); remember(); }; $('up').onclick = () => { setBpm(bpm + 1); remember(); }; $('bpmr').addEventListener('change', remember);
   $('bpmr').oninput = () => setBpm(+$('bpmr').value);
   $('bpm').onchange = () => setBpm(+$('bpm').value);
   for (let i = 1; i <= 12; i++) { const o = document.createElement('option'); o.value = i; o.textContent = i; $('num').appendChild(o); } $('num').value = 4;
@@ -126,6 +127,6 @@
   });
   window.addEventListener('pagehide', stop);
 
-  buildDots(); setBpm(100); frame();
+  buildDots(); setBpm(100); frame(); if (window.GVSession) GVSession.bind({ bpm: $('bpm') });
   if (/[?&]gvtest\b/.test(location.search)) window.__met = { log, get running() { return running; }, get bpm() { return bpm; }, tempoName, get acc() { return acc; }, get bar() { return bar; } };
 })();

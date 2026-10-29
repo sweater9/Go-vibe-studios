@@ -170,6 +170,6 @@
   };
   window.addEventListener('pagehide', () => { if (stream) stream.getTracks().forEach((t) => t.stop()); });
 
-  syncLock(); renderLayers();
+  syncLock(); renderLayers(); if (window.GVSession) GVSession.bind({ bpm: $('bpm') });
   if (/[?&]gvtest\b/.test(location.search)) window.__loop = { get layers() { return layers; }, get running() { return running; }, get frames() { return L * (ctx ? rate() : 0); }, get pending() { return !!pending; }, mix, get T0() { return T0; }, get L() { return L; }, get ctx() { return ctx; } };
 })();

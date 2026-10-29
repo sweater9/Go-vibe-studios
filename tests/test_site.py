@@ -3060,6 +3060,39 @@ def test_workspace(browser, base):
     ctx.close()
 
 
+def test_session(browser, base):
+    print("session: tempo and key carry between tools")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "metronome.html?gvtest"); pg.wait_for_timeout(300)
+    check("metronome starts at its default with no session", pg.input_value("#bpm") == "100" and pg.locator("#sessnote").count() == 0)
+    pg.fill("#bpm", "96"); pg.dispatch_event("#bpm", "change")
+    check("changing the tempo is remembered", pg.evaluate("() => GVSession.get().bpm") == 96 and "96 BPM" in pg.inner_text("#sessnote"))
+    pg.click("#up"); check("the plus button updates the session", pg.evaluate("() => GVSession.get().bpm") == 97)
+    pg.goto(base + "looper.html?gvtest"); pg.wait_for_timeout(300)
+    check("the looper starts from the session tempo", pg.input_value("#bpm") == "97" and "97 BPM" in pg.inner_text("#sessnote"))
+    pg.goto(base + "samples.html?gvtest"); pg.wait_for_timeout(500)
+    check("samples start from the session tempo", pg.input_value("#bpm") == "97")
+    pg.select_option("#root", "9"); pg.select_option("#mode", "minor")
+    check("key and mode are remembered", pg.evaluate("() => GVSession.get().root") == 9 and pg.evaluate("() => GVSession.get().minor") is True)
+    pg.goto(base + "keys.html?gvtest"); pg.wait_for_timeout(500)
+    check("keys open on the session key", pg.input_value("#root") == "9" and pg.input_value("#scale") == "Natural minor")
+    pg.select_option("#scale", "Major")
+    check("the scale change updates the mode", pg.evaluate("() => GVSession.get().minor") is False)
+    pg.goto(base + "studio.html?gvtest"); pg.wait_for_timeout(800)
+    check("a new studio project uses the session tempo", pg.input_value("#bpm") == "97")
+    pg.goto(base + "index.html?gvtest"); pg.wait_for_function("() => !document.getElementById('workspace').hidden", timeout=5000)
+    check("the home page shows the session and can clear it", "97 BPM" in pg.inner_text("#workspace") and "A major" in pg.inner_text("#workspace"))
+    pg.click("#workspace button:has-text('Clear')"); pg.wait_for_timeout(300)
+    check("clearing removes the session", pg.evaluate("() => Object.keys(GVSession.get()).length") == 0)
+    pg.goto(base + "bpm.html?gvtest"); pg.wait_for_timeout(300)
+    check("the tap tempo offers to save to the session", pg.locator("#tapuse").is_hidden())
+    pg.evaluate("() => { __bpm.tap(0); __bpm.tap(500); __bpm.tap(1000); }")
+    pg.click("#tapuse"); check("saving a tapped tempo works", abs(pg.evaluate("() => GVSession.get().bpm") - 120) < 1)
+    check("no page errors", not errs)
+    ctx.close()
+
+
 def main():
     srv, base = start_server()
     test_static()
@@ -3067,7 +3100,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

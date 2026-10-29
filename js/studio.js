@@ -273,7 +273,7 @@
   $('rew').onclick = () => { setPlayhead(P.loop.on ? P.loop.a : 0); };
   $('loop').onclick = () => { const b = snapshotJSON(); P.loop.on = !P.loop.on; if (P.loop.on && !(P.loop.b > P.loop.a)) { P.loop.a = 0; P.loop.b = barBeats() * spb() * 2; } $('loop').setAttribute('aria-pressed', P.loop.on); changed('Loop', b); dirty = true; };
   $('metro').onclick = () => { $('metro').setAttribute('aria-pressed', $('metro').getAttribute('aria-pressed') !== 'true'); if (playing) scheduleRestart(); };
-  $('bpm').onchange = () => { const v = Math.max(30, Math.min(300, +$('bpm').value || 120)); const b = snapshotJSON(); P.bpm = v; $('bpm').value = v; changed('Tempo', b); dirty = true; };
+  $('bpm').onchange = () => { const v = Math.max(30, Math.min(300, +$('bpm').value || 120)); const b = snapshotJSON(); P.bpm = v; $('bpm').value = v; changed('Tempo', b); dirty = true; if (window.GVSession) GVSession.set({ bpm: v }); };
   $('master').oninput = () => { P.master = $('master').value / 100; if (graph) graph.master.gain.value = P.master; if (window.GVMixer) GVMixer.syncMaster(); }; $('master').onchange = () => markDirty();
   $('lim').onchange = () => { P.limiter = $('lim').checked; markDirty(); if (playing) scheduleRestart(); };
   $('pname').onchange = () => { P.name = $('pname').value.trim() || 'Untitled project'; markDirty(); };
@@ -424,6 +424,7 @@
       const items = IO.list(), want = new URLSearchParams(location.search).get('project'); if (items.length) await openProject((items.find((x) => x.id === want) || items[0]).id);
       if (from === 'samples') { try { const j = JSON.parse(localStorage.getItem('govibe.loop') || 'null'); localStorage.removeItem('govibe.loop'); if (j && j.spec) addLoop(j); } catch (_) { /* nothing handed over */ } }
     }
+    if (!P.tracks.length && window.GVSession) { const s = GVSession.get(); if (s.bpm) { P.bpm = Math.max(30, Math.min(300, s.bpm)); $('bpm').value = P.bpm; } }
     refreshProjects();
   }
   window.addEventListener('beforeunload', () => { if (dirty) saveNow(); });

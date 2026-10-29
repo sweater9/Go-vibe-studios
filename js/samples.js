@@ -101,6 +101,7 @@
   ['bpm', 'root', 'bars', 'prog', 'seed'].forEach((id) => { $(id).onchange = stop; });
   ['All', 'Drums', 'Bass', 'Chords', 'Melody'].forEach((c, i) => { const b = document.createElement('button'); b.className = 'btn'; b.textContent = c; b.setAttribute('aria-pressed', i === 0); b.onclick = () => { cat = c; [...$('cats').children].forEach((x) => x.setAttribute('aria-pressed', x === b)); list(); }; $('cats').appendChild(b); });
   list();
+  if (window.GVSession) GVSession.bind({ bpm: $('bpm'), root: $('root'), minor: { el: $('mode'), read: () => $('mode').value === 'minor', write: (m) => { $('mode').value = m ? 'minor' : 'major'; } } });
   window.addEventListener('pagehide', stop);
   if (/[?&]gvtest\b/.test(location.search)) window.__sm = { CATALOG, params, render, projectFor, midiFile, get playing() { return !!playing; } };
 })();

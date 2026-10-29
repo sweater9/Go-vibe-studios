@@ -57,5 +57,6 @@
   T.NAMES.forEach((n, i) => { const l = document.createElement('label'); l.className = 'row time'; const c = document.createElement('input'); c.type = 'checkbox'; c.onchange = () => { c.checked ? picked.add(i) : picked.delete(i); finder(); }; l.append(c, document.createTextNode(' ' + n)); $('pcs').appendChild(l); });
   ['root', 'scale'].forEach((id) => { $(id).onchange = all; }); $('sev').onchange = chords; $('prog').onchange = progShow; $('pplay').onclick = progPlay;
   all(); finder();
+  if (window.GVSession) GVSession.bind({ root: $('root'), minor: { el: $('scale'), read: () => ({ 'Major': false, 'Natural minor': true })[$('scale').value] ?? null, write: (m) => { $('scale').value = m ? 'Natural minor' : 'Major'; } } });
   if (/[?&]gvtest\b/.test(location.search)) window.__keys = { all, state, picked };
 })();

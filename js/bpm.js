@@ -52,15 +52,17 @@
 
   /* ---------- tap tempo ---------- */
   let taps = [];
+  let tapped = 0;
+  $('tapuse').onclick = () => { if (tapped && window.GVSession) { GVSession.set({ bpm: tapped }); $('tapuse').textContent = 'Saved to your session'; } };
   function tap(now) {
     now = now == null ? performance.now() : now;
     if (taps.length && now - taps[taps.length - 1] > 2500) taps = [];
     taps.push(now); if (taps.length > 9) taps.shift();
     if (taps.length < 2) { $('tapbpm').textContent = '—'; return; }
     const bpm = 60000 / ((taps[taps.length - 1] - taps[0]) / (taps.length - 1));
-    $('tapbpm').textContent = bpm.toFixed(1) + ' BPM';
+    $('tapbpm').textContent = bpm.toFixed(1) + ' BPM'; tapped = bpm; $('tapuse').hidden = false;
   }
   $('tap').onclick = () => tap();
-  $('tapreset').onclick = () => { taps = []; $('tapbpm').textContent = '—'; };
+  $('tapreset').onclick = () => { taps = []; tapped = 0; $('tapuse').hidden = true; $('tapuse').textContent = 'Use this tempo in my session'; $('tapbpm').textContent = '—'; };
   if (/[?&]gvtest\b/.test(location.search)) window.__bpm = { add, tap, get rows() { return rows; } };
 })();
