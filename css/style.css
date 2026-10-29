@@ -240,3 +240,8 @@ textarea { background: var(--bg); color: var(--text); border: 1px solid var(--li
 .jrow { display: flex; gap: 6px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); } .jrow span { flex: 1; overflow-wrap: anywhere; }
 
 .rstep { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: flex-end; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); } .ropt { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.tplgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 8px 0; }
+.tpl { appearance: none; text-align: left; background: var(--panel); border: 2px solid var(--line); color: var(--text); border-radius: 12px; padding: 12px; font: inherit; cursor: pointer; display: flex; flex-direction: column; gap: 4px; }
+.tpl span { color: var(--muted); font-size: 13px; } .tpl:hover { border-color: #6d4de0; } .tpl[aria-pressed="true"] { border-color: #6d4de0; background: rgba(109,77,224,.14); } .tpl:focus-visible { outline: 3px solid var(--warn); outline-offset: 2px; }
+.fine summary { cursor: pointer; font-weight: 600; padding: 6px 0; }

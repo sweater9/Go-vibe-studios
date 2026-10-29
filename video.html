@@ -51,7 +51,13 @@
 
 <main id="main" tabindex="-1" class="wrap" style="max-width:1200px">
   <h1>Video <span class="grad">Editor</span></h1>
-  <p class="lead">Three ways to work: <b>Auto</b> edits your footage for you, <b>Guided</b> lets you pick a template and the steps, and <b>Pro</b> is the full editor. Join and trim clips, change their speed, grade the colour, crop, rotate and flip, key out a green screen, stabilise shaky footage, cut out silent pauses, add titles, subtitles, pictures and stickers, record your screen, camera and voice, clean up noisy sound, draw on the picture, and lay music under it with automatic ducking. Everything runs on your device.</p>
+  <p class="lead">Choose how you want to work: Auto edits for you, Guided uses a template, Pro is the full editor.</p>
+
+  <div role="tablist" aria-label="How do you want to work?" class="ttabs" style="margin-top:0">
+        <button role="tab" class="ttab" id="tab-a" aria-selected="true" aria-controls="pane-a">Auto</button>
+        <button role="tab" class="ttab" id="tab-g" aria-selected="false" aria-controls="pane-g" tabindex="-1">Guided</button>
+        <button role="tab" class="ttab" id="tab-p" aria-selected="false" aria-controls="pane-p" tabindex="-1">Pro</button>
+      </div>
 
   <div class="vgrid">
     <section>
@@ -94,11 +100,6 @@
     </section>
 
     <section>
-      <div role="tablist" aria-label="How do you want to work?" class="ttabs" style="margin-top:0">
-        <button role="tab" class="ttab" id="tab-a" aria-selected="true" aria-controls="pane-a">Auto</button>
-        <button role="tab" class="ttab" id="tab-g" aria-selected="false" aria-controls="pane-g" tabindex="-1">Guided</button>
-        <button role="tab" class="ttab" id="tab-p" aria-selected="false" aria-controls="pane-p" tabindex="-1">Pro</button>
-      </div>
       <div id="hubfiles" class="panel" style="margin-top:0">
         <h2>Your footage</h2>
         <div class="row">
@@ -117,13 +118,16 @@
       </div>
       <div role="tabpanel" id="pane-g" aria-labelledby="tab-g" class="panel" hidden>
         <h2>Guided</h2>
-        <label class="ctl" style="max-width:320px">Start from<select id="gtpl" class="sel">
-          <option value="social">Short vertical video (Reels, TikTok, Shorts)</option>
-          <option value="square">Square post</option>
-          <option value="youtube">YouTube video with a title</option>
-          <option value="music">Music video with a title</option>
-          <option value="talk">Talking head, tidy</option>
-          <option value="custom">My own choices</option></select></label>
+        <p class="status" style="margin-top:0">Step 1. Pick a template.</p>
+        <div class="tplgrid" role="group" aria-label="Templates">
+          <button type="button" class="tpl" data-t="social" aria-pressed="true"><b>Vertical short</b><span>Reels, TikTok, Shorts. 9:16, tight cuts</span></button>
+          <button type="button" class="tpl" data-t="square" aria-pressed="false"><b>Square post</b><span>1:1, warm look</span></button>
+          <button type="button" class="tpl" data-t="youtube" aria-pressed="false"><b>YouTube with title</b><span>16:9, dip joins, title card</span></button>
+          <button type="button" class="tpl" data-t="music" aria-pressed="false"><b>Music video</b><span>Your music, vintage look, title</span></button>
+          <button type="button" class="tpl" data-t="talk" aria-pressed="false"><b>Talking head</b><span>Cuts pauses, evens loudness</span></button>
+        </div>
+        <select id="gtpl" hidden aria-hidden="true"><option value="social"></option><option value="square"></option><option value="youtube"></option><option value="music"></option><option value="talk"></option><option value="custom"></option></select>
+        <details class="fine" style="margin-top:12px"><summary>Step 2. Fine tune (optional)</summary>
         <div class="mini" style="margin-top:10px">
           <label class="ctl">Shape<select id="gaspect" class="sel"><option value="auto">Match my first video</option><option value="9:16">Vertical 9:16</option><option value="1:1">Square 1:1</option><option value="16:9">Landscape 16:9</option></select></label>
           <label class="ctl">Joins<select id="gtrans" class="sel"><option value="cut">Straight cut</option><option value="fade">Crossfade</option><option value="dip">Dip to black</option><option value="wipe">Wipe</option><option value="slide">Slide</option></select></label>
@@ -139,7 +143,8 @@
           <label class="ctl">Title place<select id="gtpos" class="sel"><option value="top">Top</option><option value="middle" selected>Middle</option><option value="bottom">Bottom</option></select></label>
           <label class="ctl">Music volume (%)<input type="number" id="gmvol" min="0" max="100" value="35"></label>
         </div>
-        <div class="row" style="margin-top:10px"><button class="btn primary" id="hgo" disabled>Apply to my videos</button></div>
+        </details>
+        <div class="row" style="margin-top:12px"><button class="btn primary" id="hgo" disabled>Step 3. Apply to my videos</button></div>
         <ul id="hg-log" aria-label="What was done"></ul>
       </div>
       <div role="tabpanel" id="pane-p" aria-labelledby="tab-p" hidden>

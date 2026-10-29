@@ -868,8 +868,10 @@
     const x = TPL[t]; if (!x) return;
     $('gaspect').value = x.aspect; $('gcut').checked = x.cut; $('gloud').checked = x.loud; $('gfade').checked = x.fade; $('gmute').checked = x.mute; $('gtrans').value = x.trans; $('ggrade').value = x.grade; $('gres').value = x.res;
   }
-  $('gtpl').onchange = () => setG($('gtpl').value);
-  ['gaspect', 'gcut', 'gloud', 'gfade', 'gmute', 'gtrans', 'ggrade', 'gres'].forEach((id) => $(id).addEventListener('change', () => { $('gtpl').value = 'custom'; }));
+  const mark = () => document.querySelectorAll('.tpl').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.t === $('gtpl').value)));
+  $('gtpl').onchange = () => { setG($('gtpl').value); mark(); };
+  document.querySelectorAll('.tpl').forEach((b) => (b.onclick = () => { $('gtpl').value = b.dataset.t; $('gtpl').onchange(); }));
+  ['gaspect', 'gcut', 'gloud', 'gfade', 'gmute', 'gtrans', 'ggrade', 'gres'].forEach((id) => $(id).addEventListener('change', () => { $('gtpl').value = 'custom'; mark(); }));
   $('hgo').onclick = async () => { $('hgo').disabled = true; say('Working on it...'); try { const l = await apply(gcfg()); fill($('hg-log'), l); say('Done. Check the preview, then export.'); } finally { hubSum(); } };
   setG('social');
   const showFiles = () => { const pro = $('tab-p').getAttribute('aria-selected') === 'true'; $('hubfiles').hidden = pro; };
