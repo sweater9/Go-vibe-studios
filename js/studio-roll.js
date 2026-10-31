@@ -34,7 +34,7 @@ window.GVRoll = (() => {
 
   /* ---------- piano roll ---------- */
   function buildRoll(panel, t, c) {
-    const api = S(), spb = api.spb(), bars = () => c.dur / spb;
+    const api = S(), spb = api.spb(), bars = () => c.dur / spb; let ext = null;
     const row = el('div', 'row'); row.style.alignItems = 'flex-end'; row.style.marginTop = '8px'; panel.appendChild(row);
     row.append(
       labelled('Grid', sel([[0.25, '1/16'], [0.5, '1/8'], [1, '1/4 beat'], [2, '1/2 note'], [api.barBeats(), 'Bar']], opts.grid, (v) => { opts.grid = +v; })),
@@ -45,7 +45,7 @@ window.GVRoll = (() => {
     );
     const row2 = el('div', 'row'); row2.style.marginTop = '8px'; panel.appendChild(row2);
     const btn = (txt, fn, aria) => { const b = el('button', 'btn mini', { textContent: txt }); if (aria) b.setAttribute('aria-label', aria); b.onclick = fn; row2.appendChild(b); return b; };
-    const targets = () => (selNote ? c.notes.filter((n) => n === selNote) : c.notes);
+    const targets = () => (ext && ext.sel.size ? [...ext.sel] : selNote ? c.notes.filter((n) => n === selNote) : c.notes);
     btn('Quantize', () => apply('Quantize', () => { const g = opts.grid; targets().forEach((n) => { n.t = Math.max(0, Math.round(n.t / g) * g); n.d = Math.max(g, Math.round(n.d / g) * g); }); }));
     btn('Down 12', () => apply('Transpose', () => targets().forEach((n) => { n.p = Math.max(0, n.p - 12); }))); btn('Down 1', () => apply('Transpose', () => targets().forEach((n) => { n.p = Math.max(0, n.p - 1); })));
     btn('Up 1', () => apply('Transpose', () => targets().forEach((n) => { n.p = Math.min(127, n.p + 1); }))); btn('Up 12', () => apply('Transpose', () => targets().forEach((n) => { n.p = Math.min(127, n.p + 12); })));
@@ -68,6 +68,7 @@ window.GVRoll = (() => {
       for (let p = LOW; p <= HIGH; p++) { const y = yOf(p), pc = p % 12; g.fillStyle = BLACK.has(pc) ? '#111' : '#e8e8f0'; g.fillRect(0, y, BLACK.has(pc) ? KEYW * 0.62 : KEYW - 1, ROWH - 1); if (pc === 0) { g.fillStyle = '#333'; g.font = '10px system-ui'; g.textBaseline = 'middle'; g.fillText('C' + (Math.floor(p / 12) - 1), KEYW - 24, y + ROWH / 2); } }
       c.notes.forEach((n) => { if (n.p < LOW || n.p > HIGH) return; const x = bx(n.t), y = yOf(n.p), w = Math.max(4, n.d * PXB - 1); g.fillStyle = n === selNote ? '#fbbf24' : '#a78bfa'; g.globalAlpha = 0.45 + 0.55 * ((n.v || 100) / 127); g.fillRect(x, y + 1, w, ROWH - 2); g.globalAlpha = 1; g.strokeStyle = n === selNote ? '#fff' : '#ddd6fe'; g.strokeRect(x + 0.5, y + 1.5, w - 1, ROWH - 3); });
       const ph = (api.playhead - c.start) / spb; if (ph >= 0 && ph <= B) { g.fillStyle = '#fb7185'; g.fillRect(Math.round(bx(ph)), 0, 2, H); }
+      if (ext) ext.overlay(g);
     }
     const hitNote = (x, y) => { const b = bOf(x), p = pOf(y); for (let i = c.notes.length - 1; i >= 0; i--) { const n = c.notes[i]; if (n.p === p && b >= n.t && b <= n.t + n.d) return { n, edge: x > bx(n.t + n.d) - 7 }; } return null; };
     const preview = (p) => { api.ensureCtx(); const ctx = api.bus().context, tr = api.trackOf(cur.track); ctx.resume(); GVSynth.note(ctx, api.bus(), (tr && tr.inst) || 'Piano', p, 0.8, ctx.currentTime + 0.01, 0.4); };
@@ -97,6 +98,7 @@ window.GVRoll = (() => {
       else if (k === 'ArrowLeft' || k === 'ArrowRight') { e.preventDefault(); const d = (k === 'ArrowRight' ? 1 : -1) * opts.grid, n = selNote; apply('Move note', () => { n.t = Math.max(0, Math.min(bars() - 0.05, n.t + d)); }); selNote = n; }
       draw();
     });
+    ext = window.GVRollPlus ? GVRollPlus.attach({ panel, row2, wrap, cv, c, t, api, draw, apply, opts, bx, bOf, yOf, pOf, hitNote, setPrimary: (n) => { selNote = n; if (n) vel.value = n.v || 100; }, getPrimary: () => selNote, inScale, bars, KEYW, LOW, HIGH, ROWH, PXB }) : null;
     draw(); wrap.scrollTop = c.notes.length ? Math.max(0, yOf(Math.max(...c.notes.map((n) => n.p))) - 60) : yOf(72);
     timer = setInterval(draw, 100);
     cv._draw = draw;

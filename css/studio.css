@@ -61,3 +61,5 @@
 .fxp { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; font-size: 12px; color: var(--muted); } .fxp input[type=range], .fxp select { grid-column: 1 / -1; width: 100%; } .fxp output { color: var(--text); font-variant-numeric: tabular-nums; }
 .fxp select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 5px; font: inherit; }
 @media (max-width: 760px) { .tlbox { grid-template-columns: 170px 1fr; } .tl { display: none; } .stime { font-size: 18px; min-width: 80px; } }
+
+.velscroll { overflow-x: auto; overflow-y: hidden; max-height: 110px; border: 1px solid var(--line); border-radius: 10px; background: #0d0e16; margin-top: 6px; }

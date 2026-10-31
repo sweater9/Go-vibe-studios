@@ -3200,6 +3200,49 @@ def test_practice(browser, base):
     ctx.close()
 
 
+def test_roll_plus(browser, base):
+    print("studio: advanced piano roll editing")
+    errs = []
+    ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 1000})
+    pg.goto(base + "studio.html?gvtest"); pg.wait_for_function("() => window.__st", timeout=10000)
+    OPEN = """() => { const spb = __st.spb(); let tr, c; __st.edit('test track', () => { tr = __st.Core.newTrack(__st.P, 'midi'); __st.P.tracks.push(tr); c = { id: __st.Core.uid(), start: 0, dur: 16 * spb, notes: [{ t: 0.1, d: 0.5, p: 60, v: 100 }, { t: 1.05, d: 0.4, p: 62, v: 90 }, { t: 2.2, d: 0.5, p: 61, v: 80 }, { t: 3.0, d: 1, p: 64, v: 70 }] }; tr.clips.push(c); }); GVRoll.open(tr.id, c.id); window.__rc = c; window.__live = () => __st.clipOf(c.id).c; }"""
+    pg.evaluate(OPEN); pg.wait_for_selector("#rollcv", timeout=5000)
+    notes = lambda: pg.evaluate("() => __live().notes.map((n) => ({ t: n.t, d: n.d, p: n.p, v: n.v }))")
+    check("the roll shows the new tools and a velocity lane", pg.locator("#rollpane button", has_text="Select all").count() == 1 and pg.locator("#rollpane canvas").count() == 2 and pg.locator("#rollpane button", has_text="Humanize").count() == 1)
+    btn = lambda name: pg.locator("#rollpane button", has_text=name).first
+    btn("Select all").click(); check("select all selects every note", "4 notes selected" in pg.inner_text("#rollpane .rollplus-note"))
+    btn("Quantize selection").click(); q = notes()
+    check("quantize at full strength puts every start on the grid", all(abs(n["t"] / 0.25 - round(n["t"] / 0.25)) < 1e-6 for n in q), str(q))
+    pg.evaluate("() => { __live().notes.forEach((n, i) => { n.t = [0.1, 1.05, 2.2, 3.0][i]; }); }")
+    pg.evaluate("() => { const s = document.querySelector('#rollpane input[aria-label=\"Quantize strength\"]'); s.value = 50; s.dispatchEvent(new Event('input')); }")
+    btn("Quantize selection").click(); q = notes()
+    check("quantize at 50 percent moves notes halfway", abs(q[0]["t"] - 0.05) < 1e-6 and abs(q[2]["t"] - 2.225) < 1e-6, str(q))
+    btn("Select all").click(); pg.evaluate("() => { window.__rnd = Math.random; Math.random = () => 1; }")
+    before = notes(); btn("Humanize").click(); pg.evaluate("() => { Math.random = window.__rnd; }"); after = notes()
+    check("humanize loosens timing and velocity within the limits", all(a["t"] > b["t"] and a["v"] >= b["v"] and a["v"] <= b["v"] + 12 for a, b in zip(after, before)), str(after))
+    btn("Legato").click(); lg = notes(); lg_sorted = sorted(lg, key=lambda n: n["t"])
+    check("legato makes each note last until the next starts", all(abs(a["t"] + a["d"] - b["t"]) < 1e-6 for a, b in zip(lg_sorted, lg_sorted[1:])))
+    pg.locator("#rollpane select").nth(2).select_option("Major"); pg.locator("#rollpane select").nth(1).select_option("0")
+    pg.evaluate("() => { __live().notes.forEach((n) => { if (n.p === 61) n.p = 61; }); }"); btn("Select all").click(); pg.evaluate("() => { __live().notes[2].p = 61; }")
+    btn("Snap to scale").click(); check("snap to scale moves outside notes into the scale", all(p in (60, 62, 64) for p in [n["p"] for n in notes()]), str(notes()))
+    n0 = len(notes()); btn("Select all").click(); btn("Copy").click(); btn("Paste").click()
+    check("copy and paste doubles the notes and selects the copies", len(notes()) == 2 * n0 and f"Pasted {n0}" in pg.inner_text("#rollpane .rollplus-note"))
+    btn("Duplicate").click(); check("duplicate adds another copy", len(notes()) >= 2 * n0)
+    pg.click("#undo"); check("undo reverts the last editing step", len(notes()) == 2 * n0, str(len(notes())))
+    pg.evaluate("() => { __live().notes = __live().notes.slice(0, 4); GVRoll.refresh(); }"); pg.wait_for_timeout(300)
+    pg.locator("#rollcv").scroll_into_view_if_needed(); pg.evaluate("() => { document.querySelector('#rollpane .rollscroll').scrollTop = (96 - 68) * 16; }"); pg.wait_for_timeout(150)
+    rb = pg.locator("#rollcv").bounding_box(); k = lambda b_, p_: (rb["x"] + 58 + b_ * 52 + 6, rb["y"] + (96 - p_) * 16 + 8)
+    btn("Select none").click(); x1, y1 = k(0.5, 66); x2, y2 = k(2.0, 58)
+    pg.keyboard.down("Shift"); pg.mouse.move(x1, y1); pg.mouse.down(); pg.mouse.move(x2, y2, steps=4); pg.mouse.up(); pg.keyboard.up("Shift")
+    check("shift drag draws a selection box", "selected" in pg.inner_text("#rollpane .rollplus-note"))
+    pg.locator("#rollpane canvas").nth(1).scroll_into_view_if_needed(); lanes = pg.locator("#rollpane canvas").nth(1).bounding_box(); ln = notes(); target = ln[0]
+    pg.evaluate("() => { __live().notes.forEach((n) => { n.v = 50; }); }")
+    pg.mouse.move(lanes["x"] + 58 + target["t"] * 52 + 2, lanes["y"] + 60); pg.mouse.down(); pg.mouse.move(lanes["x"] + 58 + target["t"] * 52 + 2, lanes["y"] + 8, steps=4); pg.mouse.up()
+    check("dragging in the velocity lane raises the velocity", max(n["v"] for n in notes()) > 110, str(notes()))
+    check("no page errors in the advanced roll", not errs, str(errs[:2]))
+    ctx.close()
+
+
 def main():
     srv, base = start_server()
     test_static()
@@ -3207,7 +3250,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_roll_plus, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip
