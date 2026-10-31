@@ -163,14 +163,14 @@
   /* older browsers: record the canvas and the sound in real time */
   async function exportLive() {
     const [W, H] = dims(true), fps = +$('xfps').value, [s0, len] = range(), o = opts(); if (!window.MediaRecorder) return null;
-    const mt = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find((m) => MediaRecorder.isTypeSupported(m)); if (!mt) return null;
+    const mt = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4'].find((m) => MediaRecorder.isTypeSupported(m)); if (!mt) return null;
     const ec = document.createElement('canvas'); ec.width = W; ec.height = H; const eg = ec.getContext('2d'); ctxA = ctxA || new (window.AudioContext || window.webkitAudioContext)(); await ctxA.resume();
     const dest = ctxA.createMediaStreamDestination(), sn = ctxA.createBufferSource(); sn.buffer = buf; sn.connect(dest); const stream = ec.captureStream(fps); dest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
     const rec = new MediaRecorder(stream, { mimeType: mt, videoBitsPerSecond: 3e6 }), parts = []; rec.ondataavailable = (e) => e.data.size && parts.push(e.data);
     const done = new Promise((r) => { rec.onstop = r; }); st = { bars: null, bass: 0, wave: null }; rec.start(200); sn.start(0, s0, len); const t0 = ctxA.currentTime; let lastT = t0;
     await new Promise((res) => { const loop = () => { const el = ctxA.currentTime - t0; if (cancelled || el >= len) return res(); const a = analyse(s0 + el, Math.max(0.001, ctxA.currentTime - lastT), o.n); lastT = ctxA.currentTime; drawFrame(eg, W, H, el, a, o, len); $('xprog').value = Math.round(el / len * 100); say('Recording in real time… ' + Math.round(el / len * 100) + '%'); requestAnimationFrame(loop); }; loop(); });
     try { sn.stop(); } catch (_) { /* ended */ } rec.stop(); await done; if (cancelled) return 'cancelled';
-    return { blob: new Blob(parts, { type: 'video/webm' }), kind: 'webm', W, H };
+    const mp4 = /mp4/.test(mt); return { blob: new Blob(parts, { type: mp4 ? 'video/mp4' : 'video/webm' }), kind: mp4 ? 'mp4' : 'webm', W, H };
   }
   async function exportVideo() {
     if (busy || !buf) return null; busy = true; cancelled = false; pause(); $('xgo').disabled = true; $('xcancel').classList.remove('hidden'); $('xprog').classList.remove('hidden'); $('xprog').value = 0; $('xout').classList.add('hidden'); $('xdl').classList.add('hidden');
