@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Synthesizer and sampler — GoVibe Mix</title>
+<meta name="description" content="Design your own sound or play a sample across the keyboard, record a riff and save it as MIDI or audio. Free, private, and nothing is uploaded.">
+<link rel="canonical" href="https://govibemix.com/synth.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Synthesizer and sampler — GoVibe Mix">
+<meta property="og:description" content="Design your own sound or play a sample across the keyboard, record a riff and save it as MIDI or audio. Free, private, and nothing is uploaded.">
+<meta property="og:url" content="https://govibemix.com/synth.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="studio.html">Studio</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+  <a class="link" href="index.html#tools">All tools</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>Synthesizer and sampler</h1>
+  <p class="lead">Design your own sound, or load a sample and play it across the keyboard. Play with the mouse, touch, your computer keyboard or a MIDI keyboard, record a riff and save it as MIDI or audio. Everything stays on your device.</p>
+  <div class="panel">
+    <div class="row" style="align-items:flex-end"><label class="ctl" style="min-width:180px">Sound<select id="preset"></select></label><label class="ctl" style="min-width:150px">Source<select id="mode"><option value="synth">Synthesizer</option><option value="sampler">Sampler (your sample)</option></select></label>
+      <button class="btn" id="midiin">Use a MIDI keyboard</button></div>
+    <div id="samplebox" hidden>
+      <div class="row" style="align-items:flex-end"><button class="btn" id="sload">Choose a sample</button><input type="file" id="sfile" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.flac" hidden aria-label="Choose a sample"><span class="status" id="sname">No sample yet. Up to 30 seconds.</span>
+        <label class="ctl" style="min-width:110px">Original note<select id="root"></select></label><label class="row" style="gap:6px"><input type="checkbox" id="loop"> Loop while held</label></div>
+    </div>
+    <div class="row" style="align-items:center;justify-content:space-between;margin-top:10px"><div class="row" style="align-items:center"><button class="btn mini" id="octdn" aria-label="Octave down">−</button><strong id="octlabel">Octave 4</strong><button class="btn mini" id="octup" aria-label="Octave up">+</button></div><button class="btn mini" id="panic">Stop all notes</button></div>
+    <div id="kb" class="kb" role="group" aria-label="Keyboard. Computer keys A to P play notes, Z and X change the octave."></div>
+    <p class="status">Computer keys: A W S E D F T G Y H U J K O L P ; play notes. Z and X change the octave.</p>
+    <div id="ctls"></div>
+    <h2>Your sounds</h2>
+    <div class="row" style="align-items:flex-end"><label class="ctl" style="min-width:180px">Name<input type="text" id="pname" maxlength="40" placeholder="My sound"></label><button class="btn" id="psave">Save this sound</button><button class="btn" id="pdel">Delete selected</button><button class="btn" id="pexp">Export as file</button><button class="btn" id="pimp">Import a file</button><input type="file" id="pfile" accept="application/json,.json" hidden aria-label="Import a sound file"></div>
+    <p class="status">Sounds are kept in this browser only. Export one to keep a copy or move it to another device.</p>
+    <h2>Record a riff</h2>
+    <div class="row" style="align-items:flex-end"><label class="ctl" style="min-width:120px">Tempo (BPM)<input type="number" id="tempo" min="30" max="300" value="100"></label><button class="btn primary" id="rrec">● Record a riff</button><button class="btn" id="rplay">▶ Play riff</button><button class="btn" id="rclear">Clear</button></div>
+    <p class="status" id="riffinfo"></p>
+    <div class="row"><button class="btn" id="rmidi">Save as MIDI</button><button class="btn" id="rwav">Save as WAV</button><button class="btn" id="rstudio">Open in the Studio</button></div>
+    <p class="status" id="status" role="status"></p>
+  </div>
+  <div class="prose">
+    <h2>How it works</h2>
+    <ul><li>Each note has two oscillators, a sub oscillator and noise (or your sample) going through a filter and an amp. Both have their own envelope, and an LFO can move the pitch, filter or volume.</li><li>Saving renders the notes again offline with the same sound engine, so the file matches what you heard.</li><li>Your sounds, samples and recordings never leave your device. MIDI keyboards are read by your browser and only used here.</li></ul>
+  </div>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/quick.js"></script>
+<script src="js/midi.js"></script>
+<script src="js/store.js"></script>
+<script src="js/pitch-detect.js"></script>
+<script src="js/synthstudio.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>
