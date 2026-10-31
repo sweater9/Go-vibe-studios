@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "tuner", "tomidi", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "mono", "tone", "video-to-audio", "audio", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-tune-guitar", "blog-audio-to-midi", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "tuner", "tomidi", "practice", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "mono", "tone", "video-to-audio", "audio", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-tune-guitar", "blog-audio-to-midi", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -1693,6 +1693,7 @@ def test_keys_samples(browser, base):
     check("Open in Studio goes to the studio with the hand-off flag", True)
     for name, typ in [("Trap", "drum"), ("Bass: Walking", "midi")]:
         pg.goto(base + "samples.html?gvtest"); pg.wait_for_function("() => window.__sm")
+        pg.evaluate("() => { localStorage.removeItem('govibe.sprojects'); localStorage.removeItem('govibe.session'); }")   # start each hand-off from a fresh studio, so an autosave from the step before cannot leak in
         pg.evaluate("(n) => { const it = __sm.CATALOG.find((i) => i.name === n); localStorage.setItem('govibe.loop', JSON.stringify({ bpm: 90, bars: 2, spec: __sm.projectFor(it, Object.assign(__sm.params(), { bars: 2, bpm: 90 })).spec })); }", name)
         pg.goto(base + "studio.html?from=samples&gvtest"); pg.wait_for_function("() => window.__st && __st.P.tracks.length > 0", timeout=10000)
         info = pg.evaluate("({ n: __st.P.tracks.length, type: __st.P.tracks[__st.P.tracks.length - 1].type, bpm: __st.P.bpm, dur: __st.P.tracks[__st.P.tracks.length - 1].clips[0].dur, left: localStorage.getItem('govibe.loop') })")
@@ -1767,7 +1768,7 @@ def test_home(browser, base):
     errs = []
     ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 900})
     pg.goto(base + "index.html?gvtest"); pg.wait_for_function("() => window.__home")
-    check("home lists every tool with a link", pg.locator("a.card").count() == 23 and all(pg.locator(f'.quick a[href="{h}"]').count() == 1 for h in ["silence.html", "mono.html", "tone.html", "video-to-audio.html"]) and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "audio.html", "slowed.html", "pitch.html", "cutter.html", "booster.html", "visualizer.html", "metronome.html", "looper.html", "chords.html", "editor.html", "video.html", "master.html", "convert.html", "tuner.html", "tomidi.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
+    check("home lists every tool with a link", pg.locator("a.card").count() == 24 and all(pg.locator(f'.quick a[href="{h}"]').count() == 1 for h in ["silence.html", "mono.html", "tone.html", "video-to-audio.html"]) and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "audio.html", "slowed.html", "pitch.html", "cutter.html", "booster.html", "visualizer.html", "metronome.html", "looper.html", "chords.html", "editor.html", "video.html", "master.html", "convert.html", "tuner.html", "tomidi.html", "practice.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
     check("five groups with headings", pg.locator(".grp h2").count() == 5 and pg.inner_text(".grp h2 >> nth=0") == "Make")
     check("the web font loads from this site", pg.evaluate("document.fonts.check('16px \"Bricolage Grotesque\"')"))
     check("beat strip has 4 rows of 16 steps and starts with a boom bap pattern", pg.locator(".st").count() == 64 and pg.locator('.st[aria-pressed="true"]').count() == 3 + 2 + 8)
@@ -3153,6 +3154,52 @@ def test_tuner_midi(browser, base):
     ctx.close()
 
 
+def test_practice(browser, base):
+    print("practice player: speed, key, loop, count in, parts, save")
+    errs = []
+    ctx, pg = new_page(browser, errs, accept_downloads=True)
+    pg.goto(base + "practice.html?gvtest"); pg.wait_for_function("() => window.__prac", timeout=8000)
+    check("practice page starts at the drop zone", pg.locator("#pdrop").is_visible() and pg.locator("#pmain").is_hidden())
+    MK = """async () => { const sr = 22050, n = sr * 8, ctx = new OfflineAudioContext(2, n, sr); const mk = (f, t0, t1, pan, type) => { const o = ctx.createOscillator(), g = ctx.createGain(), p = ctx.createStereoPanner(); o.type = type; o.frequency.value = f; g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(0.3, t0 + 0.02); g.gain.setValueAtTime(0.3, t1 - 0.03); g.gain.linearRampToValueAtTime(0, t1); p.pan.value = pan; o.connect(g).connect(p).connect(ctx.destination); o.start(t0); o.stop(t1); };
+      for (let i = 0; i < 8; i++) { mk(440 * Math.pow(2, [0, 2, 4, 5, 7, 5, 4, 2][i] / 12), i, i + 0.9, 0, 'sine'); mk(55, i, i + 0.9, -0.6, 'sawtooth'); } const b = await ctx.startRendering();
+      const ch = [b.getChannelData(0), b.getChannelData(1)], pcm = new Int16Array(n * 2); for (let i = 0; i < n; i++) { pcm[2 * i] = ch[0][i] * 32767; pcm[2 * i + 1] = ch[1][i] * 32767; }
+      const h = new DataView(new ArrayBuffer(44)), w = (o, s) => { for (let i = 0; i < s.length; i++) h.setUint8(o + i, s.charCodeAt(i)); }; w(0, 'RIFF'); h.setUint32(4, 36 + pcm.length * 2, true); w(8, 'WAVEfmt '); h.setUint32(16, 16, true); h.setUint16(20, 1, true); h.setUint16(22, 2, true); h.setUint32(24, sr, true); h.setUint32(28, sr * 4, true); h.setUint16(32, 4, true); h.setUint16(34, 16, true); w(36, 'data'); h.setUint32(40, pcm.length * 2, true);
+      await __prac.open(new File([h, pcm], 'practice-test.wav', { type: 'audio/wav' })); return n; }"""
+    pg.evaluate(MK); pg.wait_for_function("() => __prac.tracks.length === 1", timeout=8000); n = pg.evaluate("() => __prac.tracks[0].buf.length")
+    check("a song opens and shows the controls", pg.locator("#pmain").is_visible() and "practice-test.wav" in pg.inner_text("#fname"))
+    pg.evaluate("() => { document.getElementById('speed').value = 50; document.getElementById('speed').dispatchEvent(new Event('input')); }")
+    L = pg.evaluate("async () => { const p = await __prac.prepare(); return p.song[0].length; }")
+    check("half speed makes the song about twice as long", 1.9 < L / n < 2.1)
+    pg.evaluate("() => { const s = document.getElementById('speed'); s.value = 100; s.dispatchEvent(new Event('input')); const k = document.getElementById('semi'); k.value = 5; k.dispatchEvent(new Event('input')); }")
+    L2 = pg.evaluate("async () => { const p = await __prac.prepare(); return p.song[0].length; }")
+    check("changing the key keeps the length", 0.97 < L2 / n < 1.03)
+    check("the readout shows the key change", "+5" in pg.inner_text("#vk"))
+    pg.evaluate("() => { const k = document.getElementById('semi'); k.value = 0; k.dispatchEvent(new Event('input')); }")
+    pg.evaluate("() => __prac.setLoop(1, 2)"); pg.click("#play"); pg.wait_for_function("() => __prac.playing", timeout=8000); pg.wait_for_timeout(3300)
+    p1 = pg.evaluate("() => __prac.pos")
+    check("a loop keeps playing inside its section", 0.9 <= p1 <= 2.1, p1)
+    pg.click("#play"); check("stop works", not pg.evaluate("() => __prac.playing"))
+    pg.evaluate("() => { __prac.setLoop(null, null); document.getElementById('loop').checked = false; }"); pg.click("#clear")
+    pg.click("#tostart"); pg.check("#count"); pg.fill("#tempo", "60"); pg.fill("#beats", "2"); pg.click("#play"); pg.wait_for_function("() => __prac.playing", timeout=8000); pg.wait_for_timeout(700)
+    check("the count in delays the start of the song", pg.evaluate("() => __prac.pos") < 0.05)
+    pg.wait_for_timeout(2300); check("then the song plays", pg.evaluate("() => __prac.pos") > 0.4); pg.click("#play"); pg.uncheck("#count")
+    pg.click("#split"); pg.wait_for_function("() => __prac.tracks.length === 4", timeout=90000)
+    check("splitting gives four parts with mute and solo", pg.locator("#tracks .rstep").count() == 4 and pg.locator("#tracks button").count() == 8)
+    full = pg.evaluate("async () => { const m = await __prac.mixOf(false); let s = 0; m[0].forEach((v) => { s += v * v; }); return s; }")
+    pg.click("#instr")
+    nov = pg.evaluate("async () => { const m = await __prac.mixOf(false); let s = 0; m[0].forEach((v) => { s += v * v; }); return s; }")
+    check("muting the vocals changes the mix", nov < full * 0.98 or nov > full * 1.0 and nov != full)
+    pg.click("#vonly"); vo = pg.evaluate("async () => { const m = await __prac.mixOf(false); let s = 0; m[0].forEach((v) => { s += v * v; }); return s; }")
+    check("vocals only is quieter than everything", vo < full)
+    pg.click("#all")
+    with pg.expect_download(timeout=30000) as d: pg.click("#savemix")
+    check("saving the mix gives a WAV", d.value.suggested_filename.endswith(".wav"))
+    with pg.expect_download(timeout=60000) as d2: pg.click("#savestems")
+    check("saving the parts gives a ZIP", d2.value.suggested_filename.endswith(".zip"))
+    check("no page errors in the practice player", not errs)
+    ctx.close()
+
+
 def main():
     srv, base = start_server()
     test_static()
@@ -3160,7 +3207,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

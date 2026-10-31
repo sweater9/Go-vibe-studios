@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Practice player — GoVibe Mix</title>
+<meta name="description" content="Slow a song down or change its key, loop a section, add a count-in and click, and mute or solo rough stems. Free, private, and your audio is never uploaded.">
+<link rel="canonical" href="https://govibemix.com/practice.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Practice player — GoVibe Mix">
+<meta property="og:description" content="Slow a song down or change its key, loop a section, add a count-in and click, and mute or solo rough stems. Free, private, and your audio is never uploaded.">
+<meta property="og:url" content="https://govibemix.com/practice.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="studio.html">Studio</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+  <a class="link" href="index.html#tools">All tools</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>Practice player</h1>
+  <p class="lead">Learn a song at your own pace. Slow it down without changing the pitch, change the key without changing the speed, loop the hard part, and play along with a count-in and a click. You can also split it into rough parts and mute the one you want to play. Everything stays on your device.</p>
+  <div class="panel">
+    <div class="drop" id="pdrop" data-input="pfile" role="button" tabindex="0"><strong>Drop a song here</strong> or press to choose one<p class="status">MP3, WAV, OGG, M4A and more. Up to five minutes.</p></div>
+    <input type="file" id="pfile" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.flac,.caf,.aif,.aiff,.3gp,.amr,video/mp4" hidden aria-label="Choose a song">
+    <div id="pmain" hidden>
+      <div class="row" style="align-items:center;justify-content:space-between"><strong id="fname"></strong><button class="btn mini" id="again">Choose another song</button></div>
+      <canvas id="wave" width="1000" height="140" tabindex="0" role="img" aria-label="Waveform. Click to move the playhead. Left and right arrow keys jump five seconds." style="width:100%;height:auto;border-radius:10px;margin-top:10px;cursor:pointer"></canvas>
+      <div class="row" style="margin-top:8px;align-items:center;justify-content:space-between"><div class="row"><button class="btn primary" id="play">▶ Play</button><button class="btn" id="tostart" aria-label="Back to the start of the loop or song">⏮</button></div><span class="time" id="clock">0:00.00 / 0:00.00</span></div>
+      <h2>Loop a section</h2>
+      <div class="row" style="align-items:center"><button class="btn" id="seta">Set start here</button><button class="btn" id="setb">Set end here</button><button class="btn" id="clear">Clear</button><label class="row" style="gap:6px"><input type="checkbox" id="loop" checked> Repeat the loop</label></div>
+      <p class="status">Loop start <b id="la">not set</b> · end <b id="lb">not set</b>. Play, press Set start at the beginning of the hard part, and Set end when it finishes.</p>
+      <h2>Speed and key</h2>
+      <div class="mini">
+        <label class="ctl">Speed <output id="vs"></output><input type="range" id="speed" min="40" max="150" step="5" value="100"></label>
+        <label class="ctl">Key <output id="vk"></output><input type="range" id="semi" min="-6" max="6" step="1" value="0"></label>
+      </div>
+      <h2>Count-in and click</h2>
+      <div class="row" style="align-items:flex-end"><label class="ctl" style="min-width:120px">Tempo of the song (BPM)<input type="number" id="tempo" min="30" max="300" value="100"></label>
+        <label class="row" style="gap:6px"><input type="checkbox" id="count"> Count in</label><label class="ctl" style="min-width:90px">Beats<input type="number" id="beats" min="1" max="8" value="4"></label>
+        <label class="row" style="gap:6px"><input type="checkbox" id="metro"> Click while playing</label></div>
+      <p class="status">Not sure of the tempo? Find it with the <a href="bpm.html">BPM and key finder</a>. The click follows your speed setting. It starts when you press Play, so set the loop start on a beat.</p>
+      <h2>Parts (optional)</h2>
+      <div class="row"><button class="btn" id="split">Split into parts (rough)</button><button class="btn" id="instr">Mute the vocals</button><button class="btn" id="vonly">Vocals only</button><button class="btn" id="all">Everything on</button></div>
+      <p class="status" id="stemnote"></p>
+      <div id="tracks"></div>
+      <h2>Save</h2>
+      <div class="row" style="align-items:center"><button class="btn" id="savemix">Save what you hear (WAV)</button><label class="row" style="gap:6px"><input type="checkbox" id="onlyloop"> Only the loop</label><button class="btn" id="savestems">Save each part (ZIP)</button></div>
+    </div>
+    <p class="status" id="status" role="status"></p>
+  </div>
+  <div class="prose">
+    <h2>How it works</h2>
+    <ul><li>Speed and key are changed with a time stretching method, so slowing a song down does not lower its pitch. Large changes can add a slight warble.</li><li>The parts are separated with signal processing, not AI. The vocals are found as the centred voice, the drums by their sharp hits, and the bass by its low frequencies, so there is some bleed between them.</li><li>Your song is never uploaded. It is processed in your browser.</li></ul>
+  </div>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/quick.js"></script>
+<script src="js/stretch.js"></script>
+<script src="js/zip.js"></script>
+<script src="js/session.js"></script>
+<script src="js/practice.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>
