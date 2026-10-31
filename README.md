@@ -112,6 +112,7 @@ Each deck refines its BPM to 0.01 and finds where beat 1 falls (checked on synth
 - **Advanced piano roll** (`js/studio-roll-plus.js`): several notes selected at once (shift click, box select, select all), move and resize together, copy, paste, duplicate, quantize with strength, humanize, legato, snap to scale and a velocity lane.
 - **Practice player** (`practice.html`, `js/practice.js`): WSOLA speed 40 to 150 percent, key plus or minus six semitones, A to B loop, count in and click, rough four part split (the DJ stem worker) with mute and solo, WAV and ZIP export.
 - **Tuner** (`tuner.html`, `js/tuner.js`, `js/pitch-detect.js`): microphone pitch detection with the YIN method, cents meter, instrument presets and reference tones.
+- **Vocal studio** (`vocals.html`, `js/vocals.js`): records takes through the `gv-rec` worklet with a count-in over a backing track, comps parts of takes with 8 ms crossfades, corrects pitch note by note (YIN plus `GVStretch.pitchShift`) and renders a vocal chain (low cut, presence, air, compressor, reverb, echo, doubler) offline.
 - **Audio to MIDI** (`tomidi.html`, `js/tomidi.js`): follows a single melodic line, groups it into notes and writes a MIDI file through `GVMidi`.
 - **Studio versions**: named snapshots of a project (`GVStudioIO.snapshot/restore/removeSnap`); the sound files are shared and kept while any version needs them.
 - **Metronome** (`metronome.html`, `js/metronome.js`): lookahead scheduling on the audio clock, accents, subdivisions, swing, tap tempo, tempo trainer.

@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "tuner", "tomidi", "practice", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "mono", "tone", "video-to-audio", "audio", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-tune-guitar", "blog-audio-to-midi", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "tuner", "tomidi", "practice", "vocals", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "mono", "tone", "video-to-audio", "audio", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-tune-guitar", "blog-audio-to-midi", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -1768,7 +1768,7 @@ def test_home(browser, base):
     errs = []
     ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 900})
     pg.goto(base + "index.html?gvtest"); pg.wait_for_function("() => window.__home")
-    check("home lists every tool with a link", pg.locator("a.card").count() == 24 and all(pg.locator(f'.quick a[href="{h}"]').count() == 1 for h in ["silence.html", "mono.html", "tone.html", "video-to-audio.html"]) and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "audio.html", "slowed.html", "pitch.html", "cutter.html", "booster.html", "visualizer.html", "metronome.html", "looper.html", "chords.html", "editor.html", "video.html", "master.html", "convert.html", "tuner.html", "tomidi.html", "practice.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
+    check("home lists every tool with a link", pg.locator("a.card").count() == 25 and all(pg.locator(f'.quick a[href="{h}"]').count() == 1 for h in ["silence.html", "mono.html", "tone.html", "video-to-audio.html"]) and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "audio.html", "slowed.html", "pitch.html", "cutter.html", "booster.html", "visualizer.html", "metronome.html", "looper.html", "chords.html", "editor.html", "video.html", "master.html", "convert.html", "tuner.html", "tomidi.html", "practice.html", "vocals.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
     check("five groups with headings", pg.locator(".grp h2").count() == 5 and pg.inner_text(".grp h2 >> nth=0") == "Make")
     check("the web font loads from this site", pg.evaluate("document.fonts.check('16px \"Bricolage Grotesque\"')"))
     check("beat strip has 4 rows of 16 steps and starts with a boom bap pattern", pg.locator(".st").count() == 64 and pg.locator('.st[aria-pressed="true"]').count() == 3 + 2 + 8)
@@ -3154,6 +3154,52 @@ def test_tuner_midi(browser, base):
     ctx.close()
 
 
+def test_vocals(browser, base):
+    print("vocal studio: takes, comp, pitch correction, chain, recording")
+    errs = []
+    ctx, pg = new_page(browser, errs, accept_downloads=True)
+    pg.goto(base + "vocals.html?gvtest"); pg.wait_for_function("() => window.__voc", timeout=8000)
+    check("vocals page starts with no takes", "No takes yet" in pg.inner_text("#takes"))
+    # a sung note slightly flat of C4 (60.3 -> sharp), then a clean note two takes
+    r = pg.evaluate("""async () => {
+      const sr = 22050, mk = (m, secs) => { const a = new Float32Array(sr * secs), f = 440 * Math.pow(2, (m - 69) / 12); for (let i = 0; i < a.length; i++) a[i] = 0.4 * Math.sin(2 * Math.PI * f * i / sr) * Math.min(1, i / 400, (a.length - i) / 400); return a; };
+      const a = mk(60.3, 2), b = mk(62, 2);
+      __voc.addTake(a, sr, 'One', 0); __voc.addTake(b, sr, 'Two', 0);
+      const notes = await __voc.findNotes(a, sr);
+      const out = await __voc.pitchCorrect(a, sr, { root: 0, scale: 'Chromatic', strength: 1 });
+      const n2 = await __voc.findNotes(out.out, sr);
+      return { notes: notes.map(n => n.m), after: n2.map(n => n.m), fixed: out.fixed };
+    }""")
+    check("a note is found near 60.3", len(r["notes"]) >= 1 and abs(r["notes"][0] - 60.3) < 0.25, str(r))
+    check("pitch correction moves it close to 60", r["fixed"] >= 1 and len(r["after"]) >= 1 and abs(r["after"][0] - 60) < 0.15, str(r))
+    pg.evaluate("() => { __voc.setSegment(__voc.takes[0].id, 0, 1); __voc.setSegment(__voc.takes[1].id, 1, 2); }")
+    check("two parts from two takes are chosen", pg.evaluate("() => __voc.comp.length") == 2 and pg.locator("#segs tr").count() == 2)
+    c = pg.evaluate("() => { const x = __voc.buildComp(22050); let a = 0, b = 0; for (let i = 2000; i < 20000; i++) a += Math.abs(x[i]); for (let i = 24000; i < 42000; i++) b += Math.abs(x[i]); return [a, b, x.length]; }")
+    check("the comp holds sound from both takes", c[0] > 100 and c[1] > 100 and c[2] >= 44100, str(c))
+    e = pg.evaluate("""async () => { const rate = 22050, P = __voc.params(); const n = rate * 2; const oc = new OfflineAudioContext(1, n, rate), ch = __voc.chain(oc, { ...P, hpf: 400, rev: 0, dly: 0, dbl: 0, presence: 0, air: 0, thr: 0, ratio: 1, makeup: 0 });
+      const b = oc.createBuffer(1, n, rate), d = b.getChannelData(0); for (let i = 0; i < n; i++) d[i] = 0.5 * Math.sin(2 * Math.PI * 60 * i / rate); const s = oc.createBufferSource(); s.buffer = b; s.connect(ch.input); ch.output.connect(oc.destination); s.start(); const r = await oc.startRendering(); let o = 0; for (let i = 4000; i < n; i++) o += Math.abs(r.getChannelData(0)[i]); return o / (n - 4000); }""")
+    check("the low cut removes a 60 Hz rumble", e < 0.05, str(e))
+    pg.select_option("#preset", "Pop"); check("a preset sets the sliders", pg.input_value("#p-hpf") == "100")
+    w = pg.evaluate("async () => { const r = await __voc.renderVocal(false); let m = 0; for (const v of r.chs[0]) m = Math.max(m, Math.abs(v)); return [r.chs.length, r.chs[0].length, m]; }")
+    check("the vocal renders with a tail", w[0] == 2 and w[1] > 44100 and w[2] > 0.05, str(w))
+    pg.locator("#takes button:has-text('Delete')").first.click()
+    check("deleting a take removes its parts", pg.evaluate("() => __voc.takes.length") == 1 and pg.evaluate("() => __voc.comp.length") == 1)
+    check("vocals page: no console errors", not errs, str(errs[:3]))
+    ctx.close()
+    # fake microphone recording
+    b2 = _sp_instance.chromium.launch(args=["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", "--autoplay-policy=no-user-gesture-required"])
+    try:
+        errs2 = []; c2, p2 = new_page(b2, errs2)
+        p2.goto(base + "vocals.html?gvtest"); p2.wait_for_function("() => window.__voc", timeout=8000)
+        p2.uncheck("#count"); p2.click("#rec"); p2.wait_for_timeout(1800); p2.click("#rec")
+        p2.wait_for_function("() => __voc.takes.length === 1", timeout=8000)
+        check("recording from the microphone adds a take", p2.locator("#takes strong").count() == 1 and p2.evaluate("() => __voc.takes[0].ch.length") > 10000)
+        check("recording: no console errors", not errs2, str(errs2[:3]))
+        c2.close()
+    finally:
+        b2.close()
+
+
 def test_practice(browser, base):
     print("practice player: speed, key, loop, count in, parts, save")
     errs = []
@@ -3250,7 +3296,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_roll_plus, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_roll_plus, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip
