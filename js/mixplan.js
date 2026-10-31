@@ -12,6 +12,17 @@ window.GVMixPlan = (() => {
     return Math.min(Math.abs(a - b), Math.abs(a - 2 * b), Math.abs(2 * a - b));
   }
   const stepCost = (x, y) => keyCost(x.key, y.key) + 0.35 * tempoGap(x.bpm, y.bpm);
+  /* choose the best next track from a library: key and tempo closeness, a small bonus for ratings, a little chance so the set does not repeat itself.
+     cands are { id, key, bpm, rating }, used is a Set of ids to skip. Returns an index into cands, or -1 when nothing is left. */
+  function pickNext(cur, cands, o = {}) {
+    const rand = o.rand || Math.random, used = o.used || new Set(), variety = o.variety == null ? 0.6 : o.variety; let best = -1, bc = Infinity;
+    cands.forEach((c, i) => {
+      if (used.has(c.id)) return; let cost = -0.4 * (c.rating || 0) + rand() * variety;
+      if (cur) { const gap = tempoGap(cur.bpm, c.bpm), rel = cur.bpm && c.bpm ? gap / Math.min(cur.bpm, c.bpm) : 0; cost += keyCost(cur.key, c.key) + 0.35 * gap + (rel > 0.08 ? 6 : 0); }
+      if (cost < bc) { bc = cost; best = i; }
+    });
+    return best;
+  }
   function pathCost(items, order) { let c = 0; for (let i = 1; i < order.length; i++) c += stepCost(items[order[i - 1]], items[order[i]]); return c; }
   /* startBy: 'first' keeps the first track first, 'lowest' starts at the slowest track */
   function order(items, startBy = 'first') {
@@ -79,5 +90,5 @@ window.GVMixPlan = (() => {
   const stamp = (s) => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : String(m).padStart(2, '0')) + ':' + String(x).padStart(2, '0'); };
   const cleanName = (n) => n.replace(/\.[a-z0-9]{2,4}$/i, '').replace(/_/g, ' ').trim();
   function tracklist(p) { return p.items.map((it, i) => stamp(i === 0 ? 0 : it.start) + '  ' + cleanName(it.name) + (it.bpm ? '  (' + Math.round(it.bpm) + ' BPM' + (it.key ? ', ' + it.key : '') + ')' : it.key ? '  (' + it.key + ')' : '')).join('\n'); }
-  return { keyCost, tempoGap, order, pathCost, plan, gains, effBpm, stamp, tracklist, cleanName };
+  return { pickNext, keyCost, tempoGap, order, pathCost, plan, gains, effBpm, stamp, tracklist, cleanName };
 })();

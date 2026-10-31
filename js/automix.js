@@ -23,7 +23,7 @@
   paint();
 
   async function addBuffer(buf, name, pre) {
-    if (pre) queue.push({ name, buf, bpm: pre.bpm, key: pre.key, grid: pre.grid ? { ...pre.grid } : null });
+    if (pre) queue.push({ name, buf, bpm: pre.bpm, key: pre.key, grid: pre.grid ? { ...pre.grid } : null, id: pre.id });
     else { const b0 = detectBPM(buf), grid = b0 ? detectGrid(buf, b0) : null; queue.push({ name, buf, bpm: grid ? grid.bpm : b0, key: detectKey(buf), grid }); }
     paint();
   }
@@ -39,6 +39,26 @@
   };
   $('amclear').onclick = () => { stop(); queue.length = 0; paint(); say('Queue cleared.'); };
 
+  /* ---------- pick tracks from the library by itself ---------- */
+  const auto = () => !!$('amauto') && $('amauto').checked, used = new Set(); let fetching = false, failed = false;
+  try { if (localStorage.getItem('govibe.amauto') === '1') $('amauto').checked = true; } catch (_) { /* no storage */ }
+  $('amauto').onchange = () => { try { localStorage.setItem('govibe.amauto', auto() ? '1' : '0'); } catch (_) { /* ignore */ } };
+  async function pickFrom(cur, opt) {
+    const recs = A.libRecs ? A.libRecs() : []; queue.forEach((q) => { if (q.id) used.add(q.id); });
+    let i = GVMixPlan.pickNext(cur, recs, { used, ...opt }); if (i < 0 && recs.length > 1) { used.clear(); queue.slice(-1).forEach((q) => { if (q.id) used.add(q.id); }); i = GVMixPlan.pickNext(cur, recs, { used, ...opt }); }
+    if (i < 0) return null; const f = await A.libFetch(recs[i]); used.add(f.pre.id);
+    return { name: f.name, buf: f.buf, bpm: f.pre.bpm, key: f.pre.key, grid: f.pre.grid, id: f.pre.id };
+  }
+  async function autoPick(cur) {
+    if (fetching || failed) return; fetching = true;
+    try { const q = await pickFrom(cur); if (!S.on) return; if (!q) { failed = true; return say('Your library has no other tracks to pick from. Add more tracks in the Library tab.'); } queue.push(q); queue.forEach((x, i) => { if (i < S.idx - 1) x.buf = null; }); paint(); say('Next up, picked from your library: "' + q.name + '".'); }
+    catch (_) { failed = true; say('Could not load the next track from the library.'); } finally { fetching = false; }
+  }
+  async function seedFromLibrary() {
+    if ((A.libRecs ? A.libRecs() : []).length < 2) { say('Add at least two tracks to your library first (Library tab), then Automix can choose by itself.'); return false; }
+    say('Choosing the first track…'); try { const q = await pickFrom(null, { variety: 1.5 }); if (!q) return false; queue.push(q); paint(); return true; } catch (_) { say('Could not load a track from the library.'); return false; }
+  }
+
   /* ---------- playback control ---------- */
   function load(deckIdx, qi, matchTo) {
     const d = decks[deckIdx], q = queue[qi];
@@ -50,6 +70,8 @@
   }
   function start() {
     if (!queue.length) return say('Add some tracks first.');
+    for (let i = queue.length - 1; i >= 0; i--) if (!queue[i].buf) queue.splice(i, 1);
+    failed = false; used.clear(); if (!queue.length) return say('Add some tracks first.');
     ctx.resume(); S.on = true; S.idx = 0; S.active = 0; S.tr = null;
     decks.forEach((d) => d.pause());
     load(0, 0, null); xf.value = 0; applyXf(); decks[0].seek(0); decks[0].play();
@@ -60,7 +82,7 @@
     clearInterval(S.timer); S.on = false; S.tr = null; $('amgo').textContent = '▶ Start Automix';
     decks.forEach((d) => { d.low.gain.value = 0; d.el.low.value = 0; }); paint();
   }
-  $('amgo').onclick = () => (S.on ? (stop(), say('Automix stopped. The decks keep their current state.')) : start());
+  $('amgo').onclick = async () => { if (S.on) { stop(); return say('Automix stopped. The decks keep their current state.'); } if (!queue.length && auto() && !(await seedFromLibrary())) return; start(); };
 
   function beginTransition(len) {
     const out = decks[S.active], inc = decks[1 - S.active], ni = S.idx + 1;
@@ -86,16 +108,17 @@
     if (S.tr) return stepTransition();
     const d = decks[S.active], rem = d.buf.duration - d.position() * 1;
     const remReal = rem / d.rate;
+    if (S.idx + 1 >= queue.length && auto() && !failed) { autoPick(queue[queue.length - 1]); return; }
     if (S.idx + 1 >= queue.length) { if (!d.playing && d.position() < 0.1) { stop(); say('Automix finished.'); } return; }
     const want = +$('amlen').value, len = Math.max(2, Math.min(want, remReal - 0.5, queue[S.idx + 1].buf.duration * 0.5));
     if (remReal <= len + 0.6 || !d.playing) beginTransition(len);
   }
   $('amskip').onclick = () => {
     if (!S.on) return say('Start Automix first.');
-    if (S.tr || S.idx + 1 >= queue.length) return;
+    if (S.tr) return; if (S.idx + 1 >= queue.length) return say(auto() ? 'Picking the next track. Try again in a moment.' : 'This is the last track.');
     beginTransition(Math.min(+$('amlen').value, 8, queue[S.idx + 1].buf.duration * 0.5));
   };
 
   A.amQueue = queue; A.amPaint = paint; A.amState = S;
-  if (/[?&]gvtest\b/.test(location.search)) window.__am = { queue, S, addBuffer };   // test hook
+  if (/[?&]gvtest\b/.test(location.search)) window.__am = { queue, S, addBuffer, used };   // test hook
 })();

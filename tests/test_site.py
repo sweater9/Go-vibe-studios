@@ -3314,6 +3314,39 @@ def test_automation(browser, base):
     ctx.close()
 
 
+def test_autodj(browser, base):
+    print("dj: automix picks tracks from the library by itself")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "dj.html?gvtest"); pg.wait_for_function("() => window.__am && window.__dj", timeout=10000)
+    u = pg.evaluate("""() => { const P = GVMixPlan, cur = { key: '8A', bpm: 120 }, c = [{ id: 1, key: '8A', bpm: 126 }, { id: 2, key: '3B', bpm: 90 }, { id: 3, key: '9A', bpm: 124 }];
+      const z = () => 0; return [P.pickNext(cur, c, { rand: z }), P.pickNext(cur, c, { rand: z, used: new Set([1]) }), P.pickNext(cur, c, { rand: z, used: new Set([1, 2, 3]) }),
+        P.pickNext(cur, [{ id: 1, key: '8A', bpm: 122, rating: 0 }, { id: 2, key: '8A', bpm: 122, rating: 5 }], { rand: z }), P.pickNext(null, [{ id: 7 }], { rand: z })]; }""")
+    check("pickNext prefers close keys and tempos, skips used, favours ratings", u == [0, 2, -1, 1, 0], str(u))
+    pg.click("#tab-am"); pg.select_option("#amlen", "4")
+    check("the automatic picking option is offered", pg.locator("#amauto").is_visible())
+    pg.click("#amgo"); check("with it off an empty queue does not start", pg.evaluate("() => __dj.decks[0].playing") is False)
+    pg.check("#amauto"); pg.click("#amgo"); pg.wait_for_timeout(300)
+    check("with an empty library it asks for more tracks", "at least two" in pg.inner_text("#amstatus"), pg.inner_text("#amstatus"))
+    pg.evaluate("""() => { const { ctx } = __dj, A = window.GVAudio;
+      const mk = (bpm, secs, sr = 22050) => { const b = ctx.createBuffer(1, sr * secs, sr), d = b.getChannelData(0), beat = Math.round(sr * 60 / bpm); for (let i = 0; i < d.length; i += beat) for (let k = 0; k < 400 && i + k < d.length; k++) d[i + k] = Math.sin(k / 6) * Math.exp(-k / 80); return b; };
+      const recs = [{ id: 'a', name: 'a.wav', key: '8A', bpm: 120 }, { id: 'b', name: 'b.wav', key: '9A', bpm: 122 }, { id: 'c', name: 'c.wav', key: '3B', bpm: 150 }, { id: 'd', name: 'd.wav', key: '8B', bpm: 124 }];
+      A.libRecs = () => recs; A.libFetch = async (r) => ({ buf: mk(r.bpm, 14), name: r.name, pre: { bpm: r.bpm, key: r.key, grid: null, id: r.id } }); }""")
+    pg.click("#amgo"); pg.wait_for_function("() => __am.queue.length >= 1 && __dj.decks[0].playing", timeout=10000)
+    check("Automix chose a first track from the library by itself", pg.evaluate("() => __am.queue[0].id") in ("a", "b", "c", "d"))
+    pg.wait_for_function("() => __am.queue.length >= 2", timeout=15000)
+    ids = pg.evaluate("() => __am.queue.map((q) => q.id)")
+    check("it lined up a different track next, not a far one", ids[0] != ids[1] and (ids[0] == "c" or ids[1] != "c"), str(ids))
+    pg.wait_for_function("() => __am.S.tr !== null", timeout=20000)
+    pg.wait_for_function("() => __am.S.tr === null && __am.S.idx === 1", timeout=15000)
+    pg.wait_for_function("() => __am.queue.length >= 3", timeout=15000)
+    ids = pg.evaluate("() => __am.queue.map((q) => q.id)")
+    check("it keeps going and avoids repeats", len(set(ids)) == len(ids), str(ids))
+    pg.click("#amgo"); check("it can be stopped", pg.inner_text("#amgo").startswith("▶"))
+    check("autodj: no console errors", not errs, str(errs[:3]))
+    ctx.close()
+
+
 def test_roll_plus(browser, base):
     print("studio: advanced piano roll editing")
     errs = []
@@ -3364,7 +3397,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

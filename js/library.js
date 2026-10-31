@@ -159,6 +159,8 @@
     } catch (_) { say('Could not load that track. It may have been cleared from this browser.'); }
   }
   async function queueIt(rec) { try { const buf = await decode(rec); A.queueAdd(buf, rec.name, { bpm: rec.bpm, key: rec.key, grid: rec.grid }); say('Queued "' + rec.name + '".'); } catch (_) { say('Could not queue that track.'); } }
+  A.libRecs = () => recs.filter((r) => !r.missing);
+  A.libFetch = async (rec) => ({ buf: await decode(rec), name: rec.name, pre: { bpm: rec.bpm, key: rec.key, grid: rec.grid ? { ...rec.grid } : null, id: rec.id } });
   async function remove(rec) { await GVStore.lib.del(rec.id); await GVStore.del(bkey(rec.id)); recs = recs.filter((r) => r.id !== rec.id); lists.forEach((l) => (l.ids = l.ids.filter((x) => x !== rec.id))); saveLists(); paintLists(); decks.forEach((d) => { if (d.libId === rec.id) d.libId = null; }); render(); say('Removed.'); }
 
   /* ---------- backup / restore ---------- */
