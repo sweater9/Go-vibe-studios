@@ -84,22 +84,33 @@
   }
   $('amgo').onclick = async () => { if (S.on) { stop(); return say('Automix stopped. The decks keep their current state.'); } if (!queue.length && auto() && !(await seedFromLibrary())) return; start(); };
 
+  /* ---------- smart start and transition styles ---------- */
+  const smart = () => !!$('amsmart') && $('amsmart').checked, style = () => ($('amstyle') ? $('amstyle').value : 'blend');
+  /* the latest 16 beat phrase start (in the track's own seconds) from which a transition of len seconds still finishes before the track ends */
+  function phraseStart(d, len, late) {
+    if (!d.grid || !d.buf) return null; const p = d.grid.period, ph = 16 * p, lenSrc = len * (d.rate || 1), k = Math.floor((d.buf.duration - 0.7 - lenSrc - d.grid.t0) / ph);
+    if (k < 1) return null; const b = d.grid.t0 + k * ph; return b < d.position() - (late == null ? 0.05 : late) ? null : b;
+  }
+  const resetFx = (d) => { d.el.filt.value = 0; d.setFilter(0); d.el.echo.value = 0; d.echoWet.gain.value = 0; };
+  const curve = (st, p) => (st === 'cut' ? smooth(p, 0.45, 0.55) : st === 'echo' ? smooth(p, 0.25, 0.6) : p);
   function beginTransition(len) {
-    const out = decks[S.active], inc = decks[1 - S.active], ni = S.idx + 1;
+    const out = decks[S.active], inc = decks[1 - S.active], ni = S.idx + 1, st = style(); if (st === 'cut') len = Math.min(len, Math.max(1, (out.grid ? out.grid.period / (out.rate || 1) : 0.5) * 2));
     load(1 - S.active, ni, out);
     let s0 = 0; if (out.grid && inc.grid) s0 = inc.grid.t0 + out.beatFrac() * inc.grid.period;   // start on the same point in the beat
     inc.seek(s0); inc.play();
-    S.tr = { t0: ctx.currentTime, len, from: S.active, to: 1 - S.active, ni };
+    S.tr = { t0: ctx.currentTime, len, from: S.active, to: 1 - S.active, ni, st };
     say('Mixing into "' + queue[ni].name + '"…');
   }
   function stepTransition() {
     const T = S.tr, p = Math.min(1, (ctx.currentTime - T.t0) / T.len), out = decks[T.from], inc = decks[T.to];
-    const x = T.to === 1 ? p : 1 - p;
+    const pc = curve(T.st, p), x = T.to === 1 ? pc : 1 - pc;
     xf.value = Math.round(x * 100); applyXf();
     const outLow = -26 * smooth(p, 0.35, 0.7), inLow = -26 * (1 - smooth(p, 0.1, 0.5));
+    if (T.st === 'sweep') { const fo = Math.round(100 * smooth(p, 0.1, 0.9)), fi = -Math.round(100 * (1 - smooth(p, 0, 0.7))); out.el.filt.value = fo; out.setFilter(fo); inc.el.filt.value = fi; inc.setFilter(fi); }
+    else if (T.st === 'echo') { const e = Math.round(85 * smooth(p, 0.05, 0.3)); out.el.echo.value = e; out.echoWet.gain.value = Math.pow(e / 100, 1.3) * 0.9; }
     out.low.gain.value = outLow; out.el.low.value = outLow; inc.low.gain.value = inLow; inc.el.low.value = inLow;
     if (p >= 1) {
-      out.pause(); out.low.gain.value = 0; out.el.low.value = 0; inc.low.gain.value = 0; inc.el.low.value = 0;
+      out.pause(); resetFx(inc); setTimeout(() => resetFx(out), T.st === 'echo' ? 2500 : 0); out.low.gain.value = 0; out.el.low.value = 0; inc.low.gain.value = 0; inc.el.low.value = 0;
       S.active = T.to; S.idx = T.ni; S.tr = null; paint(); say('Playing "' + queue[S.idx].name + '".');
     }
   }
@@ -111,7 +122,9 @@
     if (S.idx + 1 >= queue.length && auto() && !failed) { autoPick(queue[queue.length - 1]); return; }
     if (S.idx + 1 >= queue.length) { if (!d.playing && d.position() < 0.1) { stop(); say('Automix finished.'); } return; }
     const want = +$('amlen').value, len = Math.max(2, Math.min(want, remReal - 0.5, queue[S.idx + 1].buf.duration * 0.5));
-    if (remReal <= len + 0.6 || !d.playing) beginTransition(len);
+    let go = remReal <= len + 0.6 || !d.playing;
+    if (smart() && d.playing && d.grid) { const sp = phraseStart(d, len, 3); if (sp != null) go = d.position() >= sp - 0.05; }
+    if (go) beginTransition(smart() && d.grid ? Math.max(1, Math.min(len, remReal - 0.5)) : len);
   }
   $('amskip').onclick = () => {
     if (!S.on) return say('Start Automix first.');
@@ -120,5 +133,5 @@
   };
 
   A.amQueue = queue; A.amPaint = paint; A.amState = S;
-  if (/[?&]gvtest\b/.test(location.search)) window.__am = { queue, S, addBuffer, used };   // test hook
+  if (/[?&]gvtest\b/.test(location.search)) window.__am = { queue, S, addBuffer, used, phraseStart };   // test hook
 })();

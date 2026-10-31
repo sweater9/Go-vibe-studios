@@ -148,6 +148,13 @@
       </label>
       <button class="btn" id="amorder">Order for the best flow</button>
     </div>
+    <div class="row" style="align-items:flex-end;margin:6px 0">
+      <label class="ctl">Transition style
+        <select id="amstyle" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="blend">Blend with bass swap</option><option value="sweep">Filter sweep</option><option value="echo">Echo out</option><option value="cut">Quick cut on the beat</option></select>
+      </label>
+      <label class="row" style="gap:6px"><input type="checkbox" id="amsmart" checked> Start transitions on a phrase</label>
+    </div>
+    <p class="status">A phrase is 16 beats. With this on, each transition begins where a phrase starts, so the new track lands on a strong beat. It needs a detected beat grid.</p>
     <div class="row" style="align-items:center;margin:6px 0"><label class="row" style="gap:6px"><input type="checkbox" id="amauto"> Pick the next track from my library automatically</label></div>
     <p class="status">With this on, Automix chooses each following track from your library by key, tempo and your ratings, avoids repeats and keeps going on its own. You can start with an empty queue. Needs at least two tracks in the Library tab.</p>
     <ol id="amlist" class="amlist" aria-label="Track queue"></ol>
