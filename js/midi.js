@@ -29,6 +29,7 @@ window.GVMidi = (() => {
       const add = (startBeat, durBeat, pitch, vel) => { const a = tick(startBeat), z = Math.max(a + 1, tick(startBeat + durBeat)), v = Math.max(1, Math.min(127, Math.round(vel))); ev.push({ at: a, order: 3, b: [0x90 | channel, pitch, v] }, { at: z, order: 2, b: [0x80 | channel, pitch, 0] }); };
       t.clips.forEach((c) => {
         const s0 = c.start / spb, e0 = (c.start + c.dur) / spb;
+        if (t.type === 'midi' && c.auto) [['vol', 7], ['pan', 10], ['cut', 74]].forEach(([k, cc]) => (c.auto[k] || []).forEach((pt) => { if (pt.t < (c.dur / spb) - 1e-6) ev.push({ at: tick(s0 + pt.t), order: 1, b: [0xb0 | channel, cc, Math.max(0, Math.min(127, Math.round(pt.v * 127)))] }); }));
         if (t.type === 'midi') (c.notes || []).forEach((n) => { const at = s0 + n.t; if (at >= e0 - 1e-6) return; add(at, Math.min(n.d, e0 - at), Math.max(0, Math.min(127, n.p)), n.v || 100); });
         else { const steps = c.steps || 16, sd = 0.25, sw = (c.swing || 0) * sd; for (let n = 0; ; n++) { const idx = n % steps, at = s0 + n * sd + (idx % 2 ? sw : 0); if (at >= e0 - 1e-6) break; Object.keys(GM_DRUM).forEach((name) => { const v = c.grid && c.grid[name] && c.grid[name][idx]; if (v) add(at, 0.1, GM_DRUM[name], (v === true ? 0.9 : v) * 127); }); } }
       });
@@ -71,9 +72,10 @@ window.GVMidi = (() => {
         const a = bytes[p++], b = bytes[p++];
         if (kind === 0x90 && b > 0) { const g = group(c), n = { t: at / ppq, d: 0.25, p: a, v: b, s: at }; g.notes.push(n); const k = c * 128 + a; if (!active.has(k)) active.set(k, []); active.get(k).push(n); out.noteCount++; if (out.noteCount > MAX_NOTES) throw new Error('This MIDI file has more than ' + MAX_NOTES + ' notes.'); }
         else if (kind === 0x80 || kind === 0x90) close(c, a, at);
+        else if (kind === 0xb0 && (a === 7 || a === 10 || a === 74)) { const g = group(c); (g.cc = g.cc || []).push({ k: a === 7 ? 'vol' : a === 10 ? 'pan' : 'cut', t: at / ppq, v: b / 127 }); }
       }
       active.forEach((list) => list.forEach((n) => { n.d = Math.max(1, at - n.s) / ppq; delete n.s; }));
-      groups.forEach((g) => { if (g.notes.length) out.tracks.push({ name, channel: g.channel, program: g.program, drum: g.channel === 9, notes: g.notes.sort((x, y) => x.t - y.t) }); });
+      groups.forEach((g) => { if (g.notes.length) out.tracks.push({ name, channel: g.channel, program: g.program, drum: g.channel === 9, notes: g.notes.sort((x, y) => x.t - y.t), cc: (g.cc || []).slice(0, 1200) }); });
       o = end;
     }
     if (tempoEvents > 1) warnings.push('The file changes tempo ' + (tempoEvents - 1) + ' time(s). Only the first tempo is used.');
@@ -91,7 +93,8 @@ window.GVMidi = (() => {
         specs.push({ type: 'drum', name: t.name || 'Drums', clips: [...bars.keys()].sort((a, b) => a - b).map((b) => ({ startBeat: b * 4, grid: bars.get(b) })) });
       } else {
         let end = 0; const notes = t.notes.map((n) => { end = Math.max(end, n.t + n.d); return { t: r2(n.t), d: Math.max(0.05, r2(n.d)), p: Math.max(0, Math.min(127, n.p)), v: n.v }; });
-        specs.push({ type: 'midi', name: t.name || ('Keys ' + (i + 1)), inst: instOf(t.program), notes, beats: Math.max(4, Math.ceil(end / 4) * 4), outOfRange: notes.filter((n) => n.p < 36 || n.p > 96).length });
+        const auto = {}; (t.cc || []).forEach((x) => { const a = auto[x.k] = auto[x.k] || []; if (a.length < 400) a.push({ t: r2(x.t), v: Math.round(x.v * 1000) / 1000 }); });
+        specs.push({ type: 'midi', name: t.name || ('Keys ' + (i + 1)), inst: instOf(t.program), notes, auto: Object.keys(auto).length ? auto : undefined, beats: Math.max(4, Math.ceil(end / 4) * 4), outOfRange: notes.filter((n) => n.p < 36 || n.p > 96).length });
       }
     });
     return specs;

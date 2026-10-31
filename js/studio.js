@@ -405,7 +405,7 @@
       const S = spb();
       specs.forEach((sp) => {
         const t = Core.newTrack(P, sp.type === 'drum' ? 'drum' : 'midi'); t.name = (sp.name || t.name).slice(0, 24);
-        if (sp.type === 'midi') { t.inst = sp.inst; t.clips.push({ id: Core.uid(), start: 0, dur: sp.beats * S, notes: sp.notes }); }
+        if (sp.type === 'midi') { t.inst = sp.inst; t.clips.push(Object.assign({ id: Core.uid(), start: 0, dur: sp.beats * S, notes: sp.notes }, sp.auto ? { auto: sp.auto } : {})); }
         else sp.clips.forEach((c) => t.clips.push({ id: Core.uid(), start: c.startBeat * S, dur: 4 * S, steps: 16, swing: 0, grid: c.grid }));
         P.tracks.push(t);
       });

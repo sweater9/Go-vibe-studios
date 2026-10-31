@@ -82,12 +82,35 @@ window.GVStudioCore = (() => {
     if (fo > 0 && e > end - fo) { const ts = Math.max(s, end - fo, c.start + fi); g.gain.setValueAtTime(val(ts), when + (ts - s)); g.gain.linearRampToValueAtTime(0, when + (e - s)); }
     src.start(when, (c.offset || 0) + (s - c.start), e - s); live.push(src);
   }
+  /* automation lanes of a MIDI clip: points { t: beats from the clip start, v: 0 to 1 } for volume, pan and filter */
+  const AUTO_DEF = { vol: 1, pan: 0.5, cut: 1 };
+  function autoAt(pts, t, def) {
+    if (!pts || !pts.length) return def; if (t <= pts[0].t) return pts[0].v; const last = pts[pts.length - 1]; if (t >= last.t) return last.v;
+    for (let i = 1; i < pts.length; i++) if (t <= pts[i].t) { const a = pts[i - 1], b = pts[i], f = b.t === a.t ? 1 : (t - a.t) / (b.t - a.t); return a.v + (b.v - a.v) * f; }
+    return last.v;
+  }
+  const hasAuto = (c) => !!c.auto && ['vol', 'pan', 'cut'].some((k) => c.auto[k] && c.auto[k].length);
+  const cutHz = (v) => 200 * Math.pow(90, Math.max(0, Math.min(1, v)));
+  function autoChain(ctx, dest, c, S, seg) {
+    if (!hasAuto(c)) return dest;
+    const g = ctx.createGain(), pn = ctx.createStereoPanner ? ctx.createStereoPanner() : null, lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 0.8;
+    g.connect(pn || lp); if (pn) pn.connect(lp); lp.connect(dest);
+    const t0 = Math.max(seg.from, c.start), w = (abs) => seg.when + (abs - seg.from);
+    const lane = (k, param, map) => {
+      const pts = (c.auto[k] || []).slice().sort((a, b) => a.t - b.t); if (!pts.length) { param.setValueAtTime(map(AUTO_DEF[k]), seg.when); return; }
+      param.setValueAtTime(map(autoAt(pts, (t0 - c.start) / S, AUTO_DEF[k])), w(t0));
+      pts.forEach((pt) => { const abs = c.start + pt.t * S; if (abs > t0 + 1e-6 && abs < seg.to) param.linearRampToValueAtTime(map(pt.v), w(abs)); });
+      const tEnd = Math.min(seg.to, clipEnd(c)); if (isFinite(tEnd) && tEnd > t0 + 1e-6) param.linearRampToValueAtTime(map(autoAt(pts, (tEnd - c.start) / S, AUTO_DEF[k])), w(tEnd));
+    };
+    lane('vol', g.gain, (v) => v); if (pn) lane('pan', pn.pan, (v) => (v - 0.5) * 2); lane('cut', lp.frequency, cutHz);
+    return g;
+  }
   function schedMidi(ctx, node, c, t, p, seg) {
-    const S = spb(p), inst = t.inst || 'Piano', end = clipEnd(c);
+    const S = spb(p), inst = t.inst || 'Piano', end = clipEnd(c), out = autoChain(ctx, node.in, c, S, seg);
     (c.notes || []).forEach((n) => {
       const at = c.start + n.t * S; if (at < c.start - 1e-6 || at < seg.from - 1e-6 || at >= seg.to || at >= end) return;
       const dur = Math.max(0.05, Math.min(n.d * S, end - at));
-      GVSynth.note(ctx, node.in, inst, n.p, (n.v || 100) / 127, seg.when + (at - seg.from), dur);
+      GVSynth.note(ctx, out, inst, n.p, (n.v || 100) / 127, seg.when + (at - seg.from), dur);
     });
   }
   function schedDrum(ctx, node, c, p, seg) {
@@ -152,5 +175,5 @@ window.GVStudioCore = (() => {
     for (let i = 0; i < n; i++) { let mn = 1, mx = -1; const a = i * B, b = Math.min(buf.length, a + B); for (let k = a; k < b; k += 2) { let v = 0; for (let c = 0; c < ch; c++) v += d[c][k]; v /= ch; if (v < mn) mn = v; if (v > mx) mx = v; } out[i * 2] = mn; out[i * 2 + 1] = mx; }
     return { B, data: out, rate: buf.sampleRate };
   }
-  return { uid, LEAD, SIGS, sigOk, barBeats, COLORS, ensureMix, newFx, fxTail, applyMaster, newProject, newTrack, spb, clipEnd, projectEnd, audible, buildGraph, applyMix, scheduleSegment, render, wavBlob, mp3Blob, peaksOf };
+  return { autoAt, hasAuto, AUTO_DEF, uid, LEAD, SIGS, sigOk, barBeats, COLORS, ensureMix, newFx, fxTail, applyMaster, newProject, newTrack, spb, clipEnd, projectEnd, audible, buildGraph, applyMix, scheduleSegment, render, wavBlob, mp3Blob, peaksOf };
 })();

@@ -28,14 +28,36 @@ window.GVRollPlus = (() => {
     /* velocity lane */
     const vw = el('div', 'velscroll'); vw.style.overflowY = 'hidden'; vw.style.maxHeight = '110px'; const vc = el('canvas'); vc.height = 96; vc.setAttribute('role', 'img'); vc.setAttribute('aria-label', 'Velocity lane. Drag a bar up or down to change how hard that note is played.'); vw.appendChild(vc); wrap.after(vw);
     const lab = el('p', 'status', { textContent: 'Velocity lane: drag a bar up or down. Selected notes change together.' }); vw.before(lab);
+    const LANES = { vel: 'Velocity', vol: 'Volume', pan: 'Pan', cut: 'Filter' }, DEF = { vol: 1, pan: 0.5, cut: 1 }; let mode = 'vel', adrag = null;
+    const lsel = el('select'); lsel.setAttribute('aria-label', 'Lane to edit'); Object.keys(LANES).forEach((k) => lsel.appendChild(Object.assign(document.createElement('option'), { value: k, textContent: LANES[k] }))); lab.before(lsel);
+    const arow = el('div', 'row'); arow.style.margin = '4px 0'; arow.hidden = true; lab.after(arow);
+    const lpts = (k) => (c.auto && c.auto[k]) || [];
+    const setPts = (k, a) => { if (!c.auto) c.auto = {}; if (a.length) c.auto[k] = a.sort((x, y) => x.t - y.t); else delete c.auto[k]; if (!Object.keys(c.auto).length) delete c.auto; };
+    const abtn = (txt, fn) => { const b = el('button', 'btn mini', { textContent: txt }); b.onclick = fn; arow.appendChild(b); return b; };
+    const span = () => Math.max(1, bars());
+    abtn('Clear lane', () => apply('Clear ' + LANES[mode], () => setPts(mode, [])));
+    abtn('Ramp up', () => apply('Ramp up', () => setPts(mode, [{ t: 0, v: 0 }, { t: span(), v: 1 }])));
+    abtn('Ramp down', () => apply('Ramp down', () => setPts(mode, [{ t: 0, v: 1 }, { t: span(), v: 0 }])));
+    abtn('Wave', () => apply('Wave', () => { const a = [], n = Math.max(2, Math.round(span())); for (let i = 0; i <= n * 2; i++) a.push({ t: Math.min(span(), i * span() / (n * 2)), v: 0.5 + 0.45 * Math.sin(i * Math.PI / 2) }); setPts(mode, a); }));
+    const setMode = () => { mode = lsel.value; arow.hidden = mode === 'vel'; vc.setAttribute('aria-label', mode === 'vel' ? 'Velocity lane. Drag a bar up or down to change how hard that note is played.' : LANES[mode] + ' lane. Click to add a point, drag a point to move it, double click a point to remove it. The buttons above can also draw a shape.'); lab.textContent = mode === 'vel' ? 'Velocity lane: drag a bar up or down. Selected notes change together.' : LANES[mode] + ' lane: click to add a point, drag to move it, double click to remove it. It plays and saves with this clip.'; draw(); };
+    lsel.onchange = setMode;
     let syncing = false; wrap.addEventListener('scroll', () => { if (syncing) return; syncing = true; vw.scrollLeft = wrap.scrollLeft; syncing = false; }); vw.addEventListener('scroll', () => { if (syncing) return; syncing = true; wrap.scrollLeft = vw.scrollLeft; syncing = false; });
     const lane = () => { if (vc.width !== cv.width) vc.width = cv.width; const v = vc.getContext('2d'), W = vc.width, H = vc.height; v.clearRect(0, 0, W, H); v.fillStyle = '#12131c'; v.fillRect(0, 0, W, H); v.fillStyle = '#ffffff12'; for (let k = 1; k < 4; k++) v.fillRect(KEYW, H * k / 4, W - KEYW, 1);
-      v.fillStyle = '#9a9ab8'; v.font = '11px sans-serif'; v.fillText('Velocity', 6, 14);
+      v.fillStyle = '#9a9ab8'; v.font = '11px sans-serif'; v.fillText(LANES[mode], 6, 14);
+      if (mode !== 'vel') { const pts = lpts(mode).slice().sort((a, b) => a.t - b.t), Y = (val) => H - 4 - val * (H - 8); v.strokeStyle = '#ffffff22'; v.beginPath(); v.moveTo(KEYW, Y(DEF[mode])); v.lineTo(W, Y(DEF[mode])); v.stroke(); v.fillStyle = '#ffffff25'; c.notes.forEach((n) => v.fillRect(bx(n.t), H - 10, Math.max(2, n.d * X.PXB), 6));
+        if (pts.length) { v.strokeStyle = '#22d3ee'; v.lineWidth = 2; v.beginPath(); v.moveTo(KEYW, Y(pts[0].v)); pts.forEach((pt) => v.lineTo(bx(pt.t), Y(pt.v))); v.lineTo(bx(span()), Y(pts[pts.length - 1].v)); v.stroke(); v.lineWidth = 1; v.fillStyle = '#fbbf24'; pts.forEach((pt) => { v.beginPath(); v.arc(bx(pt.t), Y(pt.v), 5, 0, 7); v.fill(); }); } else { v.fillStyle = '#9a9ab8'; v.fillText('No curve yet. Click to add points.', KEYW + 8, 30); } return; }
       c.notes.forEach((n) => { const h = (n.v || 100) / 127 * (H - 8), x = bx(n.t); v.fillStyle = sel.has(n) || n === getPrimary() ? '#fbbf24' : '#a78bfa'; v.fillRect(x, H - h, 6, h); }); };
     const vpos = (e) => { const r = vc.getBoundingClientRect(); return { x: (e.clientX - r.left) * (vc.width / r.width), y: (e.clientY - r.top) * (vc.height / r.height) }; };
-    vc.addEventListener('pointerdown', (e) => { const { x, y } = vpos(e); const hit = [...c.notes].reverse().find((n) => x >= bx(n.t) - 3 && x <= bx(n.t) + 9); if (!hit) return; vc.setPointerCapture(e.pointerId); if (!sel.has(hit)) { sel.clear(); sel.add(hit); } setPrimary(hit); vdrag = { before: api.snapshotJSON(), moved: false }; setV(y); });
+    const yVal = (y) => Math.max(0, Math.min(1, 1 - (y - 4) / (vc.height - 8))), snapB = (b) => Math.max(0, Math.min(span(), Math.round(b / g()) * g()));
+    const nearPt = (x, y) => { const H = vc.height; return lpts(mode).find((pt) => Math.abs(bx(pt.t) - x) <= 9 && Math.abs((H - 4 - pt.v * (H - 8)) - y) <= 10); };
+    vc.addEventListener('pointerdown', (e) => { if (mode === 'vel') return; const { x, y } = vpos(e); vc.setPointerCapture(e.pointerId); const before = api.snapshotJSON(); let pt = nearPt(x, y); if (!pt) { pt = { t: snapB(bOf(x)), v: yVal(y) }; setPts(mode, [...lpts(mode), pt]); } adrag = { pt, before }; draw(); e.stopImmediatePropagation(); }, true);
+    vc.addEventListener('dblclick', (e) => { if (mode === 'vel') return; const { x, y } = vpos(e), pt = nearPt(x, y); if (!pt) return; const before = api.snapshotJSON(); setPts(mode, lpts(mode).filter((q) => q !== pt)); api.changed('Remove point', before); api.redraw(); });
+    vc.addEventListener('pointermove', (e) => { if (!adrag) return; const { x, y } = vpos(e); adrag.pt.t = snapB(bOf(x)); adrag.pt.v = Math.round(yVal(y) * 1000) / 1000; c.auto[mode].sort((a, b) => a.t - b.t); draw(); });
+    const aup = () => { if (!adrag) return; const d = adrag; adrag = null; if (api.snapshotJSON() !== d.before) api.changed('Automation', d.before); api.redraw(); };
+    vc.addEventListener('pointerup', aup); vc.addEventListener('pointercancel', aup);
+    vc.addEventListener('pointerdown', (e) => { if (mode !== 'vel') return; const { x, y } = vpos(e); const hit = [...c.notes].reverse().find((n) => x >= bx(n.t) - 3 && x <= bx(n.t) + 9); if (!hit) return; vc.setPointerCapture(e.pointerId); if (!sel.has(hit)) { sel.clear(); sel.add(hit); } setPrimary(hit); vdrag = { before: api.snapshotJSON(), moved: false }; setV(y); });
     const setV = (y) => { const v = Math.round(clamp((1 - (y - 4) / (vc.height - 8)) * 127, 1, 127)); chosen().forEach((n) => { n.v = v; }); draw(); };
-    vc.addEventListener('pointermove', (e) => { if (!vdrag) return; vdrag.moved = true; setV(vpos(e).y); });
+    vc.addEventListener('pointermove', (e) => { if (mode !== 'vel' || !vdrag) return; vdrag.moved = true; setV(vpos(e).y); });
     const vup = () => { if (!vdrag) return; const d = vdrag; vdrag = null; if (d.moved || api.snapshotJSON() !== d.before) api.changed('Velocity', d.before); api.redraw(); };
     vc.addEventListener('pointerup', vup); vc.addEventListener('pointercancel', vup);
     /* selection with the pointer: capture runs before the roll's own handler */
@@ -63,7 +85,7 @@ window.GVRollPlus = (() => {
       else if ((k === 'delete' || k === 'backspace') && sel.size > 1) { e.preventDefault(); e.stopImmediatePropagation(); apply('Delete notes', () => { c.notes = c.notes.filter((n) => !sel.has(n)); }); sel.clear(); setPrimary(null); draw(); }
     }, true);
     return {
-      sel, lane, tip: () => tip,
+      sel, lane, tip: () => tip, auto: { get mode() { return mode; }, set(k) { lsel.value = k; setMode(); } },
       overlay(ctx) {
         ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2; sel.forEach((n) => { if (n.p < LOW || n.p > HIGH) return; ctx.strokeRect(bx(n.t) - 1, yOf(n.p) - 1, Math.max(4, n.d * X.PXB - 1) + 2, ROWH + 1); });
         if (box) { ctx.fillStyle = '#22d3ee22'; ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 1; const x = Math.min(box.x0, box.x1), y = Math.min(box.y0, box.y1), w = Math.abs(box.x1 - box.x0), h = Math.abs(box.y1 - box.y0); ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h); }

@@ -3283,6 +3283,37 @@ def test_practice(browser, base):
     ctx.close()
 
 
+def test_automation(browser, base):
+    print("studio: automation lanes in the piano roll, playback and MIDI")
+    errs = []
+    ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 1000})
+    pg.goto(base + "studio.html?gvtest"); pg.wait_for_function("() => window.__st", timeout=10000)
+    pg.evaluate("""() => { const spb = __st.spb(); let tr, c; __st.edit('auto track', () => { tr = __st.Core.newTrack(__st.P, 'midi'); tr.inst = 'Pad'; __st.P.tracks.push(tr); c = { id: __st.Core.uid(), start: 0, dur: 8 * spb, notes: [{ t: 0, d: 6, p: 60, v: 100 }] }; tr.clips.push(c); }); GVRoll.open(tr.id, c.id); window.__live = () => __st.clipOf(c.id).c; }""")
+    pg.wait_for_selector("#rollcv", timeout=5000)
+    check("autoAt interpolates between points", pg.evaluate("() => { const a = __st.Core.autoAt([{ t: 0, v: 0 }, { t: 4, v: 1 }], 1, 1); const b = __st.Core.autoAt([], 3, 0.5); return Math.abs(a - 0.25) < 1e-9 && b === 0.5; }"))
+    pg.locator("#rollpane select[aria-label='Lane to edit']").select_option("vol")
+    check("the lane editor shows its buttons", pg.locator("#rollpane button", has_text="Ramp down").is_visible())
+    pg.locator("#rollpane button", has_text="Ramp up").click()
+    pts = pg.evaluate("() => __live().auto && __live().auto.vol")
+    check("a ramp is stored on the clip", pts and len(pts) == 2 and pts[0]["v"] == 0 and pts[1]["v"] == 1, str(pts))
+    # click on the lane adds a point
+    box = pg.locator("#rollpane canvas").nth(1).bounding_box(); pg.locator("#rollpane canvas").nth(1).scroll_into_view_if_needed(); box = pg.locator("#rollpane canvas").nth(1).bounding_box()
+    n0 = len(pg.evaluate("() => __live().auto.vol"))
+    pg.mouse.click(box["x"] + 0.3 * box["width"] * 0 + 300, box["y"] + 30)
+    check("clicking the lane adds a point", len(pg.evaluate("() => __live().auto.vol")) == n0 + 1)
+    pg.click("#undo"); check("undo removes the added point", len(pg.evaluate("() => (__live().auto && __live().auto.vol) || []")) == n0)
+    # playback: volume ramps up over the note
+    r = pg.evaluate("""async () => { const c = __live(); c.auto = { vol: [{ t: 0, v: 0 }, { t: 6, v: 1 }] }; const spb = __st.spb(); const out = await __st.Core.render(__st.P, __st.buffers, { from: 0, to: 6 * spb, tail: 0.1 }); const d = out.getChannelData(0), n = d.length, e = (a, b) => { let s = 0; for (let i = Math.floor(n * a); i < Math.floor(n * b); i++) s += d[i] * d[i]; return Math.sqrt(s / Math.max(1, Math.floor(n * b) - Math.floor(n * a))); }; return [e(0.05, 0.2), e(0.75, 0.95)]; }""")
+    check("a volume ramp makes the note louder over time", r[1] > r[0] * 2.5 and r[1] > 0.005, str(r))
+    f = pg.evaluate("""async () => { const c = __live(); c.auto = { cut: [{ t: 0, v: 0 }, { t: 6, v: 0 }] }; const spb = __st.spb(); const lo = await __st.Core.render(__st.P, __st.buffers, { from: 0, to: 4 * spb, tail: 0.1 }); c.auto = { cut: [{ t: 0, v: 1 }, { t: 6, v: 1 }] }; const hi = await __st.Core.render(__st.P, __st.buffers, { from: 0, to: 4 * spb, tail: 0.1 }); const hf = (x) => { let s = 0; for (let i = 1; i < x.length; i++) s += Math.abs(x[i] - x[i - 1]); return s; }; return [hf(lo.getChannelData(0)), hf(hi.getChannelData(0))]; }""")
+    check("a low filter lane darkens the sound", f[0] < f[1] * 0.6, str(f))
+    # MIDI round trip
+    m = pg.evaluate("""() => { const c = __live(); c.auto = { vol: [{ t: 0, v: 0.25 }, { t: 2, v: 1 }], pan: [{ t: 1, v: 0 }] }; const bytes = GVMidi.write(__st.P); const parsed = GVMidi.read(bytes); const sp = GVMidi.toSpecs(parsed); const s = sp.find((x) => x.type === 'midi' && x.auto); return s ? s.auto : null; }""")
+    check("automation survives a MIDI file round trip", m and len(m["vol"]) == 2 and abs(m["vol"][0]["v"] - 0.25) < 0.01 and abs(m["vol"][1]["t"] - 2) < 0.01 and len(m["pan"]) == 1 and m["pan"][0]["v"] == 0, str(m))
+    check("studio: no console errors", not errs, str(errs[:3]))
+    ctx.close()
+
+
 def test_roll_plus(browser, base):
     print("studio: advanced piano roll editing")
     errs = []
@@ -3333,7 +3364,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip
