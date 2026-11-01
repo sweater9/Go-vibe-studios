@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rhythm trainer — GoVibe Mix</title>
+<meta name="description" content="Practise your timing: tap along to a click and see how early or late you are, how steady you are and whether you drift. Free, private, no scores.">
+<link rel="canonical" href="https://govibemix.com/rhythm.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Rhythm trainer — GoVibe Mix">
+<meta property="og:description" content="Practise your timing: tap along to a click and see how early or late you are, how steady you are and whether you drift. Free, private, no scores.">
+<meta property="og:url" content="https://govibemix.com/rhythm.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="studio.html">Studio</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+  <a class="link" href="index.html#tools">All tools</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>Rhythm trainer</h1>
+  <p class="lead">Practise your timing. A click plays, you tap a rhythm on the big button or any key, and you see how early or late each tap was, how steady you are and whether you speed up or slow down. It is a practice tool with no scores. Everything stays on your device.</p>
+  <div class="panel">
+    <div class="row" style="align-items:flex-end"><label class="ctl" style="min-width:120px">Tempo (BPM)<input type="number" id="bpm" min="40" max="200" value="90"></label><label class="ctl" style="min-width:110px">Beats per bar<input type="number" id="beats" min="2" max="7" value="4"></label>
+      <label class="ctl">Length<select id="bars" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="4">4 bars</option><option value="8" selected>8 bars</option><option value="16">16 bars</option></select></label><label class="ctl">Count in<select id="count" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="1" selected>1 bar</option><option value="2">2 bars</option></select></label></div>
+    <div class="row" style="align-items:flex-end"><label class="ctl">You tap<select id="tap" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="beat">Every beat</option><option value="half">Beats 1 and 3</option><option value="back">The backbeat (2 and 4)</option><option value="off">The off beats</option><option value="eighth">Eighth notes</option><option value="triplet">Triplets</option><option value="sixteenth">Sixteenth notes</option><option value="one">Beat 1 only</option></select></label>
+      <label class="ctl">The click plays<select id="click" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="beat">On every beat</option><option value="one">On beat 1 only</option><option value="none">Not at all after the count in</option></select></label>
+      <label class="ctl">Click gaps<select id="mute" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="always">Always on</option><option value="gaps">Drops out every other two bars</option></select></label></div>
+    <div class="row" style="align-items:center"><button class="btn primary" id="go">Start</button><span class="status" id="live" role="status" aria-live="polite"></span></div>
+    <button class="btn" id="tapbtn" style="width:100%;min-height:120px;font-size:1.4rem;margin-top:10px;touch-action:manipulation" aria-label="Tap here, or press any key, in time with the rhythm" disabled>Tap here or press any key</button>
+    <p class="status">Tap the pattern you chose, not the click. For example, with "The off beats" you tap between the clicks.</p>
+    <h2>Device delay</h2>
+    <div class="row" style="align-items:flex-end"><label class="ctl" style="min-width:220px">Shift my taps <output id="latout">0 ms</output><input type="range" id="lat" min="-100" max="250" step="1" value="0"></label><button class="btn" id="calib">Calibrate</button></div>
+    <p class="status">Screens, keyboards and Bluetooth add a small delay. Press Calibrate and tap on eight clicks, and your taps are shifted to cancel it out.</p>
+    <div id="res" hidden>
+      <h2>How it went</h2>
+      <table class="libtbl" aria-label="Timing results"><tbody id="tbl"></tbody></table>
+      <canvas id="chart" width="900" height="220" role="img" aria-label="Each note you tapped as a bar. Bars above the line were late, bars below were early, a red mark means a missed note. The shaded band is within 30 milliseconds." style="width:100%;height:auto;border-radius:10px;margin-top:10px"></canvas>
+      <h2>What to try</h2>
+      <ul id="adv"></ul>
+    </div>
+    <p class="status" id="status" role="status"></p>
+  </div>
+  <div class="prose">
+    <h2>How it works</h2>
+    <ul><li>The click is scheduled with the audio clock, so it does not wobble. Each tap is timed against the same clock and matched to the nearest note of the pattern.</li><li>Average timing says whether you tend to play early or late. Spread says how steady you are, and spread matters most for playing that sounds tight. Drift shows whether you speed up or slow down.</li><li>Dropping the click for two bars out of every four, or after the count in, tests your inner pulse.</li><li>Nothing is recorded or uploaded. Only the timing of your taps is measured.</li></ul>
+  </div>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/quick.js"></script>
+<script src="js/session.js"></script>
+<script src="js/rhythm.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>
