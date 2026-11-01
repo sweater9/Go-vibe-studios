@@ -3484,6 +3484,21 @@ def test_automix_pro(browser, base):
     check("the new track starts pitched to match and the EQ is flat again", t1[0] > 2 and t1[1] == 0 and t1[2] == 0, str(t1))
     pg.wait_for_function("() => Math.abs(+__dj.decks[1].el.tempo.value) < 0.2", timeout=20000)
     check("then it eases back to its own tempo", True)
+    # live moves while a track plays
+    check("the live moves option is offered and on", pg.locator("#amlive").is_checked())
+    LIVE = """async (key) => { const d = __dj.decks[0]; d.setBuffer(__am.queue[0].buf, 'x', { bpm: 120, grid: { t0: 0, period: 0.5, bpm: 120 } }); d.seek(5); d.play(); __am.startMove(d, key); }"""
+    for key, probe in (("echo", "() => +__dj.decks[0].el.echo.value > 20"), ("sweep", "() => +__dj.decks[0].el.filt.value > 20"), ("dip", "() => +__dj.decks[0].el.filt.value < -20"), ("reverb", "() => +__dj.decks[0].el.rev.value > 10"),
+                       ("bass", "() => __dj.decks[0].low.gain.value < -10"), ("gate", "() => true"), ("roll", "() => __dj.decks[0].loop !== null")):
+        pg.evaluate(MK); pg.evaluate("() => { __dj.decks.forEach((d) => d.pause()); }"); pg.evaluate(LIVE, key)
+        if key != "gate": pg.wait_for_function("() => { if (__am.S.mv) __am.stepMove(); return (" + probe + ")(); }", timeout=8000)
+        pg.wait_for_function("() => { if (__am.S.mv) __am.stepMove(); return !__am.S.mv; }", timeout=12000)
+        e = pg.evaluate("() => { const d = __dj.decks[0]; return [+d.el.filt.value, +d.el.echo.value, +d.el.rev.value, d.low.gain.value, d.loop, d.pre.gain.value, d.playing]; }")
+        check(f"the {key} live move puts everything back and the track keeps playing", e == [0, 0, 0, 0, None, 1, True], str(e))
+        pg.evaluate("() => { __dj.decks.forEach((d) => d.pause()); }")
+    pg.evaluate(MK); pg.evaluate("() => { __am.S.mvProb = 1; }"); pg.select_option("#amstyle", "blend"); pg.select_option("#amplay", "outro"); pg.select_option("#amint", "club")
+    pg.click("#amgo"); pg.wait_for_function("() => (__am.S.moves || 0) >= 1", timeout=30000)
+    check("while a track plays, moves start by themselves on the beat", True)
+    pg.click("#amgo"); pg.evaluate("() => { __dj.decks.forEach((d) => d.pause()); }")
     check("automix pro: no console errors", not errs, str(errs[:3]))
     ctx.close()
 

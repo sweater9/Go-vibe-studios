@@ -43,6 +43,8 @@
   const auto = () => !!$('amauto') && $('amauto').checked, used = new Set(); let fetching = false, failed = false;
   try { if (localStorage.getItem('govibe.amauto') === '1') $('amauto').checked = true; } catch (_) { /* no storage */ }
   ['amint', 'amstyle', 'amshape', 'amplay'].forEach((id) => { try { const v = localStorage.getItem('govibe.' + id); if (v && $(id) && [...$(id).options].some((o) => o.value === v)) $(id).value = v; } catch (_) { /* no storage */ } if ($(id)) $(id).addEventListener('change', () => { try { localStorage.setItem('govibe.' + id, $(id).value); } catch (_) { /* ignore */ } }); });
+  try { if (localStorage.getItem('govibe.amlive') === '0' && $('amlive')) $('amlive').checked = false; } catch (_) { /* no storage */ }
+  if ($('amlive')) $('amlive').onchange = () => { try { localStorage.setItem('govibe.amlive', $('amlive').checked ? '1' : '0'); } catch (_) { /* ignore */ } };
   $('amauto').onchange = () => { try { localStorage.setItem('govibe.amauto', auto() ? '1' : '0'); } catch (_) { /* ignore */ } };
   async function pickFrom(cur, opt) {
     const recs = A.libRecs ? A.libRecs() : []; queue.forEach((q) => { if (q.id) used.add(q.id); });
@@ -81,7 +83,7 @@
     clearInterval(S.timer); S.timer = setInterval(tick, 40);
   }
   function stop() {
-    clearInterval(S.timer); const was = S.tr; S.on = false; S.tr = null; S.plan = null; $('amgo').textContent = '▶ Start Automix'; killFx(); showProg('', 0);
+    clearInterval(S.timer); const was = S.tr; S.on = false; S.tr = null; S.plan = null; $('amgo').textContent = '▶ Start Automix'; killFx(); cancelMove(); showProg('', 0);
     decks.forEach((d) => { d.low.gain.value = 0; d.el.low.value = 0; if (was) { d.pre.gain.cancelScheduledValues(0); d.pre.gain.value = 1; if (d.loop) { d.loop = null; d.eachSrc((x) => (x.loop = false)); } } }); paint();
   }
   $('amgo').onclick = async () => { if (S.on) { stop(); return say('Automix stopped. The decks keep their current state.'); } if (!queue.length && auto() && !(await seedFromLibrary())) return; start(); };
@@ -178,7 +180,48 @@
     inc.el.low.value = 0; inc.low.gain.value = 0; inc.startPos = T.inStart; inc.play(); impact(ctx.currentTime); T.dropped = true;
   }
 
+  /* ---------- live moves while a track plays: echo throws, filter sweeps, bass drops, gates and loop rolls, on the beat ---------- */
+  const liveOn = () => !$('amlive') || $('amlive').checked;
+  const MOVES = {
+    echo: { beats: 4, name: 'an echo throw', step: (d, p) => { const e = Math.round(75 * (p < 0.5 ? 1 : 1 - (p - 0.5) * 2)); d.el.echo.value = e; d.echoWet.gain.value = Math.pow(e / 100, 1.3) * 0.9; } },
+    sweep: { beats: 8, name: 'a filter sweep', step: (d, p) => { const v = Math.round(70 * Math.sin(Math.PI * p)); d.el.filt.value = v; d.setFilter(v); } },
+    dip: { beats: 4, name: 'a low pass dip', step: (d, p) => { const v = -Math.round(80 * Math.sin(Math.PI * p)); d.el.filt.value = v; d.setFilter(v); } },
+    reverb: { beats: 6, name: 'a reverb throw', step: (d, p) => { const r = Math.round(60 * (p < 0.33 ? p / 0.33 : 1 - (p - 0.33) / 0.67)); d.el.rev.value = r; d.revWet.gain.value = Math.pow(r / 100, 1.3) * 1.1; } },
+    bass: { beats: 4, name: 'a bass drop out', step: (d, p) => { const v = -26 * smooth(p, 0, 0.06) * (1 - smooth(p, 0.94, 1)); d.low.gain.value = v; d.el.low.value = v; } },
+    gate: { beats: 2, name: 'a stutter gate' },
+    roll: { beats: 4.3, name: 'a loop roll' },
+  };
+  const WEIGHT = { smooth: { echo: 3, sweep: 3, dip: 2 }, club: { echo: 3, sweep: 3, dip: 2, reverb: 2, bass: 2, gate: 1 }, banger: { echo: 2, sweep: 3, dip: 2, reverb: 2, bass: 2, gate: 2, roll: 4 } }, PROB = { smooth: 0.12, club: 0.3, banger: 0.5 };
+  function cancelMove() {
+    const m = S.mv; if (!m) return; S.mv = null; const d = m.d;
+    d.el.filt.value = 0; d.setFilter(0); d.el.echo.value = 0; d.echoWet.gain.value = 0; d.el.rev.value = 0; d.revWet.gain.value = 0; d.low.gain.value = 0; d.el.low.value = 0;
+    d.pre.gain.cancelScheduledValues(0); d.pre.gain.value = 1; if (d.slip) d.rollEnd();
+  }
+  function startMove(d, key) {
+    cancelMove(); const M = MOVES[key], bs = d.grid.period / (d.rate || 1), now = ctx.currentTime, m = S.mv = { key, d, t0: now, dur: M.beats * bs, ev: [], bs }; S.moves = (S.moves || 0) + 1; S.mvLast = key;
+    if (key === 'gate') { const g = d.pre.gain, step = bs / 4, N = Math.round(2 * bs / step); g.cancelScheduledValues(now); for (let k = 0; k < N; k++) { const t = now + k * step; g.setValueAtTime(1, t); g.setValueAtTime(0.12, t + step / 2); } g.setValueAtTime(1, now + N * step); }
+    if (key === 'roll') m.ev.push({ at: now, fn: () => d.rollStart(1) }, { at: now + 2 * bs, fn: () => d.rollStart(0.5) }, { at: now + 3 * bs, fn: () => d.rollStart(0.25) }, { at: now + 4 * bs, fn: () => d.rollEnd() });
+    say('Live move: ' + M.name + '.');
+  }
+  function stepMove() {
+    const m = S.mv, now = ctx.currentTime; while (m.ev.length && m.ev[0].at <= now + 0.02) m.ev.shift().fn();
+    const p = (now - m.t0) / m.dur; if (p >= 1) return cancelMove(); const M = MOVES[m.key]; if (M.step) M.step(m.d, p);
+  }
+  function liveStep(d, plan) {
+    if (S.mv) return stepMove();
+    if (!liveOn() || !d.playing || !d.grid || !d.buf) return;
+    const g = d.grid, rate = d.rate || 1, bs = g.period / rate, pos = d.position(), x = (pos - g.t0) / g.period, bi = Math.floor(x + 0.02);
+    if (bi < 16 || bi % 8 !== 0 || bi === S.mvBeat) return; S.mvBeat = bi; if (x - bi > 0.3) return;
+    const left = plan && plan.B != null ? (plan.B - plan.preSec * rate - pos) / rate : plan && plan.tgt != null ? (plan.tgt - pos) / rate : (d.buf.duration - pos) / rate - 20;
+    if (left < 14 * bs) return;
+    const lvl = intensity(), w = WEIGHT[lvl] || WEIGHT.club; if (Math.random() > (S.mvProb != null ? S.mvProb : /[?&]gvtest\b/.test(location.search) ? 0 : PROB[lvl] || 0.3)) return;
+    const keys = Object.keys(w), tot = keys.reduce((a, k) => a + w[k] * (k === S.mvLast ? 0.2 : 1), 0); let r = Math.random() * tot, pick = keys[0];
+    for (const k of keys) { r -= w[k] * (k === S.mvLast ? 0.2 : 1); if (r <= 0) { pick = k; break; } }
+    startMove(d, pick);
+  }
+
   function beginTransition(plan) {
+    cancelMove();
     const out = decks[S.active], inc = decks[1 - S.active], ni = S.idx + 1, st = plan.st, now = ctx.currentTime;
     load(1 - S.active, ni, out);
     const T = { t0: now, len: plan.len, from: S.active, to: 1 - S.active, ni, st, ev: [], bs: plan.bs, pre: plan.preSec };
@@ -250,6 +293,7 @@
     if (S.idx + 1 >= queue.length) { if (!d.playing && d.position() < 0.1) { stop(); say('Automix finished.'); } return; }
     let plan = S.plan; if (!plan || plan.for !== S.idx || plan.next !== queue[S.idx + 1]) { plan = S.plan = makePlan('auto'); if (plan) say('Next: ' + NAMES[plan.st] + ' into "' + queue[S.idx + 1].name + '".'); }
     if (!plan) return;
+    liveStep(d, plan);
     { const pos0 = d.position(), left = plan.B != null ? (plan.B - plan.preSec * (d.rate || 1) - pos0) / (d.rate || 1) : plan.tgt != null ? (plan.tgt - pos0) / (d.rate || 1) : remReal - plan.len; showProg('Now playing "' + queue[S.idx].name + '" · next mix in ' + fmt(Math.max(0, left)) + ' (' + NAMES[plan.st] + ')', 0); }
     if (plan.B != null && d.playing && d.grid) {
       const at = plan.B - plan.preSec * (d.rate || 1), pos = d.position();
@@ -275,5 +319,5 @@
   };
 
   A.amQueue = queue; A.amPaint = paint; A.amState = S;
-  if (/[?&]gvtest\b/.test(location.search)) window.__am = { queue, S, addBuffer, used, phraseStart, makePlan, mapOf, roll };   // test hook
+  if (/[?&]gvtest\b/.test(location.search)) window.__am = { queue, S, addBuffer, used, phraseStart, makePlan, mapOf, roll, startMove, MOVES, stepMove };   // test hook
 })();
