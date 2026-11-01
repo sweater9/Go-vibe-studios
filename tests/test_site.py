@@ -3365,9 +3365,10 @@ def test_transitions(browser, base):
     pg.click("#tab-am"); pg.select_option("#amlen", "4")
     ps = pg.evaluate("""() => [__am.phraseStart({ grid: { t0: 0.5, period: 0.5 }, rate: 1, buf: { duration: 60 }, position: () => 10 }, 8), __am.phraseStart({ grid: { t0: 0.5, period: 0.5 }, rate: 1, buf: { duration: 60 }, position: () => 50 }, 8), __am.phraseStart({ grid: null, rate: 1, buf: { duration: 60 }, position: () => 0 }, 8)]""")
     check("phrase start is the latest 16 beat boundary that still fits", abs(ps[0] - 48.5) < 1e-6 and ps[1] is None and ps[2] is None, str(ps))
-    check("style and phrase options are offered", pg.locator("#amstyle option").count() == 4 and pg.locator("#amsmart").is_checked())
+    check("style and phrase options are offered", pg.locator("#amstyle option").count() == 9 and pg.locator("#amsmart").is_checked() and pg.locator("#amint option").count() == 3)
     MK = """async () => { const { ctx } = __dj; const mk = (bpm, secs, sr = 22050) => { const b = ctx.createBuffer(1, sr * secs, sr), d = b.getChannelData(0), beat = Math.round(sr * 60 / bpm); for (let i = 0; i < d.length; i += beat) for (let k = 0; k < 400 && i + k < d.length; k++) d[i + k] = Math.sin(k / 6) * Math.exp(-k / 80); return b; };
       const g = (bpm) => ({ t0: 0, period: 60 / bpm, bpm }); __am.queue.length = 0; await __am.addBuffer(mk(120, 30), 'one.wav', { bpm: 120, key: '8A', grid: g(120) }); await __am.addBuffer(mk(120, 30), 'two.wav', { bpm: 120, key: '8A', grid: g(120) }); }"""
+    pg.select_option("#amstyle", "blend")
     pg.evaluate(MK); pg.click("#amgo")
     pg.wait_for_function("() => __am.S.tr !== null", timeout=40000)
     pos = pg.evaluate("() => __dj.decks[0].position()")
@@ -3385,6 +3386,63 @@ def test_transitions(browser, base):
         check(f"the {style} style leaves the effects reset", end == [0, 0, 0], str(end))
         pg.click("#amgo"); pg.evaluate("() => { __dj.decks.forEach((d) => d.pause()); }")
     check("transitions: no console errors", not errs, str(errs[:3]))
+    ctx.close()
+
+
+def test_automix_pro(browser, base):
+    print("dj: automix reads each track, picks a style, builds loops and risers and drops")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "dj.html?gvtest"); pg.wait_for_function("() => window.__am && window.__dj && window.GVTrackMap", timeout=10000)
+    pg.click("#tab-am")
+    m = pg.evaluate("""() => { const sr = 11025, secs = 80, b = new AudioBuffer({ length: sr * secs, sampleRate: sr }), d = b.getChannelData(0), beat = sr / 2;
+      for (let i = 0; i < d.length; i++) { const t = i / sr, loud = t >= 16 && t < 56, amp = loud ? 0.9 : 0.1, ph = i % beat; d[i] = (ph < 300 ? Math.sin(ph / 5) * Math.exp(-ph / 90) * amp : 0) + (loud ? 0.3 * Math.sin(2 * Math.PI * 55 * t) : 0); }
+      const r = GVTrackMap.analyze(b, { t0: 0, period: 0.5 }), none = GVTrackMap.analyze(b, null); return [r.intro, r.drop, r.outro, r.dropE, r.inE, r.outE, none.grid, none.outro]; }""")
+    check("the track map finds the intro, the drop and where the outro starts", abs(m[0] - 16) < 1.1 and abs(m[1] - 16) < 1.1 and abs(m[2] - 56) < 1.1, str(m))
+    check("the map reports a loud drop, a quiet entry, and falls back without a grid", m[3] > 0.7 and m[4] < 0.4 and m[6] is False and m[7] == 50, str(m))
+    cs = pg.evaluate("""() => { const P = GVMixPlan, hot = { grids: true, gap: 0.01, kc: 0, outE: 0.9, inE: 0.5, hasDrop: true, dropE: 0.9, intensity: 'banger' }, z = (v) => () => v; const seen = new Set();
+      for (let i = 0; i < 300; i++) seen.add(P.chooseStyle({ ...hot, intensity: 'smooth', kc: i % 2 ? 0 : 6, rand: Math.random })); 
+      return [P.chooseStyle({ ...hot, grids: false, rand: z(0.5) }), P.chooseStyle({ ...hot, gap: 0.12, rand: z(0.2) }), P.chooseStyle({ ...hot, rand: z(0.5) }), P.chooseStyle({ ...hot, last: 'banger', rand: z(0.5) }), [...seen].sort()]; }""")
+    check("style choice: no grid sweeps, a wide tempo gap echoes, banger intensity builds, smooth never does", cs[0] == "sweep" and cs[1] == "echo" and cs[2] == "banger" and cs[3] == "riser" and "banger" not in cs[4] and "riser" not in cs[4], str(cs))
+    MK = """async () => { const { ctx } = __dj; const mk = (bpm, secs, sr = 22050) => { const b = ctx.createBuffer(1, sr * secs, sr), d = b.getChannelData(0), beat = Math.round(sr * 60 / bpm); for (let i = 0; i < d.length; i += beat) for (let k = 0; k < 400 && i + k < d.length; k++) d[i + k] = Math.sin(k / 6) * Math.exp(-k / 80); return b; };
+      const g = (bpm) => ({ t0: 0, period: 60 / bpm, bpm }); __am.queue.length = 0; await __am.addBuffer(mk(120, 40), 'one.wav', { bpm: 120, key: '8A', grid: g(120) }); await __am.addBuffer(mk(120, 40), 'two.wav', { bpm: 120, key: '8A', grid: g(120) }); }"""
+    pg.select_option("#amstyle", "banger"); pg.select_option("#amlen", "auto"); pg.evaluate(MK)
+    check("queue rows show where the drop and outro are", "outro" in pg.inner_text("#amlist"), pg.inner_text("#amlist")[:120])
+    pg.click("#amgo"); pg.wait_for_timeout(500)
+    pl = pg.evaluate("() => { const p = __am.S.plan; return p && [p.st, p.B, p.preSec, p.len]; }")
+    check("a banger plan leaves on a phrase with an eight beat build", pl and pl[0] == "banger" and abs(pl[1] - 32) < 1e-6 and abs(pl[2] - 4) < 0.01, str(pl))
+    pg.evaluate("() => __dj.decks[0].seek(26)")
+    pg.wait_for_function("() => __am.S.tr !== null", timeout=15000)
+    pg.wait_for_function("() => __dj.decks[0].loop !== null", timeout=10000); check("the outgoing track loop rolls during the build", True)
+    pg.wait_for_function("() => { const T = __am.S.tr; return !T || __dj.ctx.currentTime > T.tB - 1.2; }", timeout=10000)
+    f = pg.evaluate("() => [+__dj.decks[0].el.filt.value, +__dj.decks[0].el.echo.value]")
+    check("the build raises the filter and the echo", f[0] > 15 and f[1] > 15, str(f))
+    pg.wait_for_function("() => __am.S.tr && __am.S.tr.dropped", timeout=10000)
+    d1 = pg.evaluate("() => [__dj.decks[1].playing, __dj.decks[1].position()]")
+    check("the next track lands on the drop", d1[0] is True and d1[1] < 2, str(d1))
+    pg.wait_for_function("() => __am.S.tr === null && __am.S.idx === 1", timeout=10000); pg.wait_for_timeout(2800)
+    end = pg.evaluate("() => [+__dj.decks[0].el.filt.value, +__dj.decks[0].el.echo.value, +__dj.decks[0].el.rev.value, __dj.decks[0].loop, __dj.decks[0].playing, __dj.decks[1].playing]")
+    check("the build leaves the old deck clean and stopped and the new deck playing", end == [0, 0, 0, None, False, True], str(end))
+    pg.click("#amgo"); pg.evaluate("() => { __dj.decks.forEach((d) => d.pause()); }")
+    # mix at the next phrase
+    pg.select_option("#amstyle", "blend"); pg.select_option("#amlen", "4"); pg.evaluate(MK)
+    pg.click("#amgo"); pg.wait_for_timeout(800); pg.click("#ammix")
+    pl = pg.evaluate("() => { const p = __am.S.plan; return p && [p.st, p.B, p.now]; }")
+    check("Mix at next phrase aims at the next 16 beat boundary", pl and pl[0] == "blend" and abs(pl[1] - 8) < 1e-6 and pl[2] is True, str(pl))
+    pg.wait_for_function("() => __am.S.tr !== null", timeout=15000)
+    pos = pg.evaluate("() => __dj.decks[0].position()")
+    check("it starts there", abs(pos - 8) < 0.7, str(pos))
+    pg.click("#amgo"); pg.evaluate("() => { __dj.decks.forEach((d) => d.pause()); }")
+    # gate, wash and the automatic choice run through without errors
+    for style in ("gate", "wash", "riser", "auto"):
+        pg.select_option("#amstyle", style); pg.select_option("#amint", "banger" if style == "auto" else "club"); pg.select_option("#amlen", "4"); pg.uncheck("#amsmart"); pg.evaluate(MK)
+        pg.evaluate("() => { __am.queue[0].buf = (() => { const b = __dj.ctx.createBuffer(1, 22050 * 14, 22050), d = b.getChannelData(0); for (let i = 0; i < d.length; i += 11025) for (let k = 0; k < 400; k++) d[i + k] = Math.sin(k / 6) * Math.exp(-k / 80); return b; })(); __am.queue[0].map = null; }")
+        pg.click("#amgo"); pg.wait_for_function("() => __am.S.tr !== null", timeout=20000)
+        pg.wait_for_function("() => __am.S.tr === null && __am.S.idx === 1", timeout=20000); pg.wait_for_timeout(2800)
+        end = pg.evaluate("() => [+__dj.decks[0].el.filt.value, +__dj.decks[0].el.echo.value, +__dj.decks[0].el.rev.value, __dj.decks[0].loop, __dj.decks[0].pre.gain.value]")
+        check(f"the {style} style finishes and leaves the effects reset", end == [0, 0, 0, None, 1], str(end))
+        pg.click("#amgo"); pg.evaluate("() => { __dj.decks.forEach((d) => d.pause()); }")
+    check("automix pro: no console errors", not errs, str(errs[:3]))
     ctx.close()
 
 
@@ -3576,7 +3634,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

@@ -23,6 +23,22 @@ window.GVMixPlan = (() => {
     });
     return best;
   }
+  /* choose a transition style for one pair of tracks. o: { grids (both have beat grids), gap (relative tempo gap, 0.05 is 5 percent), kc (Camelot key cost), outE, inE (0..1 energy at the exit and the entry),
+     hasDrop, dropE, intensity 'smooth' | 'club' | 'banger', last (the previous style), rand }. Returns one of blend, sweep, echo, cut, wash, gate, riser, banger. */
+  function chooseStyle(o) {
+    const rand = o.rand || Math.random;
+    if (!o.grids) return o.gap > 0.08 ? 'echo' : 'sweep';
+    if (o.gap > 0.08) return rand() < 0.5 ? 'echo' : 'cut';                       // too far apart to line up the beats
+    const lvl = { smooth: 0, club: 1, banger: 2 }[o.intensity == null ? 'club' : o.intensity], w = { blend: 3, sweep: 1.5, echo: 1, wash: 1, gate: 0.5, cut: 0.2, riser: 0, banger: 0 };
+    if (o.kc >= 5) { w.blend = 0.3; w.sweep = 3; w.echo = 2; w.wash = 2.5; }      // clashing keys: keep the overlap short and washed out
+    const hot = (o.outE == null ? 0.6 : o.outE) >= 0.45, drop = o.hasDrop && (o.dropE || 0) >= 0.55;
+    if (lvl === 1) { w.riser = hot ? 1.5 : 0.4; w.banger = hot ? (drop ? 1.6 : 0.8) : 0.3; w.gate = 0.9; }
+    if (lvl === 2) { w.blend = 0.3; w.sweep = 0.3; w.echo = 0.3; w.wash = 0.3; w.gate = 0.3; w.cut = 0; w.riser = hot ? 3 : 1; w.banger = hot ? (drop ? 7 : 4) : 1.5; }
+    if (o.last && w[o.last] != null) w[o.last] *= 0.3;                            // do not repeat the same trick every time
+    let sum = 0; for (const k in w) sum += w[k]; let r = rand() * sum;
+    for (const k in w) { r -= w[k]; if (r <= 0 && w[k] > 0) return k; }
+    return 'blend';
+  }
   function pathCost(items, order) { let c = 0; for (let i = 1; i < order.length; i++) c += stepCost(items[order[i - 1]], items[order[i]]); return c; }
   /* startBy: 'first' keeps the first track first, 'lowest' starts at the slowest track */
   function order(items, startBy = 'first') {
@@ -90,5 +106,5 @@ window.GVMixPlan = (() => {
   const stamp = (s) => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : String(m).padStart(2, '0')) + ':' + String(x).padStart(2, '0'); };
   const cleanName = (n) => n.replace(/\.[a-z0-9]{2,4}$/i, '').replace(/_/g, ' ').trim();
   function tracklist(p) { return p.items.map((it, i) => stamp(i === 0 ? 0 : it.start) + '  ' + cleanName(it.name) + (it.bpm ? '  (' + Math.round(it.bpm) + ' BPM' + (it.key ? ', ' + it.key : '') + ')' : it.key ? '  (' + it.key + ')' : '')).join('\n'); }
-  return { pickNext, keyCost, tempoGap, order, pathCost, plan, gains, effBpm, stamp, tracklist, cleanName };
+  return { pickNext, chooseStyle, keyCost, tempoGap, order, pathCost, plan, gains, effBpm, stamp, tracklist, cleanName };
 })();
