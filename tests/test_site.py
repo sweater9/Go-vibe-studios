@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "tuner", "tomidi", "practice", "vocals", "synth", "reference", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "mono", "tone", "video-to-audio", "audio", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-tune-guitar", "blog-audio-to-midi", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "tuner", "tomidi", "practice", "vocals", "synth", "reference", "repair", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "mono", "tone", "video-to-audio", "audio", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-tune-guitar", "blog-audio-to-midi", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -1768,7 +1768,7 @@ def test_home(browser, base):
     errs = []
     ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 900})
     pg.goto(base + "index.html?gvtest"); pg.wait_for_function("() => window.__home")
-    check("home lists every tool with a link", pg.locator("a.card").count() == 27 and all(pg.locator(f'.quick a[href="{h}"]').count() == 1 for h in ["silence.html", "mono.html", "tone.html", "video-to-audio.html"]) and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "audio.html", "slowed.html", "pitch.html", "cutter.html", "booster.html", "visualizer.html", "metronome.html", "looper.html", "chords.html", "editor.html", "video.html", "master.html", "convert.html", "tuner.html", "tomidi.html", "practice.html", "vocals.html", "synth.html", "reference.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
+    check("home lists every tool with a link", pg.locator("a.card").count() == 28 and all(pg.locator(f'.quick a[href="{h}"]').count() == 1 for h in ["silence.html", "mono.html", "tone.html", "video-to-audio.html"]) and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "audio.html", "slowed.html", "pitch.html", "cutter.html", "booster.html", "visualizer.html", "metronome.html", "looper.html", "chords.html", "editor.html", "video.html", "master.html", "convert.html", "tuner.html", "tomidi.html", "practice.html", "vocals.html", "synth.html", "reference.html", "repair.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
     check("five groups with headings", pg.locator(".grp h2").count() == 5 and pg.inner_text(".grp h2 >> nth=0") == "Make")
     check("the web font loads from this site", pg.evaluate("document.fonts.check('16px \"Bricolage Grotesque\"')"))
     check("beat strip has 4 rows of 16 steps and starts with a boom bap pattern", pg.locator(".st").count() == 64 and pg.locator('.st[aria-pressed="true"]').count() == 3 + 2 + 8)
@@ -3409,6 +3409,59 @@ def test_reference(browser, base):
     ctx.close()
 
 
+def test_repair(browser, base):
+    print("audio repair: clicks, hum, clipping, DC offset")
+    errs = []
+    ctx, pg = new_page(browser, errs, accept_downloads=True)
+    pg.goto(base + "repair.html?gvtest"); pg.wait_for_function("() => window.__rep", timeout=8000)
+    check("results are hidden until a file is loaded", pg.locator("#results").is_hidden())
+    R = pg.evaluate("""async () => {
+      const sr = 22050, n = sr * 6, mk = (f) => { const a = new Float32Array(n); for (let i = 0; i < n; i++) a[i] = f(i / sr, i); return a; };
+      const music = (t) => 0.3 * Math.sin(2 * Math.PI * 440 * t) + 0.15 * Math.sin(2 * Math.PI * 660 * t + 1) * (0.6 + 0.4 * Math.sin(t * 3));
+      const clean = mk(music), out = {};
+      // clicks
+      const cl = new Float32Array(clean); const at = [10000, 40000, 90000]; at.forEach((p) => { cl[p] += 0.8; cl[p + 1] -= 0.6; cl[p + 2] += 0.4; });
+      const found = __rep.findClicks(cl, 9); out.clicksFound = found.length; out.clicksNear = at.every((p) => found.some((r) => r.a <= p + 1 && r.b >= p + 1));
+      __rep.declick(cl, found); let e = 0, e0 = 0; for (let i = 0; i < n; i++) { e += (cl[i] - clean[i]) ** 2; } out.clickErr = Math.sqrt(e / n);
+      const quiet = __rep.findClicks(clean, 9); out.falseClicks = quiet.length;
+      // hum
+      const hum = mk((t) => music(t) + 0.12 * Math.sin(2 * Math.PI * 50 * t) + 0.06 * Math.sin(2 * Math.PI * 100 * t + 2) + 0.05 * Math.sin(2 * Math.PI * 150 * t));
+      const h = __rep.findHum(hum, sr); out.humHz = h.hz; out.noHum = __rep.findHum(clean, sr).hz;
+      const p50 = (x) => __rep.goertzel(x, 0, x.length, 50, sr), p440 = (x) => __rep.goertzel(x, 0, x.length, 440, sr);
+      const before50 = p50(hum), before440 = p440(hum); __rep.dehum(hum, sr, 50); out.humDrop = 10 * Math.log10(before50 / p50(hum)); out.toneKept = Math.abs(10 * Math.log10(before440 / p440(hum)));
+      // clipping
+      const loud = mk((t) => 1.6 * Math.sin(2 * Math.PI * 300 * t)), clipped = loud.map((v) => Math.max(-1, Math.min(1, v)));
+      const c = __rep.findClips(clipped); out.runs = c.runs.length; const before = Float32Array.from(clipped); __rep.declip(clipped, c.runs);
+      let ec = 0, ef = 0; for (let i = 0; i < n; i++) { ec += (before[i] - loud[i]) ** 2; ef += (clipped[i] - loud[i]) ** 2; } out.clipBefore = Math.sqrt(ec / n); out.clipAfter = Math.sqrt(ef / n); out.clipTop = Math.max(...clipped.slice(0, 20000));
+      // whole file with several problems
+      const mix = mk((t, i) => music(t) + 0.1 * Math.sin(2 * Math.PI * 60 * t) + 0.08), mm = new Float32Array(mix); mm[30000] += 0.9; mm[30001] -= 0.7;
+      __rep.setSource([mm], sr); const f = await __rep.analyse([mm], sr, { k: 9 }); out.analysis = { clicks: f.clicks, hum: f.hum.hz, dc: f.dc };
+      const r = await __rep.repair([mm], sr, f, { dc: true, clicks: true, hum: 60, clip: false }); out.logs = r.log.length; out.dcAfter = Math.abs(r.chs[0].reduce((a, b) => a + b, 0) / n); out.humAfter = 10 * Math.log10(__rep.goertzel(mm, 0, n, 60, sr) / __rep.goertzel(r.chs[0], 0, n, 60, sr));
+      return out; }""")
+    check("clicks are found at the damaged places and nowhere else", R["clicksFound"] == 3 and R["clicksNear"] and R["falseClicks"] == 0, str(R))
+    check("clicks are rebuilt close to the original sound", R["clickErr"] < 0.01, str(R["clickErr"]))
+    check("hum is found at 50 Hz and not in clean audio", R["humHz"] == 50 and R["noHum"] == 0, str([R["humHz"], R["noHum"]]))
+    check("the notch removes the hum and keeps the music", R["humDrop"] > 20 and R["toneKept"] < 0.5, str([R["humDrop"], R["toneKept"]]))
+    check("clipped runs are found and rebuilt closer to the original", R["runs"] >= 8 and R["clipAfter"] < R["clipBefore"] * 0.6 and R["clipTop"] > 1.1, str([R["runs"], R["clipBefore"], R["clipAfter"], R["clipTop"]]))
+    check("a combined analysis reports click, 60 Hz hum and offset", R["analysis"]["clicks"] >= 1 and R["analysis"]["hum"] == 60 and R["analysis"]["dc"] > 0.05, str(R["analysis"]))
+    check("repair removes the offset and the hum", R["dcAfter"] < 0.005 and R["humAfter"] > 15, str([R["dcAfter"], R["humAfter"]]))
+    # the page: a real file
+    wav = pg.evaluate("""async () => { const sr = 22050, n = sr * 4, a = new Float32Array(n); for (let i = 0; i < n; i++) a[i] = 0.3 * Math.sin(2 * Math.PI * 440 * i / sr) + 0.1 * Math.sin(2 * Math.PI * 50 * i / sr); a[20000] += 0.9; a[20001] -= 0.7;
+      const b = GVQuick.wav([a], sr); return Array.from(new Uint8Array(await b.arrayBuffer())); }""")
+    import tempfile
+    fp = os.path.join(tempfile.gettempdir(), "rep-test.wav"); open(fp, "wb").write(bytes(wav))
+    pg.set_input_files("#rfile", fp); pg.wait_for_selector("#results:not([hidden])", timeout=15000)
+    txt = pg.inner_text("#found"); check("the page reports the findings", "50 Hz" in txt and "found" in txt, txt)
+    check("found problems are ticked for repair", pg.is_checked("#ck-hum") and pg.is_checked("#ck-clicks"))
+    pg.click("#fix"); pg.wait_for_selector("#after:not([hidden])", timeout=15000)
+    check("the result lists what was done", "hum" in pg.inner_text("#fixlog").lower() and pg.locator("#hfix").is_enabled())
+    pg.click("#hfix"); check("the repaired version can be selected", pg.get_attribute("#hfix", "aria-pressed") == "true")
+    with pg.expect_download() as d: pg.click("#savewav")
+    raw = open(d.value.path(), "rb").read(); check("the repaired file saves as WAV", raw[:4] == b"RIFF" and len(raw) > 100000)
+    check("repair page: no console errors", not errs, str(errs[:3]))
+    ctx.close()
+
+
 def test_roll_plus(browser, base):
     print("studio: advanced piano roll editing")
     errs = []
@@ -3459,7 +3512,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_reference, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_reference, test_repair, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

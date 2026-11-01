@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audio repair — GoVibe Mix</title>
+<meta name="description" content="Find and fix clicks and pops, mains hum, clipped peaks and DC offset, with a report and original against repaired listening. Free, private, and nothing is uploaded.">
+<link rel="canonical" href="https://govibemix.com/repair.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Audio repair — GoVibe Mix">
+<meta property="og:description" content="Find and fix clicks and pops, mains hum, clipped peaks and DC offset, with a report and original against repaired listening. Free, private, and nothing is uploaded.">
+<meta property="og:url" content="https://govibemix.com/repair.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="studio.html">Studio</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+  <a class="link" href="index.html#tools">All tools</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>Audio repair</h1>
+  <p class="lead">Find and fix clicks and pops, mains hum, clipped peaks and a shifted signal. A report shows what was found before anything changes, and you can compare the original and the repaired version. Everything stays on your device.</p>
+  <div class="panel">
+    <div class="drop" id="drop" data-input="rfile" role="button" tabindex="0"><strong>Drop a recording here</strong> or press to choose one<p class="status">MP3, WAV, OGG, M4A and more. Up to ten minutes.</p></div>
+    <input type="file" id="rfile" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.flac,.caf,.aif,.aiff,.3gp,.amr,video/mp4" hidden aria-label="Choose a recording">
+    <p class="status" id="fname"></p>
+    <div id="results" hidden>
+      <h2>What was found</h2>
+      <table class="libtbl" aria-label="Problems found in the recording"><tbody id="found"></tbody></table>
+      <h2>What to fix</h2>
+      <div class="row" style="align-items:center"><label class="row" style="gap:6px"><input type="checkbox" id="ck-clicks"> Remove clicks and pops</label>
+        <label class="ctl" style="min-width:150px">Click sensitivity<select id="sens" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="12">Gentle</option><option value="9" selected>Normal</option><option value="6">Strong</option></select></label></div>
+      <div class="row" style="align-items:center"><label class="row" style="gap:6px"><input type="checkbox" id="ck-hum"> Remove mains hum</label>
+        <label class="ctl" style="min-width:150px">Hum frequency<select id="humhz" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="50">50 Hz</option><option value="60">60 Hz</option></select></label></div>
+      <div class="row"><label class="row" style="gap:6px"><input type="checkbox" id="ck-clip"> Rebuild clipped peaks</label><label class="row" style="gap:6px"><input type="checkbox" id="ck-dc"> Remove DC offset</label></div>
+      <div class="row"><button class="btn primary" id="fix" disabled>Repair</button></div>
+      <div id="after" hidden>
+        <h2>Result</h2>
+        <ul id="fixlog"></ul>
+        <div class="row" style="align-items:center"><button class="btn primary" id="play" disabled>Play</button><button class="btn" id="horig" aria-pressed="true" disabled>Original</button><button class="btn" id="hfix" aria-pressed="false" disabled>Repaired</button><span class="time" id="clock">0:00.00</span></div>
+        <div class="row"><button class="btn" id="savewav" disabled>Save as WAV</button><button class="btn" id="toeditor" disabled>Open in the editor</button></div>
+      </div>
+    </div>
+    <p class="status" id="status" role="status"></p>
+  </div>
+  <div class="prose">
+    <h2>How it works</h2>
+    <ul><li>Clicks are short spikes. They are found by comparing each sample with its neighbours, then rebuilt with a smooth curve from the sound on either side. Very sharp drum hits can look like clicks, so use Gentle for music with hard transients.</li><li>Hum is found by measuring the power at 50 or 60 Hz and its harmonics against the frequencies around them, then removed with narrow notch filters.</li><li>Clipped peaks are flat tops. They are rebuilt with a curve that follows the slope into and out of the flat part, then the level is lowered a little so they fit. A badly clipped recording can be improved, not made perfect.</li><li>Nothing is uploaded and nothing is learned from your audio.</li></ul>
+  </div>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/quick.js"></script>
+<script src="js/store.js"></script>
+<script src="js/repair.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>
