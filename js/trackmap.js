@@ -6,12 +6,14 @@ window.GVTrackMap = (() => {
   const pct = (a, q) => { const s = a.slice().sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(q * s.length))] : 0; };
   const mean = (a, i, j) => { let s = 0, n = 0; for (let k = Math.max(0, i); k < Math.min(a.length, j); k++) { s += a[k]; n++; } return n ? s / n : 0; };
 
+  /* overall loudness (RMS, sampled), used to match levels between tracks */
+  function level(buf) { const a = buf.getChannelData(0); let s = 0, n = 0; for (let i = 0; i < a.length; i += 7) { s += a[i] * a[i]; n++; } return Math.sqrt(s / Math.max(1, n)); }
   function analyze(buf, grid) {
-    const dur = buf.duration;
-    if (!grid || !(grid.period > 0.15 && grid.period < 2.5)) return { grid: false, dur, t0: 0, beat: 0, intro: 0, drop: null, dropE: 0, outro: Math.max(0, dur - 30), inE: 0.5, outE: 0.5, bars: [] };
+    const dur = buf.duration, lvl = level(buf);
+    if (!grid || !(grid.period > 0.15 && grid.period < 2.5)) return { grid: false, lvl, dur, t0: 0, beat: 0, intro: 0, drop: null, dropE: 0, outro: Math.max(0, dur - 30), inE: 0.5, outE: 0.5, bars: [] };
     const sr = buf.sampleRate, n = buf.length, a = buf.getChannelData(0), b = buf.numberOfChannels > 1 ? buf.getChannelData(1) : a, per = grid.period;
     const t0 = ((grid.t0 % per) + per) % per, nb = Math.floor((dur - t0) / per);
-    if (nb < 16) return { grid: true, dur, t0, beat: per, intro: t0, drop: null, dropE: 0, outro: Math.max(t0, dur - 10), inE: 0.5, outE: 0.5, bars: [] };
+    if (nb < 16) return { grid: true, lvl, dur, t0, beat: per, intro: t0, drop: null, dropE: 0, outro: Math.max(t0, dur - 10), inE: 0.5, outE: 0.5, bars: [] };
     const lp = 1 - Math.exp(-2 * Math.PI * 150 / sr), beatE = new Float32Array(nb); let low = 0;
     for (let k = 0; k < nb; k++) {
       const i0 = Math.floor((t0 + k * per) * sr), i1 = Math.min(n, Math.floor((t0 + (k + 1) * per) * sr)); let s = 0, sl = 0;
@@ -30,9 +32,10 @@ window.GVTrackMap = (() => {
     // outro: the phrase after the last bar at full energy
     let last = nbar - 1; while (last > 0 && !full(last)) last--;
     let lastLive = nbar - 1; while (lastLive > 0 && bars[lastLive] < 0.08) lastLive--;
+    let peakBar = 0, pe = -1; for (let i = 0; i + 4 <= nbar; i += 4) { const e = mean(bars, i, i + 4); if (e > pe + 1e-9) { pe = e; peakBar = i; } }
     const outBar = Math.min(nbar, Math.ceil((last + 1) / 4) * 4), at = (bar) => t0 + bar * 4 * per;
     return {
-      grid: true, dur, t0, beat: per, bars,
+      grid: true, lvl, dur, t0, beat: per, bars, peak: at(peakBar),
       intro: at(phr(intro)), introBars: phr(intro),
       drop: dropBar >= 0 ? at(dropBar) : null, dropE: dropBar >= 0 ? mean(bars, dropBar, dropBar + 4) : 0, drops: drops.map(at),
       outro: at(outBar), lastLive: at(lastLive + 1),

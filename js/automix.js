@@ -64,6 +64,14 @@
   }
 
   /* ---------- playback control ---------- */
+  /* use the rest of the console: level matching on the TRIM knob, and hot cues placed on the intro, drop, outro and peak */
+  function prepDeck(d, q) {
+    const m = q.buf ? mapOf(q) : null; if (!m) return;
+    if (S.ref == null && m.lvl > 0.003) S.ref = m.lvl;
+    const db = S.ref && m.lvl > 0.003 ? Math.max(-9, Math.min(9, Math.round(20 * Math.log10(S.ref / m.lvl) * 2) / 2)) : 0;
+    d.el.trim.value = db; d.trim.gain.value = Math.pow(10, db / 20);
+    if (m.grid) [m.t0, m.drop, m.outro, m.peak].forEach((t, i) => { if (t != null && t > 0.05 && t < m.dur - 2 && d.hot[i] == null) d.hot[i] = t; d.paintHot(); });
+  }
   function load(deckIdx, qi, matchTo) {
     const d = decks[deckIdx], q = queue[qi];
     d.setBuffer(q.buf, q.name, { bpm: q.bpm, key: q.key, grid: q.grid });
@@ -71,19 +79,20 @@
     let pct = 0;
     if (matchTo && matchTo.liveBpm && q.bpm) { const p = (matchTo.liveBpm / q.bpm - 1) * 100; if (Math.abs(p) <= 8) pct = +p.toFixed(1); }
     d.el.tempo.value = pct; d.setTempoPct(pct);
+    prepDeck(d, q);
   }
   function start() {
     if (!queue.length) return say('Add some tracks first.');
     for (let i = queue.length - 1; i >= 0; i--) if (!queue[i].buf) queue.splice(i, 1);
     failed = false; used.clear(); if (!queue.length) return say('Add some tracks first.');
-    ctx.resume(); S.on = true; S.idx = 0; S.active = 0; S.tr = null; S.plan = null; S.last = null; S.ramp = null; S.inAt = 0;
+    ctx.resume(); S.on = true; S.idx = 0; S.active = 0; S.tr = null; S.plan = null; S.last = null; S.ramp = null; S.inAt = 0; S.ref = null; S.jumped = -1;
     decks.forEach((d) => d.pause());
     load(0, 0, null); xf.value = 0; applyXf(); decks[0].seek(0); decks[0].play();
     $('amgo').textContent = '■ Stop Automix'; paint(); say('Playing "' + queue[0].name + '".');
     clearInterval(S.timer); S.timer = setInterval(tick, 40);
   }
   function stop() {
-    clearInterval(S.timer); const was = S.tr; S.on = false; S.tr = null; S.plan = null; $('amgo').textContent = '▶ Start Automix'; killFx(); cancelMove(); showProg('', 0);
+    clearInterval(S.timer); const was = S.tr; S.on = false; S.tr = null; S.plan = null; $('amgo').textContent = '▶ Start Automix'; killFx(); cancelMove(); if (was && was.vol0) { decks[was.from].el.vol.value = was.vol0[0]; decks[was.from].setVol(); decks[was.to].el.vol.value = was.vol0[1]; decks[was.to].setVol(); } showProg('', 0);
     decks.forEach((d) => { d.low.gain.value = 0; d.el.low.value = 0; if (was) { d.pre.gain.cancelScheduledValues(0); d.pre.gain.value = 1; if (d.loop) { d.loop = null; d.eachSrc((x) => (x.loop = false)); } } }); paint();
   }
   $('amgo').onclick = async () => { if (S.on) { stop(); return say('Automix stopped. The decks keep their current state.'); } if (!queue.length && auto() && !(await seedFromLibrary())) return; start(); };
@@ -189,23 +198,38 @@
     reverb: { beats: 6, name: 'a reverb throw', step: (d, p) => { const r = Math.round(60 * (p < 0.33 ? p / 0.33 : 1 - (p - 0.33) / 0.67)); d.el.rev.value = r; d.revWet.gain.value = Math.pow(r / 100, 1.3) * 1.1; } },
     bass: { beats: 4, name: 'a bass drop out', step: (d, p) => { const v = -26 * smooth(p, 0, 0.06) * (1 - smooth(p, 0.94, 1)); d.low.gain.value = v; d.el.low.value = v; } },
     gate: { beats: 2, name: 'a stutter gate' },
+    chop: { beats: 2, name: 'a fader chop', step: (d, p, m) => { const on = Math.floor(p * 8) % 2 === 0; if (m.last !== on) { m.last = on; d.el.vol.value = on ? m.vol0 : Math.round(m.vol0 * 0.08); d.setVol(); } } },
+    unit: { beats: 8, name: 'an effect unit swell', step: (d, p) => { d.el.fxamt.value = Math.round(80 * Math.sin(Math.PI * p)); d.fxAmount(); } },
+    cuejump: { beats: 1, name: 'a hot cue jump back to the drop' },
+    sampler: { beats: 4, name: 'a sampler pad fill' },
     roll: { beats: 4.3, name: 'a loop roll' },
   };
-  const WEIGHT = { smooth: { echo: 3, sweep: 3, dip: 2 }, club: { echo: 3, sweep: 3, dip: 2, reverb: 2, bass: 2, gate: 1 }, banger: { echo: 2, sweep: 3, dip: 2, reverb: 2, bass: 2, gate: 2, roll: 4 } }, PROB = { smooth: 0.12, club: 0.3, banger: 0.5 };
+  const WEIGHT = { smooth: { echo: 3, sweep: 3, dip: 2 }, club: { echo: 3, sweep: 3, dip: 2, reverb: 2, bass: 2, gate: 1, chop: 1, unit: 2, sampler: 1 }, banger: { echo: 2, sweep: 3, dip: 2, reverb: 2, bass: 2, gate: 2, roll: 4, chop: 2, unit: 2, sampler: 3, cuejump: 1.5 } }, PROB = { smooth: 0.12, club: 0.3, banger: 0.5 };
   function cancelMove() {
     const m = S.mv; if (!m) return; S.mv = null; const d = m.d;
     d.el.filt.value = 0; d.setFilter(0); d.el.echo.value = 0; d.echoWet.gain.value = 0; d.el.rev.value = 0; d.revWet.gain.value = 0; d.low.gain.value = 0; d.el.low.value = 0;
     d.pre.gain.cancelScheduledValues(0); d.pre.gain.value = 1; if (d.slip) d.rollEnd();
+    if (m.vol0 != null) { d.el.vol.value = m.vol0; d.setVol(); }
+    if (m.unit) { d.el.fxamt.value = 0; d.fxAmount(); d.el.fxtype.value = ''; d.setFx(''); }
+  }
+  function padHit(name) { const b = [...($('pads') ? $('pads').children : [])].find((x) => x.textContent === name); if (!b) return; b.click(); b.classList.add('on'); setTimeout(() => b.classList.remove('on'), 160); }
+  function rollPad(d, beats) {
+    const b = d.el[{ 1: 'r1', 0.5: 'r2', 0.25: 'r4' }[beats]]; if (d.rollBtn && d.rollBtn !== b) { d.rollBtn.classList.remove('on'); d.rollBtn.setAttribute('aria-pressed', 'false'); }
+    d.rollStart(beats, b);
   }
   function startMove(d, key) {
     cancelMove(); const M = MOVES[key], bs = d.grid.period / (d.rate || 1), now = ctx.currentTime, m = S.mv = { key, d, t0: now, dur: M.beats * bs, ev: [], bs }; S.moves = (S.moves || 0) + 1; S.mvLast = key;
     if (key === 'gate') { const g = d.pre.gain, step = bs / 4, N = Math.round(2 * bs / step); g.cancelScheduledValues(now); for (let k = 0; k < N; k++) { const t = now + k * step; g.setValueAtTime(1, t); g.setValueAtTime(0.12, t + step / 2); } g.setValueAtTime(1, now + N * step); }
-    if (key === 'roll') m.ev.push({ at: now, fn: () => d.rollStart(1) }, { at: now + 2 * bs, fn: () => d.rollStart(0.5) }, { at: now + 3 * bs, fn: () => d.rollStart(0.25) }, { at: now + 4 * bs, fn: () => d.rollEnd() });
+    if (key === 'roll') m.ev.push({ at: now, fn: () => rollPad(d, 1) }, { at: now + 2 * bs, fn: () => rollPad(d, 0.5) }, { at: now + 3 * bs, fn: () => rollPad(d, 0.25) }, { at: now + 4 * bs, fn: () => d.rollEnd() });
+    if (key === 'chop') m.vol0 = +d.el.vol.value;
+    if (key === 'unit') { m.unit = true; const t = ['chorus', 'delay', 'sat', 'reverb'][Math.floor(Math.random() * 4)]; d.el.fxtype.value = t; d.setFx(t); d.el.fxamt.value = 0; d.fxAmount(); }
+    if (key === 'cuejump') { m.ev.push({ at: now, fn: () => d.hotCue(1) }); S.jumped = S.idx; }
+    if (key === 'sampler') { const horn = Math.random() < 0.35; if (horn) m.ev.push({ at: now, fn: () => padHit('Horn') }); else [1, 3].forEach((k) => m.ev.push({ at: now + k * bs, fn: () => padHit('Clap') })); }
     say('Live move: ' + M.name + '.');
   }
   function stepMove() {
     const m = S.mv, now = ctx.currentTime; while (m.ev.length && m.ev[0].at <= now + 0.02) m.ev.shift().fn();
-    const p = (now - m.t0) / m.dur; if (p >= 1) return cancelMove(); const M = MOVES[m.key]; if (M.step) M.step(m.d, p);
+    const p = (now - m.t0) / m.dur; if (p >= 1) return cancelMove(); const M = MOVES[m.key]; if (M.step) M.step(m.d, p, m);
   }
   function liveStep(d, plan) {
     if (S.mv) return stepMove();
@@ -217,8 +241,10 @@
     const lvl = intensity(), w = WEIGHT[lvl] || WEIGHT.club; if (Math.random() > (S.mvProb != null ? S.mvProb : /[?&]gvtest\b/.test(location.search) ? 0 : PROB[lvl] || 0.3)) return;
     const keys = Object.keys(w), tot = keys.reduce((a, k) => a + w[k] * (k === S.mvLast ? 0.2 : 1), 0); let r = Math.random() * tot, pick = keys[0];
     for (const k of keys) { r -= w[k] * (k === S.mvLast ? 0.2 : 1); if (r <= 0) { pick = k; break; } }
+    if (pick === 'cuejump') { const m0 = q0map(); if (!(d.hot[1] != null && S.jumped !== S.idx && m0 && pos - d.hot[1] >= 32 * g.period)) pick = 'echo'; }
     startMove(d, pick);
   }
+  const q0map = () => (queue[S.idx] && queue[S.idx].buf ? mapOf(queue[S.idx]) : null);
 
   function beginTransition(plan) {
     cancelMove();
@@ -243,12 +269,14 @@
         g.setValueAtTime(1, now + T.len + 0.05);
       }
     }
+    T.vol0 = [+out.el.vol.value, +inc.el.vol.value];
     S.tr = T; S.last = st; S.plan = null; S.ramp = null;
     say('Mixing into "' + queue[ni].name + '" with ' + NAMES[st] + (BUILD[st] ? ' (dropping on its ' + (plan.inStart > 1 ? 'drop' : 'first beat') + ')' : '') + '…');
   }
   function endTransition(T, out, inc) {
     out.pause(); resetFx(inc); const quiet = T.build || T.st === 'echo' || T.st === 'wash';
     setTimeout(() => resetFx(out), quiet ? 2500 : 0);
+    if (T.vol0) { out.el.vol.value = T.vol0[0]; out.setVol(); inc.el.vol.value = T.vol0[1]; inc.setVol(); }
     [out, inc].forEach((d) => { d.low.gain.value = 0; d.el.low.value = 0; d.mid.gain.value = 0; d.el.mid.value = 0; d.high.gain.value = 0; d.el.high.value = 0; });
     const pct = +inc.el.tempo.value; S.ramp = Math.abs(pct) > 0.3 && T.bs ? { deck: inc, from: pct, t0: ctx.currentTime, dur: Math.max(4, 16 * T.bs) } : null;   // ease the new track back to its own tempo
     S.active = T.to; S.idx = T.ni; S.tr = null; S.inAt = T.inAt || 0; paint(); say('Playing "' + queue[S.idx].name + '".');
@@ -278,6 +306,10 @@
       const fi = -Math.round(60 * (1 - smooth(p, 0, 0.6))); inc.el.filt.value = fi; inc.setFilter(fi);
     }
     out.low.gain.value = outLow; out.el.low.value = outLow; inc.low.gain.value = inLow; inc.el.low.value = inLow;
+    if (T.vol0 && (T.st === 'blend' || T.st === 'gate' || T.st === 'wash' || T.st === 'sweep')) {   // ride the channel faders: the new one comes up, the old one is pulled down at the end
+      const vo = Math.round(T.vol0[0] * (1 - smooth(p, 0.8, 1))), vi = Math.round(T.vol0[1] * (0.7 + 0.3 * smooth(p, 0, 0.5)));
+      out.el.vol.value = vo; out.setVol(); inc.el.vol.value = vi; inc.setVol();
+    }
     if (T.st === 'blend' || T.st === 'gate') { const oh = -16 * smooth(p, 0.5, 0.95), om = -8 * smooth(p, 0.6, 0.95), ih = -14 * (1 - smooth(p, 0.05, 0.45)); out.high.gain.value = oh; out.el.high.value = oh; out.mid.gain.value = om; out.el.mid.value = om; inc.high.gain.value = ih; inc.el.high.value = ih; }
     if (p >= 1) endTransition(T, out, inc);
   }
@@ -319,5 +351,5 @@
   };
 
   A.amQueue = queue; A.amPaint = paint; A.amState = S;
-  if (/[?&]gvtest\b/.test(location.search)) window.__am = { queue, S, addBuffer, used, phraseStart, makePlan, mapOf, roll, startMove, MOVES, stepMove };   // test hook
+  if (/[?&]gvtest\b/.test(location.search)) window.__am = { queue, S, addBuffer, used, phraseStart, makePlan, mapOf, roll, startMove, MOVES, stepMove, prepDeck };   // test hook
 })();

@@ -45,7 +45,7 @@
       this.lp = ctx.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 20000;
       this.dly = ctx.createDelay(2); this.fb = ctx.createGain(); this.fb.gain.value = 0.45; this.echoWet = ctx.createGain(); this.echoWet.gain.value = 0;
       this.conv = ctx.createConvolver(); this.conv.buffer = impulse(); this.revWet = ctx.createGain(); this.revWet.gain.value = 0;
-      this.low.connect(this.mid); this.mid.connect(this.high); this.high.connect(this.hp); this.hp.connect(this.lp); this.pre = ctx.createGain(); this.lp.connect(this.pre); this.pre.connect(this.vol);
+      this.trim = ctx.createGain(); this.low.connect(this.mid); this.mid.connect(this.high); this.high.connect(this.trim); this.trim.connect(this.hp); this.hp.connect(this.lp); this.pre = ctx.createGain(); this.lp.connect(this.pre); this.pre.connect(this.vol);
       this.pre.connect(this.dly); this.dly.connect(this.fb); this.fb.connect(this.dly); this.dly.connect(this.echoWet); this.echoWet.connect(this.vol);
       this.pre.connect(this.conv); this.conv.connect(this.revWet); this.revWet.connect(this.vol);
       this.vol.connect(this.xf); this.xf.connect(master);
@@ -128,7 +128,7 @@
         <div class="stembox" data-r="stembox"></div>`;
       this.roots.strip.innerHTML = `
         <div class="sname" aria-hidden="true">CH ${n}</div>
-        ${knob('high', 'HIGH', -26, 6, 0)}${knob('mid', 'MID', -26, 6, 0)}${knob('low', 'LOW', -26, 6, 0)}
+        ${knob('trim', 'TRIM', -12, 12, 0, 'data-bipolar')}${knob('high', 'HIGH', -26, 6, 0)}${knob('mid', 'MID', -26, 6, 0)}${knob('low', 'LOW', -26, 6, 0)}
         <select data-r="xfas" class="mini xfas" aria-label="Deck ${n} crossfader assign"><option value="L">XF left</option><option value="R">XF right</option><option value="T">XF off</option></select>
         <div class="faderrow">
           <canvas class="vmeter" data-r="meter" aria-hidden="true"></canvas>
@@ -137,7 +137,7 @@
       const q = (k) => [this.roots.deck, this.roots.wave, this.roots.strip].map((r) => r.querySelector('[data-r="' + k + '"]')).find(Boolean) || null;
       this.q = q;
       if (window.GVKnobs) [this.roots.deck, this.roots.strip].forEach((r) => GVKnobs.upgradeAll(r));
-      this.el = {}; ['bpm', 'key', 'meter', 'zoom', 'jog', 'platter', 'nudgem', 'nudgep', 'jm8', 'jm4', 'jm1', 'jp1', 'jp4', 'jp8', 'zspan', 'snap', 'gm', 'gp', 'gm1', 'gp1', 'gh', 'ghalf', 'gdbl', 'gtap', 'hotdel', 'r8', 'r4', 'r2', 'r1', 'fxtype', 'fxamt', 'xfas', 'hot5', 'hot6', 'hot7', 'hot8', 'ginfo', 'lbeats', 'hot1', 'hot2', 'hot3', 'hot4', 'hotclr', 'filt', 'echo', 'rev', 'name', 'wave', 'pos', 'dur', 'play', 'cue', 'loop', 'load', 'file', 'tv', 'tempo', 'reset', 'low', 'mid', 'high', 'vol'].forEach((k) => (this.el[k] = q(k)));
+      this.el = {}; ['bpm', 'key', 'meter', 'zoom', 'jog', 'platter', 'nudgem', 'nudgep', 'jm8', 'jm4', 'jm1', 'jp1', 'jp4', 'jp8', 'zspan', 'snap', 'gm', 'gp', 'gm1', 'gp1', 'gh', 'ghalf', 'gdbl', 'gtap', 'hotdel', 'r8', 'r4', 'r2', 'r1', 'fxtype', 'fxamt', 'xfas', 'hot5', 'hot6', 'hot7', 'hot8', 'ginfo', 'lbeats', 'hot1', 'hot2', 'hot3', 'hot4', 'hotclr', 'filt', 'echo', 'rev', 'name', 'wave', 'pos', 'dur', 'play', 'cue', 'loop', 'load', 'file', 'tv', 'tempo', 'reset', 'low', 'mid', 'high', 'trim', 'vol'].forEach((k) => (this.el[k] = q(k)));
       this.g = this.el.wave.getContext('2d'); this.gz = this.el.zoom.getContext('2d');
       const e = this.el;
       e.load.onclick = () => e.file.click();
@@ -168,6 +168,7 @@
       e.rev.oninput = () => (this.revWet.gain.value = Math.pow(e.rev.value / 100, 1.3) * 1.1);
       e.filt.ondblclick = () => { e.filt.value = 0; this.setFilter(0); };
       e.reset.onclick = () => { e.tempo.value = 0; this.setTempoPct(0); };
+      e.trim.oninput = () => (this.trim.gain.value = Math.pow(10, +e.trim.value / 20));
       e.low.oninput = () => (this.low.gain.value = +e.low.value);
       e.mid.oninput = () => (this.mid.gain.value = +e.mid.value);
       e.high.oninput = () => (this.high.gain.value = +e.high.value);

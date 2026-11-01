@@ -13,7 +13,7 @@
   add('master', 'Master volume', 'slider', slider($('master')));
   decks.forEach((d, i) => {
     const n = d.name, p = n.toLowerCase(), K = i === 1 ? ['p', 'l', 'm', 'i', '7', '8', '9', '0'] : i === 0 ? ['q', 'a', 'z', 'e', '1', '2', '3', '4'] : [];
-    [['vol', 'volume'], ['low', 'bass EQ'], ['mid', 'mid EQ'], ['high', 'treble EQ'], ['filt', 'filter'], ['echo', 'echo'], ['rev', 'reverb'], ['fxamt', 'effect amount'], ['tempo', 'tempo']].forEach(([k, l]) => add(p + '.' + k, 'Deck ' + n + ' ' + l, 'slider', slider(d.el[k])));
+    [['vol', 'volume'], ['low', 'bass EQ'], ['mid', 'mid EQ'], ['high', 'treble EQ'], ['trim', 'trim (input gain)'], ['filt', 'filter'], ['echo', 'echo'], ['rev', 'reverb'], ['fxamt', 'effect amount'], ['tempo', 'tempo']].forEach(([k, l]) => add(p + '.' + k, 'Deck ' + n + ' ' + l, 'slider', slider(d.el[k])));
     add(p + '.play', 'Deck ' + n + ' play / pause', 'button', () => click(d.el.play), K[0]);
     add(p + '.cue', 'Deck ' + n + ' cue', 'button', () => click(d.el.cue), K[1]);
     add(p + '.sync', 'Deck ' + n + ' sync to the other deck', 'button', () => click($('sync' + n)), K[2]);
