@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "tuner", "tomidi", "practice", "vocals", "synth", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "mono", "tone", "video-to-audio", "audio", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-tune-guitar", "blog-audio-to-midi", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "tuner", "tomidi", "practice", "vocals", "synth", "reference", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "mono", "tone", "video-to-audio", "audio", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-tune-guitar", "blog-audio-to-midi", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -1768,7 +1768,7 @@ def test_home(browser, base):
     errs = []
     ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 900})
     pg.goto(base + "index.html?gvtest"); pg.wait_for_function("() => window.__home")
-    check("home lists every tool with a link", pg.locator("a.card").count() == 26 and all(pg.locator(f'.quick a[href="{h}"]').count() == 1 for h in ["silence.html", "mono.html", "tone.html", "video-to-audio.html"]) and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "audio.html", "slowed.html", "pitch.html", "cutter.html", "booster.html", "visualizer.html", "metronome.html", "looper.html", "chords.html", "editor.html", "video.html", "master.html", "convert.html", "tuner.html", "tomidi.html", "practice.html", "vocals.html", "synth.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
+    check("home lists every tool with a link", pg.locator("a.card").count() == 27 and all(pg.locator(f'.quick a[href="{h}"]').count() == 1 for h in ["silence.html", "mono.html", "tone.html", "video-to-audio.html"]) and all(pg.locator(f'a.card[href="{h}"]').count() == 1 for h in ["studio.html", "samples.html", "record.html", "keys.html", "audio.html", "slowed.html", "pitch.html", "cutter.html", "booster.html", "visualizer.html", "metronome.html", "looper.html", "chords.html", "editor.html", "video.html", "master.html", "convert.html", "tuner.html", "tomidi.html", "practice.html", "vocals.html", "synth.html", "reference.html", "dj.html", "bpm.html", "lessons.html", "learn-music.html"]))
     check("five groups with headings", pg.locator(".grp h2").count() == 5 and pg.inner_text(".grp h2 >> nth=0") == "Make")
     check("the web font loads from this site", pg.evaluate("document.fonts.check('16px \"Bricolage Grotesque\"')"))
     check("beat strip has 4 rows of 16 steps and starts with a boom bap pattern", pg.locator(".st").count() == 64 and pg.locator('.st[aria-pressed="true"]').count() == 3 + 2 + 8)
@@ -3378,6 +3378,37 @@ def test_transitions(browser, base):
     ctx.close()
 
 
+def test_reference(browser, base):
+    print("reference mix analyzer: measures, advice, A/B")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "reference.html?gvtest"); pg.wait_for_function("() => window.__ref", timeout=8000)
+    check("results are hidden until both tracks are loaded", pg.locator("#results").is_hidden() and pg.locator("#play").is_disabled())
+    MK = """async () => { const sr = 22050, n = sr * 6; let seed = 7; const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 1073741823 - 1; };
+      const mine = [new Float32Array(n), new Float32Array(n)], ref = [new Float32Array(n), new Float32Array(n)];
+      for (let i = 0; i < n; i++) { const bass = 0.5 * Math.sin(2 * Math.PI * 90 * i / sr), hi = 0.12 * Math.sin(2 * Math.PI * 4500 * i / sr), nz = 0.02 * rnd();
+        mine[0][i] = mine[1][i] = bass + 0.02 * hi + nz;
+        ref[0][i] = 0.3 * bass + hi + 0.02 * rnd(); ref[1][i] = 0.3 * bass + hi * 0.9 + 0.02 * rnd(); }
+      await __ref.setTrack('mine', mine, sr, 'my mix'); await __ref.setTrack('ref', ref, sr, 'the reference'); return true; }"""
+    pg.evaluate(MK); pg.wait_for_selector("#results:not([hidden])", timeout=20000)
+    r = pg.evaluate("() => ({ a: __ref.T.mine.res, b: __ref.T.ref.res })")
+    check("a bass heavy mix has its energy in the bass band", r["a"]["bands"].index(max(r["a"]["bands"])) == 1, str([round(x) for x in r["a"]["bands"]]))
+    check("the reference has more presence than the mix", r["b"]["bands"][5] > r["a"]["bands"][5] + 10, str([round(x) for x in r["b"]["bands"]]))
+    check("a mono mix is narrower than a stereo reference", r["a"]["width"] < -40 and r["b"]["width"] > r["a"]["width"] + 10, str([r["a"]["width"], r["b"]["width"]]))
+    check("loudness is measured for both", all(isinstance(x, (int, float)) and x < 0 for x in (r["a"]["lufs"], r["b"]["lufs"])), str([r["a"]["lufs"], r["b"]["lufs"]]))
+    txt = pg.inner_text("#advice").lower()
+    check("advice names the bass and presence differences", "bass" in txt and "presence" in txt, txt[:300])
+    check("the table lists every measure", pg.locator("#rows tr").count() == 14)
+    same = pg.evaluate("() => __ref.advise(__ref.T.mine.res, __ref.T.mine.res)")
+    check("identical tracks get an all clear", len(same) == 1 and "close to the reference" in same[0], str(same))
+    check("the A/B controls are enabled", pg.locator("#play").is_enabled())
+    pg.click("#play"); pg.wait_for_timeout(300); pg.click("#href")
+    check("switching to the reference keeps playing", pg.evaluate("() => __ref.which") == "ref" and pg.inner_text("#play") == "Stop" and pg.get_attribute("#href", "aria-pressed") == "true")
+    pg.click("#play"); check("playback stops", pg.inner_text("#play") == "Play")
+    check("reference page: no console errors", not errs, str(errs[:3]))
+    ctx.close()
+
+
 def test_roll_plus(browser, base):
     print("studio: advanced piano roll editing")
     errs = []
@@ -3428,7 +3459,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_reference, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

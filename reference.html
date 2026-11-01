@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reference mix analyzer — GoVibe Mix</title>
+<meta name="description" content="Compare your mix with a reference track: loudness, tone balance, stereo width and dynamics, with plain advice and loudness matched A/B listening. Free, private, nothing uploaded.">
+<link rel="canonical" href="https://govibemix.com/reference.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="Reference mix analyzer — GoVibe Mix">
+<meta property="og:description" content="Compare your mix with a reference track: loudness, tone balance, stereo width and dynamics, with plain advice and loudness matched A/B listening. Free, private, nothing uploaded.">
+<meta property="og:url" content="https://govibemix.com/reference.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="studio.html">Studio</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+  <a class="link" href="index.html#tools">All tools</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>Reference mix analyzer</h1>
+  <p class="lead">Compare your mix with a track you admire. See the difference in loudness, tone balance, stereo width and dynamics, get plain advice, and flip between the two at matched loudness. Your files are never uploaded.</p>
+  <div class="panel">
+    <div class="grid2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px">
+      <div><div class="drop" id="minedrop" data-input="minefile" role="button" tabindex="0"><strong>Your mix</strong><p class="status">The mix you want to check.</p></div><input type="file" id="minefile" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.flac,.caf,.aif,.aiff,.3gp,.amr,video/mp4" hidden aria-label="Your mix"><p class="status" id="minename"></p></div>
+      <div><div class="drop" id="refdrop" data-input="reffile" role="button" tabindex="0"><strong>Reference track</strong><p class="status">A finished song with the sound you want.</p></div><input type="file" id="reffile" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.flac,.caf,.aif,.aiff,.3gp,.amr,video/mp4" hidden aria-label="Reference track"><p class="status" id="refname"></p></div>
+    </div>
+    <h2>Listen</h2>
+    <div class="row" style="align-items:center"><button class="btn primary" id="play" disabled>Play</button><button class="btn" id="hmine" aria-pressed="true" disabled>Your mix</button><button class="btn" id="href" aria-pressed="false" disabled>Reference</button><label class="row" style="gap:6px"><input type="checkbox" id="match" checked> Match the loudness</label><span class="time" id="clock">0:00</span></div>
+    <p class="status">A louder track usually sounds better, so matching the loudness gives a fair comparison. Switching keeps your place in the song.</p>
+    <div id="results" hidden>
+      <h2>Tone balance</h2>
+      <canvas id="chart" width="900" height="260" role="img" aria-label="Tone balance of your mix and the reference across eight frequency bands. The table below lists the same numbers." style="width:100%;height:auto;border-radius:10px"></canvas>
+      <h2>What to try</h2>
+      <ul id="advice"></ul>
+      <h2>The numbers</h2>
+      <div class="tblwrap"><table class="libtbl" aria-label="Your mix compared with the reference"><thead><tr><th scope="col">Measure</th><th scope="col">Your mix</th><th scope="col">Reference</th><th scope="col">Difference</th></tr></thead><tbody id="rows"></tbody></table></div>
+    </div>
+    <p class="status" id="status" role="status"></p>
+  </div>
+  <div class="prose">
+    <h2>How it works</h2>
+    <ul><li>Loudness is measured in LUFS, the way streaming services do it, with the true peak and loudness range.</li><li>Tone balance splits the sound into eight bands and shows how the energy is shared between them, so a quiet track and a loud one can be compared fairly.</li><li>Stereo width compares the side signal with the middle signal. The crest factor is the gap between the peaks and the average level, a simple measure of how compressed the track is.</li><li>A reference is a guide, not a target. Different styles balance their low end and brightness differently, so use the advice as a starting point and trust your ears.</li></ul>
+  </div>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/quick.js"></script>
+<script src="js/reference.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>
