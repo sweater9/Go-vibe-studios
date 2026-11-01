@@ -311,7 +311,8 @@
   function smoothPath(P, half) {
     return P.map((_, i) => { let s = 0, n = 0; for (let k = Math.max(0, i - half); k <= Math.min(P.length - 1, i + half); k++) { s += P[k]; n++; } return s / n; });
   }
-  const seekTo = (v, t) => new Promise((res) => { if (Math.abs(v.currentTime - t) < 0.002 && v.readyState >= 2) return res(); const done = () => { v.removeEventListener('seeked', done); clearTimeout(to); res(); }; const to = setTimeout(done, 1200); v.addEventListener('seeked', done); v.currentTime = t; });
+  let seekTimeouts = 0;
+  const seekTo = (v, t) => new Promise((res) => { if (Math.abs(v.currentTime - t) < 0.002 && v.readyState >= 2) return res(); const done = () => { v.removeEventListener('seeked', done); clearTimeout(to); res(); }; const to = setTimeout(() => { seekTimeouts++; done(); }, 1200); v.addEventListener('seeked', done); v.currentTime = t; });
   async function stabilise(i, onProgress) {
     const c = clips[i]; if (!c || busyStab) return false; busyStab = true; pause();
     try {
@@ -716,7 +717,7 @@
   async function exportFast() {
     pause(); const want = $('xfmt').value, T = total(), fps = +$('xfps').value || 30, scale = RES[$('xres').value] || 1;
     exporting = true; exportCancelled = false; refresh(); $('cancel').classList.remove('hidden'); $('dl').classList.add('hidden'); outScale = scale;
-    const t0 = performance.now(); let venc = null, aenc = null;
+    const t0 = performance.now(); let venc = null, aenc = null; seekTimeouts = 0;
     try {
       say('Mixing the sound…'); await nap();
       const mix = await mixAudio(T);
@@ -729,6 +730,9 @@
       const muxer = new M.Muxer(pick.kind === 'mp4' ? { target, video: { codec: 'avc', width: W, height: H }, audio: { codec: 'aac', numberOfChannels: 2, sampleRate: SR }, fastStart: 'in-memory', firstTimestampBehavior: 'offset' }
         : { target, video: { codec: pick.mv, width: W, height: H, frameRate: fps }, audio: { codec: 'A_OPUS', numberOfChannels: 2, sampleRate: SR }, firstTimestampBehavior: 'offset' });
       let fail = null; const onErr = (e) => { fail = e; };
+      /* wait for an encoder queue to drain, but never forever: a stalled or failed hardware encoder must fall back to real time export, not hang */
+      const drain = async (enc, max) => { const t1 = performance.now(); while (enc.encodeQueueSize > max) { if (fail || enc.state === 'closed' || exportCancelled) return; if (performance.now() - t1 > 8000) throw new Error('The video encoder stopped responding.'); await nap(); } };
+      const within = (pr, ms) => Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej(new Error('The encoder did not finish.')), ms))]);
       venc = new VideoEncoder({ output: (ch, meta) => muxer.addVideoChunk(ch, meta), error: onErr }); venc.configure({ codec: pick.v, width: W, height: H, bitrate, framerate: fps });
       aenc = new AudioEncoder({ output: (ch, meta) => muxer.addAudioChunk(ch, meta), error: onErr }); aenc.configure({ codec: pick.a, sampleRate: SR, numberOfChannels: 2, bitrate: 128000 });
       /* sound first (it is already rendered), then the pictures one by one */
@@ -736,7 +740,7 @@
       for (let o = 0; o < mix.length; o += step) {
         const n = Math.min(step, mix.length - o), buf = new Float32Array(n * 2); buf.set(L.subarray(o, o + n), 0); buf.set(R.subarray(o, o + n), n);
         const ad = new AudioData({ format: 'f32-planar', sampleRate: SR, numberOfFrames: n, numberOfChannels: 2, timestamp: Math.round(o / SR * 1e6), data: buf }); aenc.encode(ad); ad.close();
-        while (aenc.encodeQueueSize > 16) await nap();
+        await drain(aenc, 16);
       }
       const frames = Math.max(1, Math.ceil(T * fps));
       for (let f = 0; f < frames; f++) {
@@ -744,12 +748,13 @@
         const t = Math.min(Math.max(0, T - 0.001), f / fps), loc = locate(t), c = clips[loc.i];
         active = loc.i; tl = t; await seekTo(c.v, c.in + srcAt(c, loc.off)); draw();
         const vf = new VideoFrame(cv, { timestamp: Math.round(f * 1e6 / fps), duration: Math.round(1e6 / fps) }); venc.encode(vf, { keyFrame: f % (fps * 2) === 0 }); vf.close();
-        while (venc.encodeQueueSize > 12) await nap();
+        await drain(venc, 12);
         if (f % 5 === 0) { const el = (performance.now() - t0) / 1000, left = f > 10 ? Math.round(el / f * (frames - f)) : null;
-          if (f === 45 && el / f * frames > T * 1.5 + 5) { fastFailed = true; slowAbort = true; return null; } say('Exporting fast… ' + Math.min(99, Math.round(f / frames * 100)) + '%' + (left != null ? ', about ' + (left > 90 ? Math.round(left / 60) + ' min' : left + ' s') + ' left' : '') + ' (keep this tab open)'); await nap(); }
+          if ((f === 15 || f === 45) && el / f * frames > T * 1.5 + 5) { fastFailed = true; slowAbort = true; return null; }
+          if (f >= 10 && f <= 40 && seekTimeouts >= 6) { fastFailed = true; slowAbort = true; return null; } say('Exporting fast… ' + Math.min(99, Math.round(f / frames * 100)) + '%' + (left != null ? ', about ' + (left > 90 ? Math.round(left / 60) + ' min' : left + ' s') + ' left' : '') + ' (keep this tab open)'); await nap(); }
       }
       if (exportCancelled) { say('Export cancelled.'); return null; }
-      await venc.flush(); await aenc.flush(); if (fail) throw fail; muxer.finalize();
+      await within(venc.flush(), 30000); await within(aenc.flush(), 30000); if (fail) throw fail; muxer.finalize();
       const blob = new Blob([target.buffer], { type: pick.kind === 'mp4' ? 'video/mp4' : 'video/webm' });
       finishDownload(blob, 'govibe-video.' + pick.kind, pick.kind.toUpperCase() + ' in ' + ((performance.now() - t0) / 1000).toFixed(1) + ' s'); return blob;
     } catch (e) { fastFailed = true; return null; }

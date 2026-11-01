@@ -2331,6 +2331,11 @@ def test_video_pro(browser, base):
     check("fast export uses the right picture at each time (red first, blue second)", res and res["a"][0] > 140 and res["a"][2] < 110 and res["b"][2] > 110 and res["b"][0] < 110, str(res and (res["a"], res["b"])))
     check("fast export keeps the sound of the clips", res and res["rms"] > 0.05 and abs(res["adur"] - T) < 0.4, str(res and (res["rms"], res["adur"])))
     check("the file is MP4 or WebM and the download link is shown", res and res["type"] in ("video/mp4", "video/webm") and not pg.locator("#dl").evaluate("(a) => a.classList.contains('hidden')") and pg.get_attribute("#dl", "download").endswith(("mp4", "webm")))
+    # a video encoder that stops responding must not hang the export: it falls back to real time
+    ev("""() => { window.__RealVE = window.VideoEncoder; window.VideoEncoder = class { constructor() { this.encodeQueueSize = 0; this.state = 'configured'; } static isConfigSupported(c) { return window.__RealVE.isConfigSupported(c); } configure() {} encode() { this.encodeQueueSize++; } async flush() { await new Promise(() => {}); } close() { this.state = 'closed'; } }; }""")
+    t1 = _t.time(); stall = ev("async () => { const b = await __ve.exportVideo(); return b && b.type; }"); tstall = _t.time() - t1
+    ev("() => { window.VideoEncoder = window.__RealVE; }")
+    check("a stalled video encoder falls back to real time instead of hanging", stall and stall.startswith("video/") and tstall < 40, f"{stall} after {tstall:.1f} s: {pg.inner_text('#status')}")
     pg.select_option("#xfmt", "webm"); wb = ev("async () => { const b = await __ve.exportVideo(); return b && b.type; }")
     check("choosing WebM gives a WebM file", wb == "video/webm", str(wb))
     pg.select_option("#xfmt", "wav"); wv = ev("""async () => { const b = await __ve.exportVideo(); if (!b) return null; const u = new Uint8Array(await b.arrayBuffer()); return { type: b.type, riff: String.fromCharCode(...u.slice(0, 4)), size: b.size }; }""")
