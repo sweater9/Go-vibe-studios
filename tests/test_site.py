@@ -291,7 +291,7 @@ def test_dj_extras(browser, base):
     # automix: two short tracks at 120 and 124 BPM, 4 s transition
     pg.goto(base + "dj.html?gvtest")
     pg.click("#tab-am")
-    pg.select_option("#amlen", "4")
+    pg.select_option("#amlen", "4"); pg.select_option("#amstyle", "blend")
     pg.evaluate("""async () => { const { ctx } = __dj;
       const mk = (bpm, secs, sr = 22050) => { const b = ctx.createBuffer(1, sr * secs, sr), d = b.getChannelData(0), beat = Math.round(sr * 60 / bpm);
         for (let i = 0; i < d.length; i += beat) for (let k = 0; k < 400 && i + k < d.length; k++) d[i + k] = Math.sin(k / 6) * Math.exp(-k / 80); return b; };
@@ -2021,6 +2021,7 @@ def test_views(browser, base):
     pg.wait_for_function("() => document.querySelectorAll('#libbody tr[data-id]').length === 2", timeout=30000)
     row = pg.locator("#libbody tr[data-id]", has_text="Alpha")
     row.get_by_role("button", name="4 stars").click()
+    pg.wait_for_function("() => [...document.querySelectorAll('#libbody tr[data-id]')].some((r) => r.cells[0].textContent.includes('Alpha') && [...r.querySelectorAll('.star')].filter((b) => b.getAttribute('aria-pressed') === 'true').length === 4)", timeout=8000); pg.wait_for_timeout(400)
     pg.locator("#libbody tr[data-id]", has_text="Alpha").locator(".libnote").fill("great opener, 8A"); pg.locator("#libbody tr[data-id]", has_text="Alpha").locator(".libnote").dispatch_event("change")
     pg.wait_for_timeout(1500)
     pg.reload(); pg.wait_for_function("() => document.querySelectorAll('#libbody tr[data-id]').length === 2", timeout=10000)
@@ -3406,7 +3407,7 @@ def test_automix_pro(browser, base):
     check("style choice: no grid sweeps, a wide tempo gap echoes, banger intensity builds, smooth never does", cs[0] == "sweep" and cs[1] == "echo" and cs[2] == "banger" and cs[3] == "riser" and "banger" not in cs[4] and "riser" not in cs[4], str(cs))
     MK = """async () => { const { ctx } = __dj; const mk = (bpm, secs, sr = 22050) => { const b = ctx.createBuffer(1, sr * secs, sr), d = b.getChannelData(0), beat = Math.round(sr * 60 / bpm); for (let i = 0; i < d.length; i += beat) for (let k = 0; k < 400 && i + k < d.length; k++) d[i + k] = Math.sin(k / 6) * Math.exp(-k / 80); return b; };
       const g = (bpm) => ({ t0: 0, period: 60 / bpm, bpm }); __am.queue.length = 0; await __am.addBuffer(mk(120, 40), 'one.wav', { bpm: 120, key: '8A', grid: g(120) }); await __am.addBuffer(mk(120, 40), 'two.wav', { bpm: 120, key: '8A', grid: g(120) }); }"""
-    pg.select_option("#amstyle", "banger"); pg.select_option("#amlen", "auto"); pg.evaluate(MK)
+    pg.select_option("#amstyle", "banger"); pg.select_option("#amlen", "auto"); pg.select_option("#amplay", "outro"); pg.evaluate(MK)
     check("queue rows show where the drop and outro are", "outro" in pg.inner_text("#amlist"), pg.inner_text("#amlist")[:120])
     pg.click("#amgo"); pg.wait_for_timeout(500)
     pl = pg.evaluate("() => { const p = __am.S.plan; return p && [p.st, p.B, p.preSec, p.len]; }")
@@ -3442,6 +3443,15 @@ def test_automix_pro(browser, base):
         end = pg.evaluate("() => [+__dj.decks[0].el.filt.value, +__dj.decks[0].el.echo.value, +__dj.decks[0].el.rev.value, __dj.decks[0].loop, __dj.decks[0].pre.gain.value]")
         check(f"the {style} style finishes and leaves the effects reset", end == [0, 0, 0, None, 1], str(end))
         pg.click("#amgo"); pg.evaluate("() => { __dj.decks.forEach((d) => d.pause()); }")
+    # when to mix: about two thirds in by default, or after a set time
+    LONG = MK.replace("mk(120, 40)", "mk(120, 120)")
+    pg.select_option("#amstyle", "blend"); pg.select_option("#amlen", "auto"); pg.check("#amsmart"); pg.evaluate(LONG)
+    got = []
+    for v in ("auto", "90", "outro"):
+        pg.select_option("#amplay", v); pg.click("#amgo"); pg.wait_for_timeout(400)
+        got.append(pg.evaluate("() => __am.S.plan && __am.S.plan.B")); txt = pg.inner_text("#amcount"); pg.click("#amgo")
+    check("the mix point follows the Mix after setting (two thirds, 90 s, the outro)", got[0] == 80 and got[1] == 88 and got[2] > 95, str(got))
+    check("a countdown to the next mix is shown", "next mix in" in txt, txt)
     # set shape, brake and tempo ease
     sh = pg.evaluate("""() => { const P = GVMixPlan, cur = { key: '8A', bpm: 120 }, c = [{ id: 1, key: '8A', bpm: 118 }, { id: 2, key: '8A', bpm: 122 }], z = () => 0;
       return [P.shape('steady', 0).drift, P.shape('build', 3).drift, P.shape('wave', 1).drift, P.shape('wave', 5).drift, P.shape('cool', 0).drift, P.pickNext(cur, c, { rand: z }), P.pickNext(cur, c, { rand: z, drift: 2 }), P.pickNext(cur, c, { rand: z, drift: -2 }),
@@ -3466,6 +3476,9 @@ def test_automix_pro(browser, base):
     pg.wait_for_function("() => { const T = __am.S.tr; return !T || (__dj.ctx.currentTime - T.t0) / T.len > 0.7; }", timeout=15000)
     eq = pg.evaluate("() => [+__dj.decks[0].el.high.value, +__dj.decks[1].el.high.value]")
     check("a blend moves the highs and mids as well as the bass", eq[0] < -3 or eq[1] > -14, str(eq))
+    pg.wait_for_timeout(150)
+    kn = pg.evaluate("() => [__dj.decks[0].el.low, __dj.decks[0].el.high, document.getElementById('xf')].map((e) => e.nextElementSibling && e.nextElementSibling.classList.contains('knob') ? e.nextElementSibling.querySelector('.kcap').style.transform : 'slider ' + e.value)")
+    check("the knobs and the crossfader visibly move during a mix", kn[0] != "rotate(0deg)" and kn[1] != "rotate(0deg)" and kn[2] != "slider 0", str(kn))
     pg.wait_for_function("() => __am.S.tr === null && __am.S.idx === 1", timeout=15000)
     t1 = pg.evaluate("() => [+__dj.decks[1].el.tempo.value, +__dj.decks[0].el.high.value, +__dj.decks[1].el.high.value]")
     check("the new track starts pitched to match and the EQ is flat again", t1[0] > 2 and t1[1] == 0 and t1[2] == 0, str(t1))

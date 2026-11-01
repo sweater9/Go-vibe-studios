@@ -156,6 +156,9 @@
       <label class="ctl">Energy
         <select id="amint" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="smooth">Smooth</option><option value="club" selected>Club</option><option value="banger">Banger</option></select>
       </label>
+      <label class="ctl">Mix after
+        <select id="amplay" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="auto" selected>About two thirds in</option><option value="60">1 minute</option><option value="90">1 minute 30</option><option value="120">2 minutes</option><option value="180">3 minutes</option><option value="outro">At the outro</option></select>
+      </label>
       <label class="ctl">Set shape
         <select id="amshape" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="steady" selected>Steady</option><option value="build">Build up the energy</option><option value="wave">Wave (up, then down)</option><option value="cool">Cool down</option></select>
       </label>
@@ -166,6 +169,7 @@
     <div class="row" style="align-items:center;margin:6px 0"><label class="row" style="gap:6px"><input type="checkbox" id="amauto"> Pick the next track from my library automatically</label></div>
     <p class="status">With this on, Automix chooses each following track from your library by key, tempo and your ratings, avoids repeats and keeps going on its own. You can start with an empty queue. Needs at least two tracks in the Library tab.</p>
     <ol id="amlist" class="amlist" aria-label="Track queue"></ol>
+    <div class="row" style="align-items:center;gap:10px;margin:6px 0"><progress id="amprog" max="100" value="0" aria-label="Transition progress" style="flex:1;min-width:120px"></progress><span class="status" id="amcount" aria-hidden="true"></span></div>
     <p class="status" id="amstatus" role="status"></p>
     <h3 style="margin:18px 0 6px">Mix maker</h3>
     <p class="status">Turn the queue into one continuous mix file. Every track is brought to the same tempo, the beats are lined up and the bass is swapped across each transition. Rendering runs faster than real time on your device. Mixes can be up to 30 minutes long.</p>

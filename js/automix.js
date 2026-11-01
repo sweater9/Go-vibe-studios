@@ -42,7 +42,7 @@
   /* ---------- pick tracks from the library by itself ---------- */
   const auto = () => !!$('amauto') && $('amauto').checked, used = new Set(); let fetching = false, failed = false;
   try { if (localStorage.getItem('govibe.amauto') === '1') $('amauto').checked = true; } catch (_) { /* no storage */ }
-  ['amint', 'amstyle', 'amshape'].forEach((id) => { try { const v = localStorage.getItem('govibe.' + id); if (v && $(id) && [...$(id).options].some((o) => o.value === v)) $(id).value = v; } catch (_) { /* no storage */ } if ($(id)) $(id).addEventListener('change', () => { try { localStorage.setItem('govibe.' + id, $(id).value); } catch (_) { /* ignore */ } }); });
+  ['amint', 'amstyle', 'amshape', 'amplay'].forEach((id) => { try { const v = localStorage.getItem('govibe.' + id); if (v && $(id) && [...$(id).options].some((o) => o.value === v)) $(id).value = v; } catch (_) { /* no storage */ } if ($(id)) $(id).addEventListener('change', () => { try { localStorage.setItem('govibe.' + id, $(id).value); } catch (_) { /* ignore */ } }); });
   $('amauto').onchange = () => { try { localStorage.setItem('govibe.amauto', auto() ? '1' : '0'); } catch (_) { /* ignore */ } };
   async function pickFrom(cur, opt) {
     const recs = A.libRecs ? A.libRecs() : []; queue.forEach((q) => { if (q.id) used.add(q.id); });
@@ -74,14 +74,14 @@
     if (!queue.length) return say('Add some tracks first.');
     for (let i = queue.length - 1; i >= 0; i--) if (!queue[i].buf) queue.splice(i, 1);
     failed = false; used.clear(); if (!queue.length) return say('Add some tracks first.');
-    ctx.resume(); S.on = true; S.idx = 0; S.active = 0; S.tr = null; S.plan = null; S.last = null; S.ramp = null;
+    ctx.resume(); S.on = true; S.idx = 0; S.active = 0; S.tr = null; S.plan = null; S.last = null; S.ramp = null; S.inAt = 0;
     decks.forEach((d) => d.pause());
     load(0, 0, null); xf.value = 0; applyXf(); decks[0].seek(0); decks[0].play();
     $('amgo').textContent = '■ Stop Automix'; paint(); say('Playing "' + queue[0].name + '".');
     clearInterval(S.timer); S.timer = setInterval(tick, 40);
   }
   function stop() {
-    clearInterval(S.timer); const was = S.tr; S.on = false; S.tr = null; S.plan = null; $('amgo').textContent = '▶ Start Automix'; killFx();
+    clearInterval(S.timer); const was = S.tr; S.on = false; S.tr = null; S.plan = null; $('amgo').textContent = '▶ Start Automix'; killFx(); showProg('', 0);
     decks.forEach((d) => { d.low.gain.value = 0; d.el.low.value = 0; if (was) { d.pre.gain.cancelScheduledValues(0); d.pre.gain.value = 1; if (d.loop) { d.loop = null; d.eachSrc((x) => (x.loop = false)); } } }); paint();
   }
   $('amgo').onclick = async () => { if (S.on) { stop(); return say('Automix stopped. The decks keep their current state.'); } if (!queue.length && auto() && !(await seedFromLibrary())) return; start(); };
@@ -90,7 +90,7 @@
   const smart = () => !!$('amsmart') && $('amsmart').checked, style = () => ($('amstyle') ? $('amstyle').value : 'blend'), intensity = () => ($('amint') ? $('amint').value : 'club');
   const mapOf = (q) => q.map || (q.map = window.GVTrackMap ? GVTrackMap.analyze(q.buf, q.grid) : { grid: false, dur: q.buf.duration, drop: null, outro: q.buf.duration - 30, inE: 0.5, outE: 0.5 });
   const NAMES = { blend: 'a bass swap blend', sweep: 'a filter sweep', echo: 'an echo out', cut: 'a quick cut', wash: 'a reverb wash', gate: 'a tremolo gate', riser: 'a riser into the drop', banger: 'a loop build and drop', brake: 'a spin down and drop' };
-  const BEATS = { blend: 16, sweep: 16, wash: 16, gate: 8, echo: 8, cut: 2 }, BUILD = { riser: 8, banger: 8, brake: 4 };
+  const BEATS = { blend: 32, sweep: 32, wash: 24, gate: 16, echo: 16, cut: 2 }, BUILD = { riser: 8, banger: 8, brake: 4 };
   /* the latest 16 beat phrase start (in the track's own seconds) from which a transition of len seconds still finishes before the track ends */
   function phraseStart(d, len, late) {
     if (!d.grid || !d.buf) return null; const p = d.grid.period, ph = 16 * p, lenSrc = len * (d.rate || 1), k = Math.floor((d.buf.duration - 0.7 - lenSrc - d.grid.t0) / ph);
@@ -144,16 +144,19 @@
     let len;
     if (BUILD[st]) len = Math.max(0.8, 2 * bs);
     else {
-      const am = $('amlen').value, roomy = grids && st === 'blend' && (dur - om.outro) / bs >= 32 && (im.intro - im.t0) / bs >= 32, want = am === 'auto' ? (grids ? (roomy ? 32 : BEATS[st]) * bs : 12) : +am;
+      const am = $('amlen').value, roomy = grids && st === 'blend' && (dur - om.outro) / bs >= 32 && (im.intro - im.t0) / bs >= 32, want = am === 'auto' ? (grids ? (roomy ? 48 : BEATS[st]) * bs : 14) : +am;
       len = Math.max(2, Math.min(want, (dur - pos) / rate - 0.5, nq.buf.duration * 0.5)); if (st === 'cut') len = Math.min(len, Math.max(1, 2 * bs));
     }
-    const plan = { for: S.idx, next: nq, st, pre, preSec, len, bs, B: null, free: false, now: mode === 'now', skip: mode === 'skip', inStart: 0 };
+    const base = S.inAt || 0, pf = $('amplay') ? $('amplay').value : 'auto', outro = om ? om.outro : dur - 30;
+    let tgt = pf === 'outro' ? outro : pf === 'auto' ? Math.min(outro, base + 0.68 * (dur - base)) : base + (+pf);
+    if (mode === 'auto' && tgt > dur - 1) tgt = null;
+    const plan = { for: S.idx, tgt, next: nq, st, pre, preSec, len, bs, B: null, free: false, now: mode === 'now', skip: mode === 'skip', inStart: 0 };
     if (BUILD[st] && im) plan.inStart = im.drop != null ? im.drop : im.t0;
     if (mode !== 'skip' && grids && smart()) {
       const per = out.grid.period, ph = 16 * per, t0 = out.grid.t0, tail = BUILD[st] ? 3 * per : len * rate + 0.7;
       const minB = pos + preSec * rate + (mode === 'now' ? 0.4 : -0.05), kLo = Math.max(1, Math.ceil((minB - t0) / ph)), kHi = Math.floor((dur - tail - 0.3 - t0) / ph);
       if (kHi >= kLo) {
-        let best = kHi; if (mode !== 'now') { let bd = Infinity; for (let k = kLo; k <= kHi; k++) { const dd = Math.abs(t0 + k * ph - om.outro); if (dd < bd) { bd = dd; best = k; } } } else best = kLo;
+        let best = kHi; if (mode !== 'now') { let bd = Infinity; for (let k = kLo; k <= kHi; k++) { const dd = Math.abs(t0 + k * ph - (tgt == null ? om.outro : tgt)); if (dd < bd) { bd = dd; best = k; } } } else best = kLo;
         plan.B = t0 + best * ph;
       } else if (mode === 'now') {                      // too close to the end for a phrase: use the next beat
         const kb = Math.ceil((minB - t0) / per); if (t0 + kb * per + tail + 0.3 <= dur) plan.B = t0 + kb * per;
@@ -181,7 +184,7 @@
     const T = { t0: now, len: plan.len, from: S.active, to: 1 - S.active, ni, st, ev: [], bs: plan.bs, pre: plan.preSec };
     if (BUILD[st]) {
       const toB = plan.B != null ? Math.max(0.05, (plan.B - out.position()) / (out.rate || 1)) : plan.preSec;
-      T.tB = now + toB; T.t0 = T.tB; T.build = true; T.inStart = plan.inStart; T.preSec = Math.min(plan.preSec, toB);
+      T.tB = now + toB; T.t0 = T.tB; T.build = true; T.inStart = plan.inStart; T.inAt = plan.inStart; T.preSec = Math.min(plan.preSec, toB);
       if (st !== 'brake') { riser(now, toB); snareRoll(now + Math.max(0, toB - 4 * plan.bs), T.tB - 0.35 * plan.bs, plan.bs); }
       T.ev.push({ at: T.tB, fn: () => drop(T, out, inc) });
       if (st === 'banger') [[4, 2], [2, 1], [1, 0.5], [0.5, 0.25]].forEach(([before, len]) => { if (before * plan.bs <= toB) T.ev.push({ at: T.tB - before * plan.bs, fn: () => roll(T, out, len) }); });
@@ -190,7 +193,7 @@
       T.ev.sort((a, b) => a.at - b.at);
     } else {
       let s0 = 0; if (out.grid && inc.grid) s0 = inc.grid.t0 + out.beatFrac() * inc.grid.period;   // start on the same point in the beat
-      inc.seek(s0); inc.play();
+      inc.seek(s0); inc.play(); T.inAt = s0;
       if (st === 'gate') {                                                // a volume gate chopping the outgoing track, getting deeper
         const g = out.pre.gain, step = plan.bs / 2, N = Math.floor(T.len / step); g.cancelScheduledValues(now);
         for (let k = 0; k < N; k++) { const t = now + k * step; g.setValueAtTime(1, t); g.setValueAtTime(Math.max(0.08, 1 - 0.95 * (k / N)), t + step / 2); }
@@ -205,7 +208,7 @@
     setTimeout(() => resetFx(out), quiet ? 2500 : 0);
     [out, inc].forEach((d) => { d.low.gain.value = 0; d.el.low.value = 0; d.mid.gain.value = 0; d.el.mid.value = 0; d.high.gain.value = 0; d.el.high.value = 0; });
     const pct = +inc.el.tempo.value; S.ramp = Math.abs(pct) > 0.3 && T.bs ? { deck: inc, from: pct, t0: ctx.currentTime, dur: Math.max(4, 16 * T.bs) } : null;   // ease the new track back to its own tempo
-    S.active = T.to; S.idx = T.ni; S.tr = null; paint(); say('Playing "' + queue[S.idx].name + '".');
+    S.active = T.to; S.idx = T.ni; S.tr = null; S.inAt = T.inAt || 0; paint(); say('Playing "' + queue[S.idx].name + '".');
   }
   function stepBuild(T, now, out, inc) {
     if (now < T.tB) {                                                      // the build: filter rising, echo and bass cut, loops rolling
@@ -235,9 +238,11 @@
     if (T.st === 'blend' || T.st === 'gate') { const oh = -16 * smooth(p, 0.5, 0.95), om = -8 * smooth(p, 0.6, 0.95), ih = -14 * (1 - smooth(p, 0.05, 0.45)); out.high.gain.value = oh; out.el.high.value = oh; out.mid.gain.value = om; out.el.mid.value = om; inc.high.gain.value = ih; inc.el.high.value = ih; }
     if (p >= 1) endTransition(T, out, inc);
   }
+  let lastTxt = '';
+  function showProg(txt, pct) { const el = $('amcount'), pr = $('amprog'); if (el && txt !== lastTxt) { el.textContent = txt; lastTxt = txt; } if (pr) pr.value = pct; }
   function tick() {
-    if (!S.on) return;
-    if (S.tr) return stepTransition();
+    if (!S.on) return showProg('', 0);
+    if (S.tr) { const T = S.tr, now = ctx.currentTime, tot = (T.build ? T.preSec : 0) + T.len, el = now - (T.build ? T.tB - T.preSec : T.t0); showProg('Mixing into "' + queue[T.ni].name + '" · ' + NAMES[T.st] + ' · ' + Math.max(0, Math.min(100, Math.round(100 * el / tot))) + '%', Math.max(0, Math.min(100, 100 * el / tot))); return stepTransition(); }
     if (S.ramp) { const R = S.ramp, p = Math.min(1, (ctx.currentTime - R.t0) / R.dur), v = +(R.from * (1 - smooth(p, 0, 1))).toFixed(2); R.deck.el.tempo.value = v; R.deck.setTempoPct(v); if (p >= 1) { S.ramp = null; S.plan = null; } }
     const d = decks[S.active], rem = d.buf.duration - d.position() * 1;
     const remReal = rem / d.rate;
@@ -245,6 +250,7 @@
     if (S.idx + 1 >= queue.length) { if (!d.playing && d.position() < 0.1) { stop(); say('Automix finished.'); } return; }
     let plan = S.plan; if (!plan || plan.for !== S.idx || plan.next !== queue[S.idx + 1]) { plan = S.plan = makePlan('auto'); if (plan) say('Next: ' + NAMES[plan.st] + ' into "' + queue[S.idx + 1].name + '".'); }
     if (!plan) return;
+    { const pos0 = d.position(), left = plan.B != null ? (plan.B - plan.preSec * (d.rate || 1) - pos0) / (d.rate || 1) : plan.tgt != null ? (plan.tgt - pos0) / (d.rate || 1) : remReal - plan.len; showProg('Now playing "' + queue[S.idx].name + '" · next mix in ' + fmt(Math.max(0, left)) + ' (' + NAMES[plan.st] + ')', 0); }
     if (plan.B != null && d.playing && d.grid) {
       const at = plan.B - plan.preSec * (d.rate || 1), pos = d.position();
       if (pos > plan.B + 3 && !plan.now) { S.plan = null; return; }                                  // jumped past it: plan again
@@ -252,6 +258,7 @@
       return;
     }
     if (plan.now && plan.B == null && !BUILD[plan.st]) return beginTransition(plan);
+    if (plan.B == null && plan.tgt != null && !plan.free && d.playing && d.position() >= plan.tgt && !BUILD[plan.st]) return beginTransition(plan);
     const need = BUILD[plan.st] ? plan.preSec + 3 * plan.bs + 0.8 : plan.len + 0.6;
     if (remReal <= need || !d.playing) beginTransition(plan);
   }
