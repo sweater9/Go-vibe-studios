@@ -3365,7 +3365,7 @@ def test_transitions(browser, base):
     pg.click("#tab-am"); pg.select_option("#amlen", "4")
     ps = pg.evaluate("""() => [__am.phraseStart({ grid: { t0: 0.5, period: 0.5 }, rate: 1, buf: { duration: 60 }, position: () => 10 }, 8), __am.phraseStart({ grid: { t0: 0.5, period: 0.5 }, rate: 1, buf: { duration: 60 }, position: () => 50 }, 8), __am.phraseStart({ grid: null, rate: 1, buf: { duration: 60 }, position: () => 0 }, 8)]""")
     check("phrase start is the latest 16 beat boundary that still fits", abs(ps[0] - 48.5) < 1e-6 and ps[1] is None and ps[2] is None, str(ps))
-    check("style and phrase options are offered", pg.locator("#amstyle option").count() == 9 and pg.locator("#amsmart").is_checked() and pg.locator("#amint option").count() == 3)
+    check("style and phrase options are offered", pg.locator("#amstyle option").count() == 10 and pg.locator("#amsmart").is_checked() and pg.locator("#amint option").count() == 3)
     MK = """async () => { const { ctx } = __dj; const mk = (bpm, secs, sr = 22050) => { const b = ctx.createBuffer(1, sr * secs, sr), d = b.getChannelData(0), beat = Math.round(sr * 60 / bpm); for (let i = 0; i < d.length; i += beat) for (let k = 0; k < 400 && i + k < d.length; k++) d[i + k] = Math.sin(k / 6) * Math.exp(-k / 80); return b; };
       const g = (bpm) => ({ t0: 0, period: 60 / bpm, bpm }); __am.queue.length = 0; await __am.addBuffer(mk(120, 30), 'one.wav', { bpm: 120, key: '8A', grid: g(120) }); await __am.addBuffer(mk(120, 30), 'two.wav', { bpm: 120, key: '8A', grid: g(120) }); }"""
     pg.select_option("#amstyle", "blend")
@@ -3442,6 +3442,35 @@ def test_automix_pro(browser, base):
         end = pg.evaluate("() => [+__dj.decks[0].el.filt.value, +__dj.decks[0].el.echo.value, +__dj.decks[0].el.rev.value, __dj.decks[0].loop, __dj.decks[0].pre.gain.value]")
         check(f"the {style} style finishes and leaves the effects reset", end == [0, 0, 0, None, 1], str(end))
         pg.click("#amgo"); pg.evaluate("() => { __dj.decks.forEach((d) => d.pause()); }")
+    # set shape, brake and tempo ease
+    sh = pg.evaluate("""() => { const P = GVMixPlan, cur = { key: '8A', bpm: 120 }, c = [{ id: 1, key: '8A', bpm: 118 }, { id: 2, key: '8A', bpm: 122 }], z = () => 0;
+      return [P.shape('steady', 0).drift, P.shape('build', 3).drift, P.shape('wave', 1).drift, P.shape('wave', 5).drift, P.shape('cool', 0).drift, P.pickNext(cur, c, { rand: z }), P.pickNext(cur, c, { rand: z, drift: 2 }), P.pickNext(cur, c, { rand: z, drift: -2 }),
+        P.pickNext(cur, [{ id: 1, key: '8A', bpm: 120 }, { id: 2, key: '9A', bpm: 120 }], { rand: z, lift: true }), P.pickNext(cur, [{ id: 1, key: '8A', bpm: 120 }, { id: 2, key: '9A', bpm: 120 }], { rand: z })]; }""")
+    check("set shape steers the next pick faster, slower, or up a key", sh == [0, 2, 2, -2, -2, 0, 1, 0, 1, 0], str(sh))
+    check("the set shape and spin down options are offered", pg.locator("#amshape option").count() == 4 and pg.locator("#amstyle option[value=brake]").count() == 1)
+    pg.select_option("#amstyle", "brake"); pg.select_option("#amlen", "auto"); pg.check("#amsmart"); pg.evaluate(MK)
+    pg.click("#amgo"); pg.wait_for_timeout(500)
+    pl = pg.evaluate("() => { const p = __am.S.plan; return p && [p.st, p.B, p.preSec]; }")
+    check("a spin down plan builds for four beats and lands on a phrase", pl and pl[0] == "brake" and abs(pl[1] - 32) < 1e-6 and abs(pl[2] - 2) < 0.01, str(pl))
+    pg.evaluate("() => __dj.decks[0].seek(29)")
+    pg.wait_for_function("() => __am.S.tr !== null && __dj.decks[0].rate < 0.6", timeout=15000)
+    check("the old track slows right down before the drop", True)
+    pg.wait_for_function("() => __am.S.tr === null && __am.S.idx === 1", timeout=15000); pg.wait_for_timeout(2800)
+    end = pg.evaluate("() => [__dj.decks[0].playing, __dj.decks[1].playing, +__dj.decks[1].el.tempo.value]")
+    check("after the spin down the new track plays at its own tempo", end == [False, True, 0], str(end))
+    pg.click("#amgo"); pg.evaluate("() => { __dj.decks.forEach((d) => d.pause()); }")
+    TWO = """async () => { const { ctx } = __dj; const mk = (bpm, secs, sr = 22050) => { const b = ctx.createBuffer(1, sr * secs, sr), d = b.getChannelData(0), beat = Math.round(sr * 60 / bpm); for (let i = 0; i < d.length; i += beat) for (let k = 0; k < 400 && i + k < d.length; k++) d[i + k] = Math.sin(k / 6) * Math.exp(-k / 80); return b; };
+      const g = (bpm) => ({ t0: 0, period: 60 / bpm, bpm }); __am.queue.length = 0; await __am.addBuffer(mk(124, 14), 'one.wav', { bpm: 124, key: '8A', grid: g(124) }); await __am.addBuffer(mk(120, 40), 'two.wav', { bpm: 120, key: '8A', grid: g(120) }); }"""
+    pg.select_option("#amstyle", "blend"); pg.select_option("#amlen", "4"); pg.uncheck("#amsmart"); pg.evaluate(TWO)
+    pg.click("#amgo"); pg.wait_for_function("() => __am.S.tr !== null", timeout=20000)
+    pg.wait_for_function("() => { const T = __am.S.tr; return !T || (__dj.ctx.currentTime - T.t0) / T.len > 0.7; }", timeout=15000)
+    eq = pg.evaluate("() => [+__dj.decks[0].el.high.value, +__dj.decks[1].el.high.value]")
+    check("a blend moves the highs and mids as well as the bass", eq[0] < -3 or eq[1] > -14, str(eq))
+    pg.wait_for_function("() => __am.S.tr === null && __am.S.idx === 1", timeout=15000)
+    t1 = pg.evaluate("() => [+__dj.decks[1].el.tempo.value, +__dj.decks[0].el.high.value, +__dj.decks[1].el.high.value]")
+    check("the new track starts pitched to match and the EQ is flat again", t1[0] > 2 and t1[1] == 0 and t1[2] == 0, str(t1))
+    pg.wait_for_function("() => Math.abs(+__dj.decks[1].el.tempo.value) < 0.2", timeout=20000)
+    check("then it eases back to its own tempo", True)
     check("automix pro: no console errors", not errs, str(errs[:3]))
     ctx.close()
 

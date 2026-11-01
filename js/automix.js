@@ -42,17 +42,18 @@
   /* ---------- pick tracks from the library by itself ---------- */
   const auto = () => !!$('amauto') && $('amauto').checked, used = new Set(); let fetching = false, failed = false;
   try { if (localStorage.getItem('govibe.amauto') === '1') $('amauto').checked = true; } catch (_) { /* no storage */ }
-  ['amint', 'amstyle'].forEach((id) => { try { const v = localStorage.getItem('govibe.' + id); if (v && $(id) && [...$(id).options].some((o) => o.value === v)) $(id).value = v; } catch (_) { /* no storage */ } if ($(id)) $(id).addEventListener('change', () => { try { localStorage.setItem('govibe.' + id, $(id).value); } catch (_) { /* ignore */ } }); });
+  ['amint', 'amstyle', 'amshape'].forEach((id) => { try { const v = localStorage.getItem('govibe.' + id); if (v && $(id) && [...$(id).options].some((o) => o.value === v)) $(id).value = v; } catch (_) { /* no storage */ } if ($(id)) $(id).addEventListener('change', () => { try { localStorage.setItem('govibe.' + id, $(id).value); } catch (_) { /* ignore */ } }); });
   $('amauto').onchange = () => { try { localStorage.setItem('govibe.amauto', auto() ? '1' : '0'); } catch (_) { /* ignore */ } };
   async function pickFrom(cur, opt) {
     const recs = A.libRecs ? A.libRecs() : []; queue.forEach((q) => { if (q.id) used.add(q.id); });
-    let i = GVMixPlan.pickNext(cur, recs, { used, ...opt }); if (i < 0 && recs.length > 1) { used.clear(); queue.slice(-1).forEach((q) => { if (q.id) used.add(q.id); }); i = GVMixPlan.pickNext(cur, recs, { used, ...opt }); }
+    const sh = GVMixPlan.shape($('amshape') ? $('amshape').value : 'steady', queue.length), o2 = { used, drift: sh.drift, lift: sh.lift, ...opt };
+    let i = GVMixPlan.pickNext(cur, recs, o2); if (i < 0 && recs.length > 1) { used.clear(); queue.slice(-1).forEach((q) => { if (q.id) used.add(q.id); }); i = GVMixPlan.pickNext(cur, recs, o2); }
     if (i < 0) return null; const f = await A.libFetch(recs[i]); used.add(f.pre.id);
     return { name: f.name, buf: f.buf, bpm: f.pre.bpm, key: f.pre.key, grid: f.pre.grid, id: f.pre.id };
   }
   async function autoPick(cur) {
     if (fetching || failed) return; fetching = true;
-    try { const q = await pickFrom(cur); if (!S.on) return; if (!q) { failed = true; return say('Your library has no other tracks to pick from. Add more tracks in the Library tab.'); } queue.push(q); mapOf(q); queue.forEach((x, i) => { if (i < S.idx - 1) x.buf = null; }); paint(); say('Next up, picked from your library: "' + q.name + '".'); }
+    try { const q = await pickFrom(cur); if (!S.on) return; if (!q) { failed = true; return say('Your library has no other tracks to pick from. Add more tracks in the Library tab.'); } queue.push(q); mapOf(q); queue.forEach((x, i) => { if (i < S.idx - 1) x.buf = null; }); paint(); say('Next up, picked from your library: "' + q.name + '"' + (cur && cur.bpm && q.bpm ? ' (' + (q.bpm - cur.bpm >= 0 ? '+' : '') + (q.bpm - cur.bpm).toFixed(0) + ' BPM' + (q.key ? ', ' + q.key : '') + ')' : '') + '.'); }
     catch (_) { failed = true; say('Could not load the next track from the library.'); } finally { fetching = false; }
   }
   async function seedFromLibrary() {
@@ -73,7 +74,7 @@
     if (!queue.length) return say('Add some tracks first.');
     for (let i = queue.length - 1; i >= 0; i--) if (!queue[i].buf) queue.splice(i, 1);
     failed = false; used.clear(); if (!queue.length) return say('Add some tracks first.');
-    ctx.resume(); S.on = true; S.idx = 0; S.active = 0; S.tr = null; S.plan = null; S.last = null;
+    ctx.resume(); S.on = true; S.idx = 0; S.active = 0; S.tr = null; S.plan = null; S.last = null; S.ramp = null;
     decks.forEach((d) => d.pause());
     load(0, 0, null); xf.value = 0; applyXf(); decks[0].seek(0); decks[0].play();
     $('amgo').textContent = '■ Stop Automix'; paint(); say('Playing "' + queue[0].name + '".');
@@ -88,8 +89,8 @@
   /* ---------- smart transitions: track maps, a style for each pair, builds and drops ---------- */
   const smart = () => !!$('amsmart') && $('amsmart').checked, style = () => ($('amstyle') ? $('amstyle').value : 'blend'), intensity = () => ($('amint') ? $('amint').value : 'club');
   const mapOf = (q) => q.map || (q.map = window.GVTrackMap ? GVTrackMap.analyze(q.buf, q.grid) : { grid: false, dur: q.buf.duration, drop: null, outro: q.buf.duration - 30, inE: 0.5, outE: 0.5 });
-  const NAMES = { blend: 'a bass swap blend', sweep: 'a filter sweep', echo: 'an echo out', cut: 'a quick cut', wash: 'a reverb wash', gate: 'a tremolo gate', riser: 'a riser into the drop', banger: 'a loop build and drop' };
-  const BEATS = { blend: 16, sweep: 16, wash: 16, gate: 8, echo: 8, cut: 2 }, BUILD = { riser: 8, banger: 8 };
+  const NAMES = { blend: 'a bass swap blend', sweep: 'a filter sweep', echo: 'an echo out', cut: 'a quick cut', wash: 'a reverb wash', gate: 'a tremolo gate', riser: 'a riser into the drop', banger: 'a loop build and drop', brake: 'a spin down and drop' };
+  const BEATS = { blend: 16, sweep: 16, wash: 16, gate: 8, echo: 8, cut: 2 }, BUILD = { riser: 8, banger: 8, brake: 4 };
   /* the latest 16 beat phrase start (in the track's own seconds) from which a transition of len seconds still finishes before the track ends */
   function phraseStart(d, len, late) {
     if (!d.grid || !d.buf) return null; const p = d.grid.period, ph = 16 * p, lenSrc = len * (d.rate || 1), k = Math.floor((d.buf.duration - 0.7 - lenSrc - d.grid.t0) / ph);
@@ -115,8 +116,19 @@
     const o = ctx.createOscillator(), g = ctx.createGain(), n = A.noise(0.3), f = ctx.createBiquadFilter(), ng = ctx.createGain();
     o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(38, t + 0.32); g.gain.setValueAtTime(0.85, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
     f.type = 'lowpass'; f.frequency.value = 3500; ng.gain.setValueAtTime(0.3, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
-    o.connect(g); g.connect(A.master); n.connect(f); f.connect(ng); ng.connect(A.master); o.start(t); o.stop(t + 0.8); n.start(t); n.stop(t + 0.3);
+    o.connect(g); g.connect(A.master); n.connect(f); f.connect(ng); ng.connect(A.master); o.start(t); o.stop(t + 0.8); n.start(t); n.stop(t + 0.3); crash(t);
     [n, o].forEach((x) => { nodes.add(x); x.onended = () => nodes.delete(x); });
+  }
+  function snareRoll(t0, tB, bs) {                    // noise hits getting faster: eighths, then sixteenths, then thirty seconds, louder as they go
+    for (let t = t0, k = 0; t < tB - 0.02; k++) {
+      const left = (tB - t) / bs, step = left > 2 ? bs / 2 : left > 1 ? bs / 4 : bs / 8, amp = 0.1 + 0.3 * (1 - left / ((tB - t0) / bs)), n = A.noise(0.12), f = ctx.createBiquadFilter(), g = ctx.createGain();
+      f.type = 'highpass'; f.frequency.value = 1800; g.gain.setValueAtTime(amp, t); g.gain.exponentialRampToValueAtTime(0.0001, t + Math.min(0.1, step * 0.9));
+      n.connect(f); f.connect(g); g.connect(A.master); n.start(t); n.stop(t + 0.12); nodes.add(n); n.onended = () => nodes.delete(n); t += step;
+    }
+  }
+  function crash(t) {
+    const n = A.noise(2), f = ctx.createBiquadFilter(), g = ctx.createGain(); f.type = 'highpass'; f.frequency.value = 5200; g.gain.setValueAtTime(0.32, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
+    n.connect(f); f.connect(g); g.connect(A.master); n.start(t); n.stop(t + 2); nodes.add(n); n.onended = () => nodes.delete(n);
   }
   const killFx = () => { nodes.forEach((x) => { try { x.stop(); } catch (_) { /* done */ } }); nodes.clear(); };
 
@@ -159,7 +171,7 @@
     out.loop = { start: T.loopStart, end: T.loopStart + beats * g.period }; out.startPos = T.loopStart; out.startCtx = ctx.currentTime; out.play();
   }
   function drop(T, out, inc) {
-    out.loop = null; out.pause(); out.el.rev.value = 55; out.revWet.gain.value = Math.pow(0.55, 1.3) * 1.1;
+    out.loop = null; if (out.playing) out.pause(); out.el.rev.value = 55; out.revWet.gain.value = Math.pow(0.55, 1.3) * 1.1;
     inc.el.low.value = 0; inc.low.gain.value = 0; inc.startPos = T.inStart; inc.play(); impact(ctx.currentTime); T.dropped = true;
   }
 
@@ -170,9 +182,11 @@
     if (BUILD[st]) {
       const toB = plan.B != null ? Math.max(0.05, (plan.B - out.position()) / (out.rate || 1)) : plan.preSec;
       T.tB = now + toB; T.t0 = T.tB; T.build = true; T.inStart = plan.inStart; T.preSec = Math.min(plan.preSec, toB);
-      riser(now, toB);
+      if (st !== 'brake') { riser(now, toB); snareRoll(now + Math.max(0, toB - 4 * plan.bs), T.tB - 0.35 * plan.bs, plan.bs); }
       T.ev.push({ at: T.tB, fn: () => drop(T, out, inc) });
       if (st === 'banger') [[4, 2], [2, 1], [1, 0.5], [0.5, 0.25]].forEach(([before, len]) => { if (before * plan.bs <= toB) T.ev.push({ at: T.tB - before * plan.bs, fn: () => roll(T, out, len) }); });
+      if (st !== 'brake' && 0.35 * plan.bs < toB) T.ev.push({ at: T.tB - 0.35 * plan.bs, fn: () => { out.loop = null; out.pause(); } });   // a breath of near silence before the drop
+      if (st === 'brake') T.brake = Math.min(toB, 1.6 * plan.bs);
       T.ev.sort((a, b) => a.at - b.at);
     } else {
       let s0 = 0; if (out.grid && inc.grid) s0 = inc.grid.t0 + out.beatFrac() * inc.grid.period;   // start on the same point in the beat
@@ -183,18 +197,20 @@
         g.setValueAtTime(1, now + T.len + 0.05);
       }
     }
-    S.tr = T; S.last = st; S.plan = null;
+    S.tr = T; S.last = st; S.plan = null; S.ramp = null;
     say('Mixing into "' + queue[ni].name + '" with ' + NAMES[st] + (BUILD[st] ? ' (dropping on its ' + (plan.inStart > 1 ? 'drop' : 'first beat') + ')' : '') + '…');
   }
   function endTransition(T, out, inc) {
     out.pause(); resetFx(inc); const quiet = T.build || T.st === 'echo' || T.st === 'wash';
     setTimeout(() => resetFx(out), quiet ? 2500 : 0);
-    out.low.gain.value = 0; out.el.low.value = 0; inc.low.gain.value = 0; inc.el.low.value = 0;
+    [out, inc].forEach((d) => { d.low.gain.value = 0; d.el.low.value = 0; d.mid.gain.value = 0; d.el.mid.value = 0; d.high.gain.value = 0; d.el.high.value = 0; });
+    const pct = +inc.el.tempo.value; S.ramp = Math.abs(pct) > 0.3 && T.bs ? { deck: inc, from: pct, t0: ctx.currentTime, dur: Math.max(4, 16 * T.bs) } : null;   // ease the new track back to its own tempo
     S.active = T.to; S.idx = T.ni; S.tr = null; paint(); say('Playing "' + queue[S.idx].name + '".');
   }
   function stepBuild(T, now, out, inc) {
     if (now < T.tB) {                                                      // the build: filter rising, echo and bass cut, loops rolling
       const pb = Math.min(1, Math.max(0, 1 - (T.tB - now) / T.preSec)), hp = Math.round(65 * smooth(pb, 0, 1)), e = Math.round(70 * smooth(pb, 0.45, 1)), lw = -26 * smooth(pb, 0.55, 0.8);
+      if (T.brake && now > T.tB - T.brake) { const q = (now - (T.tB - T.brake)) / T.brake; out.el.tempo.value = -Math.round(96 * q * q); out.setTempoPct(-96 * q * q); }
       out.el.filt.value = hp; out.setFilter(hp); out.el.echo.value = e; out.echoWet.gain.value = Math.pow(e / 100, 1.3) * 0.9; out.low.gain.value = lw; out.el.low.value = lw; return;
     }
     if (!T.dropped) drop(T, out, inc);
@@ -216,11 +232,13 @@
       const fi = -Math.round(60 * (1 - smooth(p, 0, 0.6))); inc.el.filt.value = fi; inc.setFilter(fi);
     }
     out.low.gain.value = outLow; out.el.low.value = outLow; inc.low.gain.value = inLow; inc.el.low.value = inLow;
+    if (T.st === 'blend' || T.st === 'gate') { const oh = -16 * smooth(p, 0.5, 0.95), om = -8 * smooth(p, 0.6, 0.95), ih = -14 * (1 - smooth(p, 0.05, 0.45)); out.high.gain.value = oh; out.el.high.value = oh; out.mid.gain.value = om; out.el.mid.value = om; inc.high.gain.value = ih; inc.el.high.value = ih; }
     if (p >= 1) endTransition(T, out, inc);
   }
   function tick() {
     if (!S.on) return;
     if (S.tr) return stepTransition();
+    if (S.ramp) { const R = S.ramp, p = Math.min(1, (ctx.currentTime - R.t0) / R.dur), v = +(R.from * (1 - smooth(p, 0, 1))).toFixed(2); R.deck.el.tempo.value = v; R.deck.setTempoPct(v); if (p >= 1) { S.ramp = null; S.plan = null; } }
     const d = decks[S.active], rem = d.buf.duration - d.position() * 1;
     const remReal = rem / d.rate;
     if (S.idx + 1 >= queue.length && auto() && !failed) { autoPick(queue[queue.length - 1]); return; }

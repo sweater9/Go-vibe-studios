@@ -18,22 +18,31 @@ window.GVMixPlan = (() => {
     const rand = o.rand || Math.random, used = o.used || new Set(), variety = o.variety == null ? 0.6 : o.variety; let best = -1, bc = Infinity;
     cands.forEach((c, i) => {
       if (used.has(c.id)) return; let cost = -0.4 * (c.rating || 0) + rand() * variety;
-      if (cur) { const gap = tempoGap(cur.bpm, c.bpm), rel = cur.bpm && c.bpm ? gap / Math.min(cur.bpm, c.bpm) : 0; cost += keyCost(cur.key, c.key) + 0.35 * gap + (rel > 0.08 ? 6 : 0); }
+      if (cur) { const gap = tempoGap(cur.bpm, c.bpm), rel = cur.bpm && c.bpm ? gap / Math.min(cur.bpm, c.bpm) : 0; cost += keyCost(cur.key, c.key) + 0.35 * gap + (rel > 0.08 ? 6 : 0);
+        if (o.drift && cur.bpm && c.bpm) cost += 0.35 * (Math.abs(c.bpm - cur.bpm - o.drift) - Math.abs(c.bpm - cur.bpm));
+        if (o.lift && cur.key && c.key && cur.key.slice(-1) === c.key.slice(-1) && (+c.key.slice(0, -1) - +cur.key.slice(0, -1) + 12) % 12 === 1) cost -= 1.5; }
       if (cost < bc) { bc = cost; best = i; }
     });
     return best;
   }
   /* choose a transition style for one pair of tracks. o: { grids (both have beat grids), gap (relative tempo gap, 0.05 is 5 percent), kc (Camelot key cost), outE, inE (0..1 energy at the exit and the entry),
-     hasDrop, dropE, intensity 'smooth' | 'club' | 'banger', last (the previous style), rand }. Returns one of blend, sweep, echo, cut, wash, gate, riser, banger. */
+     hasDrop, dropE, intensity 'smooth' | 'club' | 'banger', last (the previous style), rand }. Returns one of blend, sweep, echo, cut, wash, gate, riser, banger, brake. */
+  /* the shape of a set: how much faster (or slower) each next track should be, and whether to prefer a key that lifts the mood one step on the Camelot wheel */
+  function shape(name, n) {
+    if (name === 'build') return { drift: 2, lift: true }; if (name === 'cool') return { drift: -2, lift: false };
+    if (name === 'wave') return (n % 8) < 4 ? { drift: 2, lift: true } : { drift: -2, lift: false };
+    return { drift: 0, lift: false };
+  }
   function chooseStyle(o) {
     const rand = o.rand || Math.random;
     if (!o.grids) return o.gap > 0.08 ? 'echo' : 'sweep';
     if (o.gap > 0.08) return rand() < 0.5 ? 'echo' : 'cut';                       // too far apart to line up the beats
-    const lvl = { smooth: 0, club: 1, banger: 2 }[o.intensity == null ? 'club' : o.intensity], w = { blend: 3, sweep: 1.5, echo: 1, wash: 1, gate: 0.5, cut: 0.2, riser: 0, banger: 0 };
+    const lvl = { smooth: 0, club: 1, banger: 2 }[o.intensity == null ? 'club' : o.intensity], w = { blend: 3, sweep: 1.5, echo: 1, wash: 1, gate: 0.5, cut: 0.2, riser: 0, banger: 0, brake: 0 };
     if (o.kc >= 5) { w.blend = 0.3; w.sweep = 3; w.echo = 2; w.wash = 2.5; }      // clashing keys: keep the overlap short and washed out
     const hot = (o.outE == null ? 0.6 : o.outE) >= 0.45, drop = o.hasDrop && (o.dropE || 0) >= 0.55;
-    if (lvl === 1) { w.riser = hot ? 1.5 : 0.4; w.banger = hot ? (drop ? 1.6 : 0.8) : 0.3; w.gate = 0.9; }
-    if (lvl === 2) { w.blend = 0.3; w.sweep = 0.3; w.echo = 0.3; w.wash = 0.3; w.gate = 0.3; w.cut = 0; w.riser = hot ? 3 : 1; w.banger = hot ? (drop ? 7 : 4) : 1.5; }
+    w.brake = 0;
+    if (lvl === 1) { w.brake = hot ? 0.8 : 0.2; w.riser = hot ? 1.5 : 0.4; w.banger = hot ? (drop ? 1.6 : 0.8) : 0.3; w.gate = 0.9; }
+    if (lvl === 2) { w.blend = 0.3; w.sweep = 0.3; w.echo = 0.3; w.wash = 0.3; w.gate = 0.3; w.cut = 0; w.brake = hot ? 1.5 : 0.4; w.riser = hot ? 3 : 1; w.banger = hot ? (drop ? 7 : 4) : 1.5; }
     if (o.last && w[o.last] != null) w[o.last] *= 0.3;                            // do not repeat the same trick every time
     let sum = 0; for (const k in w) sum += w[k]; let r = rand() * sum;
     for (const k in w) { r -= w[k]; if (r <= 0 && w[k] > 0) return k; }
@@ -106,5 +115,5 @@ window.GVMixPlan = (() => {
   const stamp = (s) => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : String(m).padStart(2, '0')) + ':' + String(x).padStart(2, '0'); };
   const cleanName = (n) => n.replace(/\.[a-z0-9]{2,4}$/i, '').replace(/_/g, ' ').trim();
   function tracklist(p) { return p.items.map((it, i) => stamp(i === 0 ? 0 : it.start) + '  ' + cleanName(it.name) + (it.bpm ? '  (' + Math.round(it.bpm) + ' BPM' + (it.key ? ', ' + it.key : '') + ')' : it.key ? '  (' + it.key + ')' : '')).join('\n'); }
-  return { pickNext, chooseStyle, keyCost, tempoGap, order, pathCost, plan, gains, effBpm, stamp, tracklist, cleanName };
+  return { pickNext, chooseStyle, shape, keyCost, tempoGap, order, pathCost, plan, gains, effBpm, stamp, tracklist, cleanName };
 })();
