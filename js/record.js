@@ -79,7 +79,7 @@
     const rate = [48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000].includes(ab.sampleRate) ? ab.sampleRate : 0;
     if (!rate) { btn.disabled = false; return say('MP3 does not support ' + ab.sampleRate + ' Hz. Download the WAV and use the Audio converter.'); }
     const w = new Worker('js/convert-worker.js');
-    w.onmessage = (e) => { if (e.data.done) { dl(e.data.done, t.name + '.mp3'); say('MP3 downloaded.'); w.terminate(); btn.disabled = false; } else if (e.data.error) { say('MP3 failed: ' + e.data.error); w.terminate(); btn.disabled = false; } };
+    w.onmessage = (e) => { if (e.data.done) { dl(e.data.done, t.name + '.mp3'); say('MP3 downloaded.'); w.terminate(); btn.disabled = false; } else if (e.data.error) { say('MP3 failed: ' + e.data.error); w.terminate(); btn.disabled = false; } else if (e.data.progress != null) say('Encoding MP3… ' + Math.round(e.data.progress * 100) + '%'); };
     w.postMessage({ ch: [i16], rate, kbps: 192 }, [i16.buffer]);
   }
   async function send(t, page) {

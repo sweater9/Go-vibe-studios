@@ -3494,6 +3494,28 @@ def test_rhythm(browser, base):
     ctx.close()
 
 
+def test_export_speed(browser, base):
+    print("exports: windowed rendering, progress, fast WAV writing")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "studio.html?gvtest"); pg.wait_for_function("() => window.__st", timeout=10000)
+    R = pg.evaluate("""async () => { const spb = __st.spb(); let tr, dr; __st.edit('t', () => { tr = __st.Core.newTrack(__st.P, 'midi'); tr.inst = 'Bass'; __st.P.tracks.push(tr); const notes = []; for (let i = 0; i < 40; i++) notes.push({ t: i, d: 1.9, p: 40 + (i % 5), v: 100 }); tr.clips.push({ id: __st.Core.uid(), start: 0, dur: 40 * spb, notes });
+        dr = __st.Core.newTrack(__st.P, 'drum'); __st.P.tracks.push(dr); const grid = { Kick: new Array(16).fill(0) }; grid.Kick[0] = 1; grid.Kick[8] = 1; dr.clips.push({ id: __st.Core.uid(), start: 0, dur: 40 * spb, steps: 16, swing: 0, grid }); });
+      const prog = []; const t0 = performance.now(); const buf = await __st.Core.render(__st.P, __st.buffers, { from: 0, to: 20, onProgress: (x) => prog.push(x) }); const ms = performance.now() - t0;
+      const d = buf.getChannelData(0), rate = buf.sampleRate, win = []; for (let w = 0; w < 5; w++) { let m = 0; for (let i = Math.floor(w * 4 * rate); i < Math.floor((w + 1) * 4 * rate); i++) m = Math.max(m, Math.abs(d[i])); win.push(m); }
+      let edge = 0; for (let i = Math.floor(3.95 * rate); i < Math.floor(4.05 * rate); i++) edge = Math.max(edge, Math.abs(d[i]));
+      const probe = new AudioBuffer({ length: 6, numberOfChannels: 2, sampleRate: 44100 }); probe.copyToChannel(Float32Array.from([0, 0.5, -0.5, 1, -1, 2]), 0); probe.copyToChannel(Float32Array.from([0.25, 0, 0, 0, 0, 0]), 1);
+      const wb = __st.Core.wavBlob(probe, 16), dv = new DataView(await wb.arrayBuffer()), pcm = [0, 1, 2, 3, 4, 5].map((i) => [dv.getInt16(44 + i * 4, true), dv.getInt16(46 + i * 4, true)]);
+      return { ms, prog, win, edge, len: buf.length, rate, size: wb.size, pcm }; }""")
+    check("every few seconds of a long project render with sound", all(w > 0.02 for w in R["win"]), str(R["win"]))
+    check("notes that cross a window boundary stay continuous", R["edge"] > 0.02, str(R["edge"]))
+    check("progress is reported in order up to the end", len(R["prog"]) >= 5 and R["prog"] == sorted(R["prog"]) and R["prog"][-1] > 0.7, str(R["prog"]))
+    check("a 20 second project renders quickly", R["ms"] < 20000, str(R["ms"]))
+    check("16 bit WAV writing keeps the samples, clips at full scale and interleaves channels", R["size"] == 44 + 6 * 4 and R["pcm"][0] == [0, 8191] and R["pcm"][1][0] in (16383, 16384) and R["pcm"][3][0] == 32767 and R["pcm"][4][0] == -32768 and R["pcm"][5][0] == 32767, str(R["pcm"]))
+    check("export speed: no console errors", not errs, str(errs[:3]))
+    ctx.close()
+
+
 def test_roll_plus(browser, base):
     print("studio: advanced piano roll editing")
     errs = []
@@ -3544,7 +3566,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_reference, test_repair, test_rhythm, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

@@ -359,8 +359,8 @@
     if (range === 'loop') { from = P.loop.a; to = P.loop.b; } if (!(to > from)) return say('Nothing to export yet. Add some clips first.');
     $('xgo').disabled = true; say('Rendering…');
     try {
-      const buf = await Core.render(P, buffers, { from, to, rate: ctx.sampleRate }), safe = (P.name.replace(/[^\w\- ]+/g, '_') || 'mix');
-      if (fmt === 'mp3') dl(await Core.mp3Blob(buf, 192), safe + '.mp3'); else dl(Core.wavBlob(buf, fmt === 'wav24' ? 24 : 16), safe + '.wav'); say('Export downloaded.');
+      const buf = await Core.render(P, buffers, { from, to, rate: ctx.sampleRate, onProgress: (x) => say('Rendering… ' + Math.round(x * 100) + '%') }), safe = (P.name.replace(/[^\w\- ]+/g, '_') || 'mix');
+      if (fmt === 'mp3') dl(await Core.mp3Blob(buf, 192, (x) => say('Encoding the MP3… ' + Math.round(x * 100) + '%')), safe + '.mp3'); else dl(Core.wavBlob(buf, fmt === 'wav24' ? 24 : 16), safe + '.wav'); say('Export downloaded.');
     } catch (e) { say('Export failed: ' + e.message); } finally { $('xgo').disabled = false; }
   }
   async function exportStems() {

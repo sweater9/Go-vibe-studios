@@ -365,11 +365,8 @@
     v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, nCh, true);
     v.setUint32(24, sr, true); v.setUint32(28, sr * nCh * 2, true); v.setUint16(32, nCh * 2, true); v.setUint16(34, 16, true);
     w(36, 'data'); v.setUint32(40, bytes, true);
-    let o = 44;
-    for (let i = 0; i < n; i++) for (let c = 0; c < nCh; c++) {
-      const s = Math.max(-1, Math.min(1, arrs[c][i]));
-      v.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7fff, true); o += 2;
-    }
+    const pcm = new Int16Array(buf, 44, n * nCh);   // typed array writes are several times faster than DataView calls
+    for (let c = 0; c < nCh; c++) { const a = arrs[c]; for (let i = 0, k = c; i < n; i++, k += nCh) { const s = a[i] > 1 ? 1 : a[i] < -1 ? -1 : a[i]; pcm[k] = s < 0 ? s * 0x8000 : s * 0x7fff; } }
     return new Blob([buf], { type: 'audio/wav' });
   }
   function download(blob, name) {
@@ -383,7 +380,7 @@
     say('Encoding MP3…'); $('exportmp3').disabled = true;
     const w = new Worker('js/convert-worker.js'), i16 = chans.map((c) => { const o = new Int16Array(c.length); for (let i = 0; i < c.length; i++) { const v = Math.max(-1, Math.min(1, c[i])); o[i] = v < 0 ? v * 32768 : v * 32767; } return o; });
     const done = () => { w.terminate(); $('exportmp3').disabled = false; };
-    w.onmessage = (e) => { if (e.data.done) { download(e.data.done, 'govibe-edit.mp3'); say('MP3 downloaded.'); done(); } else if (e.data.error) { say('MP3 failed: ' + e.data.error); done(); } };
+    w.onmessage = (e) => { if (e.data.done) { download(e.data.done, 'govibe-edit.mp3'); say('MP3 downloaded.'); done(); } else if (e.data.error) { say('MP3 failed: ' + e.data.error); done(); } else if (e.data.progress != null) say('Encoding MP3… ' + Math.round(e.data.progress * 100) + '%'); };
     w.onerror = () => { say('The MP3 encoder could not start.'); done(); };
     w.postMessage({ ch: i16.slice(0, 2), rate: sr, kbps: 192 }, i16.map((a) => a.buffer));
   };

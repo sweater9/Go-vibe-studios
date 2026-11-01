@@ -131,7 +131,8 @@ window.GVStudioCore = (() => {
       const node = graph.tracks[t.id]; if (!node) return;
       t.clips.forEach((c) => {
         if (clipEnd(c) <= seg.from || c.start >= seg.to) return;
-        if (t.type === 'audio') schedAudio(ctx, node, c, buffers.get(c.assetId), seg, live);
+        if (t.type === 'audio') { if (opt.only !== 'notes') schedAudio(ctx, node, c, buffers.get(c.assetId), seg, live); }
+        else if (opt.only === 'audio') return;
         else if (t.type === 'midi') schedMidi(ctx, node, c, t, p, seg);
         else schedDrum(ctx, node, c, p, seg);
       });
@@ -148,7 +149,14 @@ window.GVStudioCore = (() => {
     /* The browser's limiter fades in over its first ~100 ms, which would crush a hit on the very first beat. Render a short lead in and cut it off. */
     const lead = p.limiter === false ? 0 : LEAD, skip = Math.round(lead * rate);
     const oc = new OfflineAudioContext(2, Math.ceil((to - from + tail + lead) * rate), rate), graph = buildGraph(oc, oc.destination, p, { onlyTrack: opt.onlyTrack });
-    scheduleSegment(oc, graph, p, buffers, { when: lead, from, to }, {});
+    /* Notes and drum hits are created a few seconds at a time. Every voice that exists keeps costing time on every audio block, even before it
+       sounds, so scheduling a whole song up front made long projects render many times slower than they need to. */
+    const WIN = 4, notes = p.tracks.some((t) => t.type !== 'audio' && t.clips.length);
+    scheduleSegment(oc, graph, p, buffers, { when: lead, from, to }, { only: 'audio' });
+    if (notes) for (let a = from; a < to; a += WIN) {
+      const b = Math.min(to, a + WIN), when = lead + (a - from), job = () => { scheduleSegment(oc, graph, p, buffers, { when, from: a, to: b }, { only: 'notes' }); if (opt.onProgress) opt.onProgress(Math.min(1, (a - from) / (to - from))); };
+      if (a === from) job(); else oc.suspend(Math.max(0.01, when - 0.02)).then(() => { job(); oc.resume(); });
+    }
     const full = await oc.startRendering(); if (!skip) return full;
     const out = new AudioBuffer({ length: full.length - skip, numberOfChannels: 2, sampleRate: rate });
     for (let c = 0; c < 2; c++) out.copyToChannel(full.getChannelData(c).subarray(skip), c);
@@ -158,14 +166,15 @@ window.GVStudioCore = (() => {
     const n = buf.length, ch = buf.numberOfChannels, rate = buf.sampleRate, bytes = (bits === 24 ? 3 : 2), v = new DataView(new ArrayBuffer(44 + n * ch * bytes)), w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
     w(0, 'RIFF'); v.setUint32(4, 36 + n * ch * bytes, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, ch, true); v.setUint32(24, rate, true); v.setUint32(28, rate * ch * bytes, true); v.setUint16(32, ch * bytes, true); v.setUint16(34, bits === 24 ? 24 : 16, true); w(36, 'data'); v.setUint32(40, n * ch * bytes, true);
     const d = []; for (let c = 0; c < ch; c++) d.push(buf.getChannelData(c)); let o = 44;
-    for (let i = 0; i < n; i++) for (let c = 0; c < ch; c++) { const s = Math.max(-1, Math.min(1, d[c][i])); if (bytes === 2) { v.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7fff, true); o += 2; } else { const x = Math.round(s < 0 ? s * 0x800000 : s * 0x7fffff); v.setUint8(o, x & 255); v.setUint8(o + 1, (x >> 8) & 255); v.setUint8(o + 2, (x >> 16) & 255); o += 3; } }
+    if (bytes === 2) { const pcm = new Int16Array(v.buffer, 44, n * ch); for (let c = 0; c < ch; c++) { const a = d[c]; for (let i = 0, k = c; i < n; i++, k += ch) { const x = a[i] > 1 ? 1 : a[i] < -1 ? -1 : a[i]; pcm[k] = x < 0 ? x * 0x8000 : x * 0x7fff; } } return new Blob([v], { type: 'audio/wav' }); }
+    const u8 = new Uint8Array(v.buffer); for (let c = 0; c < ch; c++) { const a = d[c]; for (let i = 0, k = 44 + c * 3; i < n; i++, k += ch * 3) { const sm = a[i] > 1 ? 1 : a[i] < -1 ? -1 : a[i], x = Math.round(sm < 0 ? sm * 0x800000 : sm * 0x7fffff); u8[k] = x & 255; u8[k + 1] = (x >> 8) & 255; u8[k + 2] = (x >> 16) & 255; } }
     return new Blob([v], { type: 'audio/wav' });
   }
-  function mp3Blob(buf, kbps) {
+  function mp3Blob(buf, kbps, onProgress) {
     return new Promise((res, rej) => {
       const rates = [48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000]; if (!rates.includes(buf.sampleRate)) return rej(new Error('MP3 does not support ' + buf.sampleRate + ' Hz'));
       const ch = Math.min(2, buf.numberOfChannels), i16 = []; for (let c = 0; c < ch; c++) { const f = buf.getChannelData(c), o = new Int16Array(f.length); for (let i = 0; i < f.length; i++) { const s = Math.max(-1, Math.min(1, f[i])); o[i] = s < 0 ? s * 32768 : s * 32767; } i16.push(o); }
-      const w = new Worker('js/convert-worker.js'); w.onmessage = (e) => { if (e.data.done) { w.terminate(); res(e.data.done); } else if (e.data.error) { w.terminate(); rej(new Error(e.data.error)); } }; w.onerror = () => { w.terminate(); rej(new Error('The MP3 encoder could not start')); };
+      const w = new Worker('js/convert-worker.js'); w.onmessage = (e) => { if (e.data.done) { w.terminate(); res(e.data.done); } else if (e.data.error) { w.terminate(); rej(new Error(e.data.error)); } else if (e.data.progress != null && onProgress) onProgress(e.data.progress); }; w.onerror = () => { w.terminate(); rej(new Error('The MP3 encoder could not start')); };
       w.postMessage({ ch: i16, rate: buf.sampleRate, kbps }, i16.map((a) => a.buffer));
     });
   }
