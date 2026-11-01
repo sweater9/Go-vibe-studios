@@ -645,14 +645,24 @@
     $('cancel').classList.remove('hidden'); $('dl').classList.add('hidden');
     const ended = new Promise((r) => (exportDone = r));
     seek(0); rec.start(250); play();
-    const prog = setInterval(() => say('Exporting… ' + Math.min(99, Math.round(tl / T * 100)) + '% (keep this tab open)'), 400);
+    /* a watchdog: if the picture stops moving (a clip that cannot play to its end, a stalled decoder, a hidden tab) the export must not sit at 98% forever */
+    let lastTl = -1, lastAt = performance.now(), nudged = false, stalledAt = null;
+    const prog = setInterval(() => {
+      const pct = Math.min(99, Math.round(tl / T * 100)); if (Math.abs(tl - lastTl) > 0.01) { lastTl = tl; lastAt = performance.now(); nudged = false; }
+      const idle = (performance.now() - lastAt) / 1000;
+      if (document.hidden) { lastAt = performance.now(); return say('Exporting… ' + pct + '%. Paused because this tab is hidden. Come back to this tab to continue.'); }
+      if (idle > 4 && tl >= T - 2) { stalledAt = tl; finish(); }
+      else if (idle > 4 && !nudged) { nudged = true; const loc = locate(tl); activate(loc.i, loc.off, true); say('Exporting… ' + pct + '%. Playback stalled, trying to continue…'); }
+      else if (idle > 14) { stalledAt = tl; finish(); }
+      else say('Exporting… ' + pct + '% (keep this tab open)');
+    }, 400);
     await ended; await new Promise((r) => setTimeout(r, 120));
-    clearInterval(prog); rec.stop(); await stopped;
+    clearInterval(prog); say('Finishing the file…'); try { rec.stop(); } catch (_) { /* already stopped */ } await Promise.race([stopped, new Promise((r) => setTimeout(r, 10000))]);
     exporting = false; exportDone = null; spk.gain.value = 1; outScale = 1; $('cancel').classList.add('hidden'); refresh();
     if (exportCancelled) { say('Export cancelled.'); return null; }
     const type = rec.mimeType || mime || 'video/webm', blob = new Blob(chunks, { type }), ext = /mp4/.test(type) ? 'mp4' : 'webm';
     const a = $('dl'); a.href = URL.createObjectURL(blob); a.download = 'govibe-video.' + ext; a.classList.remove('hidden');
-    say('Done: ' + ext.toUpperCase() + ', ' + (blob.size / 1048576).toFixed(1) + ' MB. Use Download.');
+    say('Done: ' + ext.toUpperCase() + ', ' + (blob.size / 1048576).toFixed(1) + ' MB. Use Download.' + (stalledAt != null ? ' Playback stalled at ' + Math.round(stalledAt / T * 100) + '%, so the last part may be missing. Try the Fast method, or remove the clip that stalls.' : ''));
     return blob;
   }
 
@@ -754,9 +764,9 @@
           if (f >= 10 && f <= 40 && seekTimeouts >= 6) { fastFailed = true; slowAbort = true; return null; } say('Exporting fast… ' + Math.min(99, Math.round(f / frames * 100)) + '%' + (left != null ? ', about ' + (left > 90 ? Math.round(left / 60) + ' min' : left + ' s') + ' left' : '') + ' (keep this tab open)'); await nap(); }
       }
       if (exportCancelled) { say('Export cancelled.'); return null; }
-      await within(venc.flush(), 30000); await within(aenc.flush(), 30000); if (fail) throw fail; muxer.finalize();
+      say('Finishing the file…'); let cut = false; try { await within(venc.flush(), 30000); await within(aenc.flush(), 30000); } catch (_) { cut = true; } if (fail && !cut) throw fail; muxer.finalize();
       const blob = new Blob([target.buffer], { type: pick.kind === 'mp4' ? 'video/mp4' : 'video/webm' });
-      finishDownload(blob, 'govibe-video.' + pick.kind, pick.kind.toUpperCase() + ' in ' + ((performance.now() - t0) / 1000).toFixed(1) + ' s'); return blob;
+      finishDownload(blob, 'govibe-video.' + pick.kind, pick.kind.toUpperCase() + ' in ' + ((performance.now() - t0) / 1000).toFixed(1) + ' s' + (cut ? ' (the encoder was slow to finish, so the last moments may be cut)' : '')); return blob;
     } catch (e) { fastFailed = true; return null; }
     finally { try { if (venc && venc.state !== 'closed') venc.close(); if (aenc && aenc.state !== 'closed') aenc.close(); } catch (_) { /* closed */ } exporting = false; outScale = 1; $('cancel').classList.add('hidden'); draw(); refresh(); seek(0); }
   }

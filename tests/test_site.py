@@ -2347,6 +2347,11 @@ def test_video_pro(browser, base):
     pg.click("#cliplist .clip >> nth=0 >> .sp0")
     pg.select_option("#xmode", "real"); rt = ev("async () => { const b = await __ve.exportVideo(); return b && b.type; }")
     check("the Real time method still works", rt and rt.startswith("video/"), str(rt))
+    # a clip that cannot play must not freeze the real time export forever
+    ev("() => { __ve.clips.forEach((c) => { c.v.play = () => Promise.resolve(); }); }")
+    t2 = _t.time(); stl = ev("async () => { const b = await __ve.exportVideo(); return b && b.type; }"); tstl = _t.time() - t2
+    ev("() => { __ve.clips.forEach((c) => { delete c.v.play; }); }")
+    check("a stalled clip ends the real time export with a clear message instead of freezing", stl and stl.startswith("video/") and tstl < 45 and "stalled" in pg.inner_text("#status").lower(), f"{stl} after {tstl:.1f} s: {pg.inner_text('#status')}")
     axe = os.environ.get("AXE_PATH") or os.path.join(ROOT, "node_modules/axe-core/axe.min.js")
     if os.path.exists(axe):
         c3 = browser.new_context(bypass_csp=True, viewport={"width": 1300, "height": 1000}); p3 = c3.new_page(); p3.goto(base + "video.html?gvtest&tab=pro"); p3.wait_for_function("() => window.__ve", timeout=10000)
