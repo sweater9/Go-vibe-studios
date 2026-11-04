@@ -3727,6 +3727,31 @@ def test_djedit(browser, base):
     ctx.close()
 
 
+def test_libexport(browser, base):
+    print("library export: m3u8, csv and Rekordbox style XML")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "dj.html?gvtest"); pg.wait_for_function("() => window.GVLibExport && window.GVDJImport && window.__dj", timeout=10000)
+    r = pg.evaluate("""() => { const R = [{ id: 'a', name: 'One & Only (Remix).mp3', dur: 215.4, bpm: 124.03, key: '8A', energy: 0.62, grid: { t0: 0.123, period: 0.4838, bpm: 124.03 }, cues: [1.5, null, 30.25, null, null, null, null, 90], rating: 4, tag: 'peak', notes: 'opener, "big"' },
+        { id: 'b', name: '=cmd|calc.mp3', dur: 180, bpm: null, key: '', grid: null, cues: [], rating: 0, tag: '', notes: '' }], L = [{ name: 'Warm up', ids: ['b', 'a'] }];
+      const x = GVLibExport.rekordbox(R, L), back = GVDJImport.rekordbox(x), m = GVLibExport.m3u8(R), c = GVLibExport.csv(R);
+      return { tracks: back.tracks.map((t) => ({ name: t.name, bpm: t.bpm, key: t.key, cues: t.cues, rating: t.rating })), plist: back.playlists, m, c }; }""")
+    t0 = r["tracks"][0]
+    check("the XML is read back by the library importer", len(r["tracks"]) == 2 and abs(t0["bpm"] - 124.03) < 0.01 and t0["key"] == "8A" and t0["rating"] == 4, str(r["tracks"][0]))
+    check("hot cues come back in the right slots", t0["cues"][0] == 1.5 and t0["cues"][2] == 30.25 and t0["cues"][7] == 90 and t0["cues"][1] is None, str(t0["cues"]))
+    check("a name with & and brackets survives", "One & Only" in t0["name"], t0["name"])
+    check("playlists keep their order", r["plist"] and r["plist"][0]["name"] == "Warm up" and len(r["plist"][0]["files"]) == 2, str(r["plist"]))
+    check("the m3u8 has a header and one entry per track", r["m"].startswith("#EXTM3U\n#EXTINF:215,One & Only (Remix)\nOne & Only (Remix).mp3") and r["m"].count("#EXTINF") == 2, r["m"][:120])
+    check("the csv quotes commas and quotes", '"opener, ""big"""' in r["c"] and r["c"].startswith("\ufeffTitle,File"), r["c"][:200])
+    check("a spreadsheet formula in a name is defused", "'=cmd|calc" in r["c"] and ",=cmd" not in r["c"], r["c"])
+    pg.click("#tab-lib") if pg.locator("#tab-lib").count() else None
+    check("the three export buttons are on the library", all(pg.locator(f"#libexp{k}").count() == 1 for k in ("m3u", "csv", "xml")))
+    pg.evaluate("() => document.getElementById('libexpcsv').click()")
+    check("exporting an empty library says so", "Nothing to export" in pg.inner_text("#status") or "Nothing to export" in pg.evaluate("() => document.body.innerText"))
+    check("library export: no console errors", not errs, str(errs[:3]))
+    ctx.close()
+
+
 def test_reference(browser, base):
     print("reference mix analyzer: measures, advice, A/B")
     errs = []
@@ -3915,7 +3940,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

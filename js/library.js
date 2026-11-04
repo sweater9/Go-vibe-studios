@@ -36,6 +36,9 @@
     <div class="row" style="margin-bottom:8px" role="group" aria-label="Backup">
       <button class="btn mini" id="libexpzip">Export backup (.zip, with audio)</button>
       <button class="btn mini" id="libexpjson">Export data only (.json)</button>
+      <button class="btn mini" id="libexpm3u" title="Playlist file for most players and DJ programs">Export playlist (.m3u8)</button>
+      <button class="btn mini" id="libexpcsv" title="Spreadsheet of titles, BPM, keys, ratings and cues">Export spreadsheet (.csv)</button>
+      <button class="btn mini" id="libexpxml" title="Rekordbox style XML with tempo, key, rating, hot cues and playlists">Export for DJ software (.xml)</button>
       <button class="btn mini" id="libimp">Import backup…</button>
       <input type="file" id="libimpfile" accept=".zip,.json,application/zip,application/json" hidden aria-label="Import a library backup">
       <button class="btn mini" id="libimpdj">Import from rekordbox, Traktor or Serato…</button>
@@ -198,6 +201,10 @@
     render(); return { withAudio, metaOnly, updated, plists };
   }
   $('libexpzip').onclick = async () => { if (!recs.length) return say('Nothing to export yet.'); say('Building the backup…'); try { download(await exportZip(), 'govibe-library-' + stamp() + '.zip'); say('Backup downloaded. Keep it somewhere safe; it contains your audio.'); } catch (e) { say('Could not build the backup: ' + e.message); } };
+  /* exports for other programs: the current playlist if one is chosen, otherwise the whole library; track data only, the files are named, not included */
+  const exportSet = () => { const l = listOf(curList), set = l ? l.ids.map((x) => recs.find((r) => r.id === x)).filter(Boolean) : recs.slice(); return { l, set }; };
+  const expTxt = (kind, mime, fn, ext) => { $('libexp' + kind).onclick = () => { if (!recs.length) return say('Nothing to export yet.'); const { l, set } = exportSet(); if (!set.length) return say('That playlist is empty.'); download(new Blob([fn(set, l)], { type: mime }), (l ? l.name : 'govibe-library') + '-' + stamp() + ext); say('Saved ' + set.length + ' track' + (set.length === 1 ? '' : 's') + '. The audio is not included, so keep the file next to your music or relink the tracks.'); }; };
+  expTxt('m3u', 'audio/x-mpegurl', (s) => GVLibExport.m3u8(s), '.m3u8'); expTxt('csv', 'text/csv', (s) => GVLibExport.csv(s), '.csv'); expTxt('xml', 'application/xml', (s, l) => GVLibExport.rekordbox(s, l ? [l] : lists), '.xml');
   $('libexpjson').onclick = () => { if (!recs.length) return say('Nothing to export yet.'); download(jsonBlob(exportData()), 'govibe-library-' + stamp() + '.json'); say('Saved BPM, keys, cues, ratings, tags and notes (no audio).'); };
   $('libimp').onclick = () => $('libimpfile').click();
   $('libimpfile').onchange = async () => {
