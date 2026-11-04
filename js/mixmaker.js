@@ -4,7 +4,7 @@
   const Q = A.amQueue, $ = (id) => document.getElementById(id), MAX_SECS = 30 * 60;
   const say = (t) => { $('mmstatus').textContent = t; };
   const mapOf = (q) => q.map || (q.map = GVTrackMap.analyze(q.buf, q.grid));
-  const tracks = () => Q.map((q) => ({ name: q.name, duration: q.buf.duration, bpm: q.bpm, grid: q.grid, key: q.key, map: q.grid && window.GVTrackMap ? mapOf(q) : null }));
+  const tracks = () => Q.map((q) => ({ name: q.name, duration: q.buf.duration, bpm: q.bpm, grid: q.grid, key: q.key, mixIn: q.mixIn, mixOut: q.mixOut, map: q.grid && window.GVTrackMap ? mapOf(q) : null }));
   /* styles for each transition when the Automatic option is on: the same chooser as the live Automix, seeded from the track names so a re-render gives the same mix */
   function seeded(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return () => { h = (h + 0x6D2B79F5) | 0; let t = Math.imul(h ^ (h >>> 15), 1 | h); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
   const MAPPED = { wash: 'echo', gate: 'blend', brake: 'riser' };

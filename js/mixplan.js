@@ -100,12 +100,14 @@ window.GVMixPlan = (() => {
         const m = tracks[j + 1].map, drop = b.synced ? (m && m.drop != null ? m.drop : m && m.t0 != null ? m.t0 : b.g) : null;
         if (drop == null || !a.synced || b.dur - drop < 40) st = 'blend'; else { pre = BUILD[st] * spb; b.srcStart = drop; }
       }
+      const mi = tracks[j + 1].mixIn; if (mi != null && mi >= 0 && mi < b.dur - 20) { b.srcStart = b.synced ? Math.max(b.g, b.g + Math.round((mi - b.g) / b.per) * b.per) : mi; }   // a hand set entry point wins
       let F = st === 'cut' ? 2 * spb : st === 'echo' ? Math.min(beats, 8) * spb : BUILD[st] ? 3 * spb : beats * spb;
       F = Math.min(F, 0.35 * (b.dur - b.srcStart) / b.rate, 0.6 * (a.dur - a.srcStart) / a.rate);
       F = Math.max(1, F);
       // latest beat (a whole bar from where this track began) where the fade can start and still end before the tail
       const room = a.dur - tail - F * a.rate - a.srcStart; let k = Math.max(0, Math.floor(room / a.per));
       const bar = k - (k % 4); if (bar >= 4 && a.synced) k = bar;
+      const mo = tracks[j].mixOut; if (mo != null && mo > a.srcStart && a.synced) { let kk = Math.round((mo - a.srcStart) / a.per); kk -= kk % 4; k = Math.min(k, Math.max(0, kk)); }   // a hand set exit point pulls the mix earlier
       const kmin = (a.fadeIn ? Math.ceil((a.fadeIn.t1 - a.fadeIn.t0) * a.rate / a.per) : 0) + (pre ? Math.ceil(pre * a.rate / a.per) : 0); k = Math.max(kmin, k); // this track must be fully in before it starts to fade out
       const p = a.srcStart + k * a.per, Tb = a.start + (p - a.srcStart) / a.rate;
       F = Math.max(0.5, Math.min(F, (a.dur - p) / a.rate));

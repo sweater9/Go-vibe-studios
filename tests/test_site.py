@@ -3683,6 +3683,11 @@ def test_mixpoints(browser, base):
     check("the point is remembered for next time", pg.evaluate("() => Object.keys(localStorage).some((k) => k.startsWith('govibe.mix.p.wav'))"))
     pg.locator("#amlist li").first.locator("input").nth(1).fill(""); pg.locator("#amlist li").first.locator("input").nth(1).blur()
     check("clearing a box goes back to automatic", pg.evaluate("() => __am.queue[0].mixOut == null"))
+    r = pg.evaluate("""() => { const g = { t0: 0, period: 0.5, bpm: 120 }, T = (o) => ({ name: 'x', duration: 200, bpm: 120, key: '8A', grid: g, ...o });
+      const p0 = GVMixPlan.plan([T({}), T({})], { beats: 16 }), p1 = GVMixPlan.plan([T({ mixOut: 60 }), T({ mixIn: 31 })], { beats: 16 });
+      return { out0: p0.items[0].fadeOut.t0, out1: p1.items[0].fadeOut.t0, in1: p1.items[1].srcStart }; }""")
+    check("Mix maker honours a mix out point", abs(r["out1"] - 60) <= 2 and r["out0"] > 100, str(r))
+    check("Mix maker honours a mix in point, snapped to a beat", abs(r["in1"] - 31) <= 0.25, str(r))
     check("mixpoints: no console errors", not errs, str(errs[:3]))
     ctx.close()
 
