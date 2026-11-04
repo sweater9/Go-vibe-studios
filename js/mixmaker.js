@@ -7,7 +7,7 @@
   const tracks = () => Q.map((q) => ({ name: q.name, duration: q.buf.duration, bpm: q.bpm, grid: q.grid, key: q.key, mixIn: q.mixIn, mixOut: q.mixOut, map: q.grid && window.GVTrackMap ? mapOf(q) : null }));
   /* styles for each transition when the Automatic option is on: the same chooser as the live Automix, seeded from the track names so a re-render gives the same mix */
   function seeded(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return () => { h = (h + 0x6D2B79F5) | 0; let t = Math.imul(h ^ (h >>> 15), 1 | h); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-  const MAPPED = { wash: 'echo', gate: 'blend', brake: 'riser' };
+  const MAPPED = { wash: 'echo', gate: 'blend' };
   let forced = null;
   function pickStyles(ts) {
     if (forced) return forced;
@@ -63,7 +63,7 @@
         p.items.forEach((it, i) => {
           if (it.end <= a || it.start >= w1) return;
           const from = Math.max(it.start, a), to = Math.min(it.end, w1); if (to - from < 0.01) return;
-          const fo = it.fadeOut, build = !!(fo && fo.pre > 0), banger = build && fo.style === 'banger';
+          const fo = it.fadeOut, build = !!(fo && fo.pre > 0), banger = build && fo.style === 'banger', brake = build && fo.style === 'brake';
           const low = oc.createBiquadFilter(); low.type = 'lowshelf'; low.frequency.value = 250;
           const hp = oc.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 20; hp.Q.value = 0.7;
           const lp = oc.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 20000;
@@ -75,15 +75,19 @@
           g.gain.setValueCurveAtTime(gc, from - a, to - from); low.gain.setValueCurveAtTime(lc, from - a, to - from); hp.frequency.setValueCurveAtTime(hc, from - a, to - from); lp.frequency.setValueCurveAtTime(pc, from - a, to - from);
           if (wet) wet.gain.setValueCurveAtTime(wc, from - a, to - from);
           const mk = (when, off, dur) => { const s = oc.createBufferSource(); s.buffer = Q[i].buf; s.playbackRate.value = it.rate; s.connect(low); s.start(when, off, dur); };
-          let mainTo = to; if (banger) mainTo = Math.min(to, fo.t0 - 4 * it.spb); else if (build) mainTo = Math.min(to, fo.t0 - fo.gap);
+          let mainTo = to; if (banger) mainTo = Math.min(to, fo.t0 - 4 * it.spb); else if (build) mainTo = Math.min(to, brake ? fo.t0 - fo.gap - 2 * it.spb : fo.t0 - fo.gap);
           if (mainTo - from > 0.01) mk(from - a, it.srcStart + (from - it.start) * it.rate, (mainTo - from) * it.rate);
+          if (brake) {                                   // spin down: the old track slows to a stop like a vinyl brake
+            const L = 2 * it.spb, bs = fo.t0 - fo.gap - L;
+            if (bs >= a && bs < w1) { const s = oc.createBufferSource(), cv = new Float32Array(48); s.buffer = Q[i].buf; for (let k = 0; k < 48; k++) { const q = k / 47; cv[k] = Math.max(0.02, it.rate * (1 - q * q)); } s.playbackRate.setValueCurveAtTime(cv, bs - a, L); s.connect(low); s.start(bs - a, it.srcStart + (bs - it.start) * it.rate); s.stop(bs - a + L); }
+          }
           if (banger) {                                  // loop rolls: the same beat, shorter each time
             const at = it.srcStart + ((fo.t0 - 4 * it.spb) - it.start) * it.rate, S0 = it.g + Math.round((at - it.g) / it.per) * it.per;
             [[4, 2], [2, 1], [1, 0.5], [0.5, 0.25]].forEach(([before, len]) => { const t = fo.t0 - before * it.spb, end = fo.t0 - fo.gap; if (t >= from - 1e-6 && t < to && t < end) mk(t - a, S0, Math.min(len * it.per, (end - t) * it.rate)); });
           }
           if (build && fo.t0 >= a && fo.t0 < w1) {
             const Tb = fo.t0 - a, t0r = Math.max(0, Tb - fo.pre);
-            if (Tb - t0r > 0.2) { GVDjFx.riser(oc, master, t0r, Tb - t0r); GVDjFx.snareRoll(oc, master, Math.max(0, Tb - 4 * it.spb), Math.max(0.01, Tb - fo.gap), it.spb); }
+            if (!brake && Tb - t0r > 0.2) { GVDjFx.riser(oc, master, t0r, Tb - t0r); GVDjFx.snareRoll(oc, master, Math.max(0, Tb - 4 * it.spb), Math.max(0.01, Tb - fo.gap), it.spb); }
             GVDjFx.impact(oc, master, Tb);
           }
         });

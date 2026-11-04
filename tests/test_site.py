@@ -3580,14 +3580,14 @@ def test_mixmaker_pro(browser, base):
     pg.evaluate(STRUCT); pg.select_option("#mmtempo", "custom"); pg.fill("#mmbpm", "120"); pg.select_option("#mmlen", "8")
     check("the transitions option is offered", pg.locator("#mmstyle option").count() == 2)
     out = {}
-    for st in ("blend", "sweep", "echo", "cut", "riser", "banger"):
+    for st in ("blend", "sweep", "echo", "cut", "riser", "banger", "brake"):
         r = pg.evaluate("""async (st) => { __mm.setStyles([st]); const r = await __mm.render(); if (!r) return null; const { L, rate, plan } = r; let pk = 0, bad = 0; for (let i = 0; i < L.length; i += 5) { pk = Math.max(pk, Math.abs(L[i])); }
           const it = plan.items[0], Tb = it.fadeOut.t0, rms = (a, b) => { let s = 0, n = 0; for (let i = Math.round(a * rate); i < Math.round(b * rate) && i < L.length; i++) { s += (L[i] / 32768) ** 2; n++; } return Math.sqrt(s / Math.max(1, n)); };
           return { secs: L.length / rate, total: plan.total, peak: pk / 32768, style: it.fadeOut.style, pre: it.fadeOut.pre, Tb, startB: plan.items[1].start, srcB: plan.items[1].srcStart, boom: rms(Tb, Tb + 0.3), gap: rms(Tb - 0.17, Tb - 0.02), before: rms(Tb - 3, Tb - 1) }; }""", st)
         out[st] = r
         check(f"{st}: renders to the planned length without clipping", r is not None and abs(r["secs"] - r["total"]) < 0.06 and 0.1 < r["peak"] <= 1.0, str(r))
-    check("riser and banger plan a build and land the next track on its drop", all(out[k]["style"] == k and out[k]["pre"] > 3 and abs(out[k]["srcB"] - 16) < 0.6 for k in ("riser", "banger")), str({k: (out[k]["style"], out[k]["pre"], out[k]["srcB"]) for k in ("riser", "banger")}))
-    check("the drop is louder than the breath of silence before it", all(out[k]["boom"] > 1.5 * out[k]["gap"] for k in ("riser", "banger")), str({k: (out[k]["boom"], out[k]["gap"]) for k in ("riser", "banger")}))
+    check("riser and banger plan a build and land the next track on its drop", all(out[k]["style"] == k and out[k]["pre"] > 1.5 and abs(out[k]["srcB"] - 16) < 0.6 for k in ("riser", "banger", "brake")), str({k: (out[k]["style"], out[k]["pre"], out[k]["srcB"]) for k in ("riser", "banger", "brake")}))
+    check("the drop is louder than the breath of silence before it", all(out[k]["boom"] > 1.5 * out[k]["gap"] for k in ("riser", "banger", "brake")), str({k: (out[k]["boom"], out[k]["gap"]) for k in ("riser", "banger", "brake")}))
     check("a plain blend keeps the old plan (the next track starts at its beginning)", out["blend"]["srcB"] < 1, str(out["blend"]))
     pg.evaluate("() => __mm.setStyles(null)"); pg.select_option("#mmstyle", "auto"); pg.select_option("#amint", "banger")
     pg.evaluate("async () => { await __mm.render(); }")

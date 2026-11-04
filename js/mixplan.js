@@ -79,7 +79,7 @@ window.GVMixPlan = (() => {
   }
   /* tracks: [{ name, duration, bpm, grid:{t0,period}|null, key }]
      opts: { target: number | 'avg' | 'first', beats: 8|16|32, tail: seconds kept at the end of a track before it is fully out } */
-  const BUILD = { riser: 8, banger: 8 };
+  const BUILD = { riser: 8, banger: 8, brake: 4 };
   function plan(tracks, opts = {}) {
     if (!tracks.length) return null;
     const known = tracks.filter((t) => t.bpm), sorted = known.map((t) => t.bpm).sort((a, b) => a - b), med = sorted.length ? sorted[sorted.length >> 1] : 120;
