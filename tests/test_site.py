@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "tuner", "tomidi", "practice", "vocals", "synth", "reference", "repair", "rhythm", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "vocal-remover", "mono", "tone", "video-to-audio", "audio", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-tune-guitar", "blog-audio-to-midi", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "tuner", "tomidi", "practice", "vocals", "synth", "reference", "repair", "rhythm", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "mono", "tone", "video-to-audio", "audio", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-tune-guitar", "blog-audio-to-midi", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -116,7 +116,6 @@ def test_pages(browser, base):
         pg.wait_for_timeout(300)
         check(f"{name}: status 200", resp.status == 200)
         check(f"{name}: security headers", "default-src 'self'" in (resp.headers.get("content-security-policy") or "") and resp.headers.get("x-content-type-options") == "nosniff")
-        if name == "vocal-remover": errs = [e for e in errs if "404" not in e]   # it probes for a model file that is not shipped yet
         check(f"{name}: no console or script errors", not errs, str(errs))
         check(f"{name}: skip link and main landmark", pg.locator("a.skip").count() == 1 and pg.locator("main#main").count() == 1)
         check(f"{name}: exactly one h1", pg.locator("h1").count() == 1)
@@ -3693,37 +3692,6 @@ def test_mixpoints(browser, base):
     ctx.close()
 
 
-def test_unmix(browser, base):
-    print("vocal remover (AI): model loading, worker, split and save")
-    import io, math, struct, wave, os
-    errs = []
-    ctx, pg = new_page(browser, errs)
-    pg.goto(base + "vocal-remover.html?gvtest")
-    pg.wait_for_function("() => /No model|download|saved/.test(document.getElementById('mstate').textContent)", timeout=10000)
-    check("without a model the page says so and the split button stays off", "No model" in pg.inner_text("#mstate") and pg.is_disabled("#go") if pg.is_visible("#go") else "No model" in pg.inner_text("#mstate"))
-    sr, secs = 44100, 5; buf = io.BytesIO(); w = wave.open(buf, "wb"); w.setnchannels(2); w.setsampwidth(2); w.setframerate(sr)
-    w.writeframes(b"".join(struct.pack("<hh", int(9000 * math.sin(i / 9) + 4000 * math.sin(i / 31)), int(8000 * math.sin(i / 13))) for i in range(sr * secs))); w.close()
-    pg.set_input_files("#file", {"name": "Test Song.wav", "mimeType": "audio/wav", "buffer": buf.getvalue()})
-    pg.wait_for_function("() => !document.getElementById('run').classList.contains('hidden')", timeout=15000)
-    check("the song loads and shows its length", "Test Song" in pg.inner_text("#sinfo"), pg.inner_text("#sinfo"))
-    check("the split button waits for a model", pg.is_disabled("#go"))
-    pg.set_input_files("#mpick", os.path.join(os.path.dirname(__file__), "data", "standin-half.onnx"))
-    pg.wait_for_function("() => __unmix.ready", timeout=30000)
-    check("the model starts in the worker", "Model ready" in pg.inner_text("#mstate"), pg.inner_text("#mstate"))
-    pg.click("#go")
-    pg.wait_for_function("() => __unmix.last", timeout=120000)
-    r = pg.evaluate("""async () => { const l = __unmix.last, ctx = new AudioContext(), f = document.getElementById('file'); let pk = 0, rms = 0; for (let i = 0; i < l.vox.length; i += 3) { pk = Math.max(pk, Math.abs(l.vox[i])); rms += l.vox[i] ** 2; }
-      let pi = 0; for (let i = 0; i < l.inst.length; i += 3) pi = Math.max(pi, Math.abs(l.inst[i])); return { n: l.vox.length, pk, pi, rms: Math.sqrt(rms / (l.vox.length / 3)) }; }""")
-    check("the stems cover the whole song", abs(r["n"] - sr * secs) < 2000, str(r))
-    check("the stand in model halves the mixture, so vocals and instrumental are each about half of it", 0.15 < r["pk"] < 0.2 and 0.15 < r["pi"] < 0.2, str(r))
-    check("both stems are offered to play and save", pg.is_visible("#avox") and pg.is_visible("#ainst") and pg.is_visible("#dvox") and pg.is_visible("#dinst"))
-    with pg.expect_download() as d: pg.click("#dvox")
-    check("the vocals save as a WAV named after the song", d.value.suggested_filename == "Test Song (vocals).wav", d.value.suggested_filename)
-    errs = [e for e in errs if "404" not in e]   # the page probes for a model file that is not shipped yet
-    check("vocal remover: no console errors", not errs, str(errs[:3]))
-    ctx.close()
-
-
 def test_reference(browser, base):
     print("reference mix analyzer: measures, advice, A/B")
     errs = []
@@ -3912,7 +3880,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_unmix, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip
