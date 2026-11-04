@@ -166,6 +166,11 @@
     </div>
     <p class="status">Automatic looks at each track's intro, drop and outro and chooses a style for each pair of songs from their tempo, key and energy. Club adds the odd riser or loop build and drop; Banger makes most mixes build with loop rolls, a rising filter and echo, a riser, then land the next track on its drop with an impact. Mix at next phrase starts the next transition at the next suitable phrase. Set shape guides automatic picking: Build up chooses slightly faster tracks and keys that lift one step, Cool down the reverse, Wave alternates. Spin down and drop slows the old track to a stop like a vinyl brake. Each transition also eases the new track back to its own tempo. Everything is made on your device.</p>
     <p class="status">A phrase is 16 beats. With this on, each transition begins where a phrase starts, so the new track lands on a strong beat. It needs a detected beat grid.</p>
+    <div class="row" style="align-items:center;margin:6px 0"><label class="row" style="gap:6px"><input type="checkbox" id="amrec"> Record the set while Automix plays, with a tracklist</label></div>
+    <p class="status">Starts the mix recorder at the top when Automix starts and stops it when Automix stops, then gives you a tracklist with the time each track came in. The recording uses the format chosen next to the Record button.</p>
+    <div id="amrecbox" class="hidden"><label class="ctl" style="min-width:0">Set tracklist <textarea id="amreclist" rows="6" readonly spellcheck="false"></textarea></label><div class="row" style="margin-top:8px"><button class="btn" id="amreccopy">Copy tracklist</button></div></div>
+    <div class="row" style="align-items:center;margin:6px 0"><label class="row" style="gap:6px"><input type="checkbox" id="amkl" checked> Key lock while matching tempo</label></div>
+    <p class="status">With key lock on, speeding a track up or slowing it down to match the other does not change its pitch. It adds a very small delay and some roughness on held notes. The Key lock button on each deck does the same by hand.</p>
     <div class="row" style="align-items:center;margin:6px 0"><label class="row" style="gap:6px"><input type="checkbox" id="amlive" checked> Add live moves while a track plays</label></div>
     <p class="status">On the beat, every so often, Automix throws an echo, sweeps the filter, dips the lows, adds a reverb throw, drops the bass out, stutters or loop rolls the playing track, then puts everything back. The Energy setting decides how often and how bold (Smooth is gentle, Banger adds gates and loop rolls). It keeps clear of the coming transition. Automix also works the rest of the console: it matches track levels on the TRIM knob, rides the channel faders during a blend, drops hot cues on the intro, drop, outro and peak, swells the effect unit, chops the fader, plays sampler pads, and lights the roll pads as it uses them.</p>
     <div class="row" style="align-items:center;margin:6px 0"><label class="row" style="gap:6px"><input type="checkbox" id="amauto"> Pick the next track from my library automatically</label></div>
@@ -182,6 +187,9 @@
       <label class="ctl hidden">BPM <input type="number" id="mmbpm" min="60" max="200" value="124" style="width:90px"></label>
       <label class="ctl">Transition
         <select id="mmlen" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="8">8 beats</option><option value="16" selected>16 beats</option><option value="32">32 beats</option></select>
+      </label>
+      <label class="ctl">Transitions
+        <select id="mmstyle" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="auto" selected>Automatic, like the live Automix</option><option value="classic">Classic bass swap blend</option></select>
       </label>
       <label class="ctl">File
         <select id="mmfmt" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="wav">WAV</option><option value="mp3">MP3 (192 kbps)</option></select>
@@ -238,6 +246,7 @@
 <script src="js/stems.js"></script>
 <script src="js/jog.js"></script>
 <script src="js/trackmap.js"></script>
+<script src="js/djfx.js"></script>
 <script src="js/automix.js"></script>
 <script src="js/mixplan.js"></script>
 <script src="js/mixmaker.js"></script>

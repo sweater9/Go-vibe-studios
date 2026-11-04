@@ -45,7 +45,8 @@
       this.lp = ctx.createBiquadFilter(); this.lp.type = 'lowpass'; this.lp.frequency.value = 20000;
       this.dly = ctx.createDelay(2); this.fb = ctx.createGain(); this.fb.gain.value = 0.45; this.echoWet = ctx.createGain(); this.echoWet.gain.value = 0;
       this.conv = ctx.createConvolver(); this.conv.buffer = impulse(); this.revWet = ctx.createGain(); this.revWet.gain.value = 0;
-      this.trim = ctx.createGain(); this.low.connect(this.mid); this.mid.connect(this.high); this.high.connect(this.trim); this.trim.connect(this.hp); this.hp.connect(this.lp); this.pre = ctx.createGain(); this.lp.connect(this.pre); this.pre.connect(this.vol);
+      this.trim = ctx.createGain(); this.kd = ctx.createGain(); this.kg = ctx.createGain(); this.kg.gain.value = 0; this.kdelay = ctx.createDelay(0.2); this.klock = false; this.kn = null; this.low.connect(this.mid); this.mid.connect(this.high); this.high.connect(this.trim);
+      this.trim.connect(this.kd); this.kd.connect(this.kdelay); this.kdelay.connect(this.hp); this.kg.connect(this.hp); this.hp.connect(this.lp); this.pre = ctx.createGain(); this.lp.connect(this.pre); this.pre.connect(this.vol);
       this.pre.connect(this.dly); this.dly.connect(this.fb); this.fb.connect(this.dly); this.dly.connect(this.echoWet); this.echoWet.connect(this.vol);
       this.pre.connect(this.conv); this.conv.connect(this.revWet); this.revWet.connect(this.vol);
       this.vol.connect(this.xf); this.xf.connect(master);
@@ -83,6 +84,7 @@
             <input type="range" class="fader pfader" orient="vertical" min="-16" max="16" step="0.1" value="0" data-r="tempo" aria-label="Deck ${n} tempo">
             <b class="tv" data-r="tv">0.0%</b>
             <button class="btn mini" data-r="reset">Reset</button>
+            <button class="btn mini" data-r="klock" aria-pressed="false" title="Key lock: change the tempo without changing the pitch">Key lock</button>
           </div>
         </div>
         <div class="transport">
@@ -137,7 +139,7 @@
       const q = (k) => [this.roots.deck, this.roots.wave, this.roots.strip].map((r) => r.querySelector('[data-r="' + k + '"]')).find(Boolean) || null;
       this.q = q;
       if (window.GVKnobs) [this.roots.deck, this.roots.strip].forEach((r) => GVKnobs.upgradeAll(r));
-      this.el = {}; ['bpm', 'key', 'meter', 'zoom', 'jog', 'platter', 'nudgem', 'nudgep', 'jm8', 'jm4', 'jm1', 'jp1', 'jp4', 'jp8', 'zspan', 'snap', 'gm', 'gp', 'gm1', 'gp1', 'gh', 'ghalf', 'gdbl', 'gtap', 'hotdel', 'r8', 'r4', 'r2', 'r1', 'fxtype', 'fxamt', 'xfas', 'hot5', 'hot6', 'hot7', 'hot8', 'ginfo', 'lbeats', 'hot1', 'hot2', 'hot3', 'hot4', 'hotclr', 'filt', 'echo', 'rev', 'name', 'wave', 'pos', 'dur', 'play', 'cue', 'loop', 'load', 'file', 'tv', 'tempo', 'reset', 'low', 'mid', 'high', 'trim', 'vol'].forEach((k) => (this.el[k] = q(k)));
+      this.el = {}; ['bpm', 'key', 'meter', 'zoom', 'jog', 'platter', 'nudgem', 'nudgep', 'jm8', 'jm4', 'jm1', 'jp1', 'jp4', 'jp8', 'zspan', 'snap', 'gm', 'gp', 'gm1', 'gp1', 'gh', 'ghalf', 'gdbl', 'gtap', 'hotdel', 'r8', 'r4', 'r2', 'r1', 'fxtype', 'fxamt', 'xfas', 'hot5', 'hot6', 'hot7', 'hot8', 'ginfo', 'lbeats', 'hot1', 'hot2', 'hot3', 'hot4', 'hotclr', 'filt', 'echo', 'rev', 'name', 'wave', 'pos', 'dur', 'play', 'cue', 'loop', 'load', 'file', 'tv', 'tempo', 'reset', 'low', 'mid', 'high', 'trim', 'klock', 'vol'].forEach((k) => (this.el[k] = q(k)));
       this.g = this.el.wave.getContext('2d'); this.gz = this.el.zoom.getContext('2d');
       const e = this.el;
       e.load.onclick = () => e.file.click();
@@ -168,6 +170,7 @@
       e.rev.oninput = () => (this.revWet.gain.value = Math.pow(e.rev.value / 100, 1.3) * 1.1);
       e.filt.ondblclick = () => { e.filt.value = 0; this.setFilter(0); };
       e.reset.onclick = () => { e.tempo.value = 0; this.setTempoPct(0); };
+      e.klock.onclick = () => this.setKeyLock(!this.klock);
       e.trim.oninput = () => (this.trim.gain.value = Math.pow(10, +e.trim.value / 20));
       e.low.oninput = () => (this.low.gain.value = +e.low.value);
       e.mid.oninput = () => (this.mid.gain.value = +e.mid.value);
@@ -179,6 +182,19 @@
         this.seek(Math.max(0, Math.min(1, (ev.clientX - r.left) / r.width)) * this.buf.duration);
       });
     }
+    /* key lock: a pitch shifter on the audio thread undoes the pitch change of the tempo; every deck then has the same small delay so beats stay lined up */
+    async setKeyLock(on) {
+      on = !!on; if (on === this.klock) return; this.klock = on; this.el.klock.classList.toggle('on', on); this.el.klock.setAttribute('aria-pressed', on ? 'true' : 'false');
+      if (on && !this.kn) {
+        if (!(ctx.audioWorklet && window.AudioWorkletNode)) { this.klock = false; this.el.klock.classList.remove('on'); this.el.klock.setAttribute('aria-pressed', 'false'); return say('Key lock needs a browser with AudioWorklet.'); }
+        try {
+          if (!Deck.klReady) Deck.klReady = ctx.audioWorklet.addModule('js/keylock-worklet.js'); await Deck.klReady;
+          this.kn = new AudioWorkletNode(ctx, 'gv-keylock', { numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2] }); this.trim.connect(this.kn); this.kn.connect(this.kg);
+        } catch (_) { this.klock = false; this.el.klock.classList.remove('on'); this.el.klock.setAttribute('aria-pressed', 'false'); return say('Could not start key lock.'); }
+      }
+      Deck.klSync();
+    }
+    updateKl() { if (this.kn) this.kn.parameters.get('ratio').setTargetAtTime(1 / Math.max(0.3, this.rate * this.bendF), ctx.currentTime, 0.02); }
     setVol() { this.vol.gain.value = Math.pow(+this.el.vol.value / 100, 1.5); }
     async loadFile(file) {
       try {
@@ -328,7 +344,7 @@
     }
     bend(f) {                                  // temporary pitch bend (nudge) while a button is held
       if (this.playing) { this.startPos = this.position(); this.startCtx = ctx.currentTime; }
-      this.bendF = f; this.eachSrc((x) => (x.playbackRate.value = this.rate * f));
+      this.bendF = f; this.updateKl(); this.eachSrc((x) => (x.playbackRate.value = this.rate * f));
     }
     eachSrc(fn) { if (this.src) fn(this.src); this.extra.forEach(fn); }
     stopSrc() { const all = [this.src, ...this.extra].filter(Boolean); this.src = null; this.extra = []; all.forEach((s) => { s.onended = null; try { s.stop(); } catch (_) {} s.disconnect(); }); }
@@ -357,7 +373,7 @@
     setTempoPct(pct) {
       const r = 1 + pct / 100;
       if (this.playing) { this.startPos = this.position(); this.startCtx = ctx.currentTime; this.eachSrc((x) => (x.playbackRate.value = r * this.bendF)); }
-      this.rate = r; this.el.tv.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%'; this.updateBpm();
+      this.rate = r; this.updateKl(); this.el.tv.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%'; this.updateBpm();
     }
     toggleLoop() {
       if (!this.buf) return;
@@ -384,6 +400,7 @@
   }
 
   const decks = [0, 1, 2, 3].map((i) => new Deck(i, { deck: $('deck' + i), wave: $('wave' + i), strip: $('strip' + i) }));
+  Deck.klSync = () => { const any = decks.some((d) => d.klock), t = ctx.currentTime; decks.forEach((d) => { d.kd.gain.setTargetAtTime(d.klock ? 0 : 1, t, 0.015); d.kg.gain.setTargetAtTime(d.klock ? 1 : 0, t, 0.015); d.kdelay.delayTime.setTargetAtTime(any && !d.klock ? 0.025 : 0, t, 0.05); d.updateKl(); }); };
   function refreshMatch() {
     const m = keysMatch(decks[0].key, decks[1].key), el = $('keymatch'); if (!el) return;
     el.textContent = m ? (m === 'clash' ? 'Keys clash (' + decks[0].key + ' / ' + decks[1].key + ')' : 'Keys ' + (m === 'same key' ? 'match' : 'work together') + ' (' + decks[0].key + ' / ' + decks[1].key + ')') : '';

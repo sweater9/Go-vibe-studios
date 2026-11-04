@@ -142,7 +142,7 @@
         if (have) { say(f.name + ' is already in the library.'); continue; }
         say('Analysing ' + f.name + '…'); await new Promise((r) => setTimeout(r, 20));
         const buf = await ctx.decodeAudioData(await f.arrayBuffer()), b0 = detectBPM(buf), grid = b0 ? detectGrid(buf, b0) : null;
-        await save({ id, name: f.name, size: f.size, dur: buf.duration, bpm: grid ? grid.bpm : b0, key: detectKey(buf), grid, cues: cues8(), rating: 0, tag: '', notes: '', added: Date.now(), played: 0 }, f);
+        await save({ id, name: f.name, size: f.size, dur: buf.duration, bpm: grid ? grid.bpm : b0, key: detectKey(buf), energy: GVTrackMap.energy(buf), grid, cues: cues8(), rating: 0, tag: '', notes: '', added: Date.now(), played: 0 }, f);
         n++; render();
       } catch (_) { say('Could not read ' + f.name + '.'); }
     }
@@ -158,13 +158,13 @@
       rec.played = Date.now(); GVStore.lib.put(rec); say('Loaded "' + rec.name + '" into deck ' + d.name + '.'); render();
     } catch (_) { say('Could not load that track. It may have been cleared from this browser.'); }
   }
-  async function queueIt(rec) { try { const buf = await decode(rec); A.queueAdd(buf, rec.name, { bpm: rec.bpm, key: rec.key, grid: rec.grid }); say('Queued "' + rec.name + '".'); } catch (_) { say('Could not queue that track.'); } }
+  async function queueIt(rec) { try { const buf = await decode(rec); A.queueAdd(buf, rec.name, { energy: rec.energy, bpm: rec.bpm, key: rec.key, grid: rec.grid }); say('Queued "' + rec.name + '".'); } catch (_) { say('Could not queue that track.'); } }
   A.libRecs = () => recs.filter((r) => !r.missing);
-  A.libFetch = async (rec) => ({ buf: await decode(rec), name: rec.name, pre: { bpm: rec.bpm, key: rec.key, grid: rec.grid ? { ...rec.grid } : null, id: rec.id } });
+  A.libFetch = async (rec) => { const buf = await decode(rec); if (rec.energy == null && window.GVTrackMap) { rec.energy = GVTrackMap.energy(buf); try { GVStore.lib.put(rec); } catch (_) { /* ignore */ } } return { buf, name: rec.name, pre: { energy: rec.energy, bpm: rec.bpm, key: rec.key, grid: rec.grid ? { ...rec.grid } : null, id: rec.id } }; };
   async function remove(rec) { await GVStore.lib.del(rec.id); await GVStore.del(bkey(rec.id)); recs = recs.filter((r) => r.id !== rec.id); lists.forEach((l) => (l.ids = l.ids.filter((x) => x !== rec.id))); saveLists(); paintLists(); decks.forEach((d) => { if (d.libId === rec.id) d.libId = null; }); render(); say('Removed.'); }
 
   /* ---------- backup / restore ---------- */
-  const meta = (r) => ({ id: r.id, name: r.name, size: r.size, dur: r.dur, bpm: r.bpm, key: r.key, grid: r.grid, cues: r.cues, rating: r.rating || 0, tag: r.tag || '', notes: r.notes || '', added: r.added, played: r.played || 0 });
+  const meta = (r) => ({ id: r.id, name: r.name, size: r.size, dur: r.dur, bpm: r.bpm, key: r.key, energy: r.energy, grid: r.grid, cues: r.cues, rating: r.rating || 0, tag: r.tag || '', notes: r.notes || '', added: r.added, played: r.played || 0 });
   const exportData = () => ({ app: 'go-vibe-studios', version: 1, exported: new Date().toISOString(), tracks: recs.map(meta), playlists: lists.map((l) => ({ id: l.id, name: l.name, ids: l.ids.slice() })) });
   const jsonBlob = (o) => new Blob([JSON.stringify(o, null, 1)], { type: 'application/json' });
   async function exportZip() {

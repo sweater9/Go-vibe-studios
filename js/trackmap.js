@@ -42,5 +42,7 @@ window.GVTrackMap = (() => {
       inE: mean(bars, 0, 4), outE: mean(bars, Math.max(0, outBar - 4), outBar),
     };
   }
-  return { analyze };
+  /* how energetic a track is overall, 0..1, from its loudness (mastered music sits around 0.05 to 0.25 RMS); used to build sets that rise or cool down */
+  const energy = (buf) => Math.max(0, Math.min(1, (level(buf) - 0.05) / 0.2));
+  return { analyze, energy };
 })();

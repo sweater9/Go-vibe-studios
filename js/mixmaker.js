@@ -3,8 +3,24 @@
   const A = window.GVAudio, P = window.GVMixPlan; if (!A || !A.amQueue || !P) return;
   const Q = A.amQueue, $ = (id) => document.getElementById(id), MAX_SECS = 30 * 60;
   const say = (t) => { $('mmstatus').textContent = t; };
-  const tracks = () => Q.map((q) => ({ name: q.name, duration: q.buf.duration, bpm: q.bpm, grid: q.grid, key: q.key }));
-  const makePlan = () => { const sel = $('mmtempo').value; return P.plan(tracks(), { target: sel === 'custom' ? +$('mmbpm').value || 120 : sel, beats: +$('mmlen').value }); };
+  const mapOf = (q) => q.map || (q.map = GVTrackMap.analyze(q.buf, q.grid));
+  const tracks = () => Q.map((q) => ({ name: q.name, duration: q.buf.duration, bpm: q.bpm, grid: q.grid, key: q.key, map: q.grid && window.GVTrackMap ? mapOf(q) : null }));
+  /* styles for each transition when the Automatic option is on: the same chooser as the live Automix, seeded from the track names so a re-render gives the same mix */
+  function seeded(str) { let h = 2166136261; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return () => { h = (h + 0x6D2B79F5) | 0; let t = Math.imul(h ^ (h >>> 15), 1 | h); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  const MAPPED = { wash: 'echo', gate: 'blend', brake: 'riser' };
+  let forced = null;
+  function pickStyles(ts) {
+    if (forced) return forced;
+    if ($('mmstyle').value !== 'auto') return null;
+    const rand = seeded(ts.map((t) => t.name).join('|')), out = []; let last = null;
+    for (let j = 0; j < ts.length - 1; j++) {
+      const a = ts[j], b = ts[j + 1], lo = Math.min(a.bpm || 1, b.bpm || 1), grids = !!(a.map && b.map && a.map.grid && b.map.grid && a.bpm && b.bpm);
+      let st = P.chooseStyle({ grids, gap: a.bpm && b.bpm ? P.tempoGap(a.bpm, b.bpm) / lo : 0, kc: P.keyCost(a.key, b.key), outE: a.map ? a.map.outE : 0.5, inE: b.map ? b.map.inE : 0.5, hasDrop: !!(b.map && b.map.drop != null), dropE: b.map ? b.map.dropE : 0, intensity: $('amint') ? $('amint').value : 'club', last, rand });
+      st = MAPPED[st] || st; out.push(st); last = st;
+    }
+    return out;
+  }
+  const makePlan = () => { const sel = $('mmtempo').value, ts = tracks(); return P.plan(ts, { target: sel === 'custom' ? +$('mmbpm').value || 120 : sel, beats: +$('mmlen').value, styles: pickStyles(ts) }); };
 
   /* ---------- ordering ---------- */
   $('amorder').onclick = () => {
@@ -19,11 +35,11 @@
   function showPlan(p) {
     const box = $('mmplan'); box.innerHTML = '';
     const tbl = document.createElement('table'); tbl.className = 'libtbl'; tbl.setAttribute('aria-label', 'Mix plan');
-    tbl.innerHTML = '<thead><tr><th scope="col">#</th><th scope="col">Track</th><th scope="col">Original</th><th scope="col">Plays at</th><th scope="col">Starts</th></tr></thead>';
+    tbl.innerHTML = '<thead><tr><th scope="col">#</th><th scope="col">Track</th><th scope="col">Original</th><th scope="col">Plays at</th><th scope="col">Starts</th><th scope="col">Mix into next</th></tr></thead>';
     const tb = document.createElement('tbody');
     p.items.forEach((it, i) => {
       const tr = document.createElement('tr'), pct = (it.rate - 1) * 100;
-      [i + 1, P.cleanName(it.name), it.bpm ? it.bpm.toFixed(1) + ' BPM' + (it.played !== it.bpm ? ' (read as ' + it.played.toFixed(0) + ')' : '') : 'no tempo found', p.target.toFixed(1) + ' BPM (' + (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%)' + (it.synced ? '' : ', no beat sync'), P.stamp(i === 0 ? 0 : it.start)].forEach((v) => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
+      [i + 1, P.cleanName(it.name), it.bpm ? it.bpm.toFixed(1) + ' BPM' + (it.played !== it.bpm ? ' (read as ' + it.played.toFixed(0) + ')' : '') : 'no tempo found', p.target.toFixed(1) + ' BPM (' + (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%)' + (it.synced ? '' : ', no beat sync'), P.stamp(i === 0 ? 0 : it.start), it.fadeOut && !it.fadeOut.final ? ({ blend: 'bass swap blend', sweep: 'filter sweep', echo: 'echo out', cut: 'quick cut', riser: 'riser into the drop', banger: 'loop build and drop' }[it.fadeOut.style] || 'blend') : 'end of the mix'].forEach((v) => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
       tb.appendChild(tr);
     });
     tbl.appendChild(tb); box.appendChild(tbl); $('mmlist').value = P.tracklist(p);
@@ -47,12 +63,29 @@
         p.items.forEach((it, i) => {
           if (it.end <= a || it.start >= w1) return;
           const from = Math.max(it.start, a), to = Math.min(it.end, w1); if (to - from < 0.01) return;
-          const s = oc.createBufferSource(); s.buffer = Q[i].buf; s.playbackRate.value = it.rate;
-          const low = oc.createBiquadFilter(); low.type = 'lowshelf'; low.frequency.value = 250; const g = oc.createGain(); s.connect(low); low.connect(g); g.connect(master);
-          const n = Math.max(2, Math.ceil((to - from) * 100) + 1), gc = new Float32Array(n), lc = new Float32Array(n);
-          for (let k = 0; k < n; k++) { const v = P.gains(it, from + k * (to - from) / (n - 1)); gc[k] = v.g; lc[k] = v.low; }
-          g.gain.setValueCurveAtTime(gc, from - a, to - from); low.gain.setValueCurveAtTime(lc, from - a, to - from);
-          s.start(from - a, it.srcStart + (from - it.start) * it.rate, (to - from) * it.rate);
+          const fo = it.fadeOut, build = !!(fo && fo.pre > 0), banger = build && fo.style === 'banger';
+          const low = oc.createBiquadFilter(); low.type = 'lowshelf'; low.frequency.value = 250;
+          const hp = oc.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 20; hp.Q.value = 0.7;
+          const lp = oc.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 20000;
+          const pre = oc.createGain(), g = oc.createGain(); low.connect(hp); hp.connect(lp); lp.connect(pre); pre.connect(g); g.connect(master);
+          let wet = null;
+          if (fo && (fo.style === 'echo' || build)) { const dl = oc.createDelay(2), fb = oc.createGain(); wet = oc.createGain(); dl.delayTime.value = Math.min(1.9, it.spb * 0.5); fb.gain.value = 0.5; pre.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(wet); wet.connect(master); }
+          const n = Math.max(2, Math.ceil((to - from) * 100) + 1), gc = new Float32Array(n), lc = new Float32Array(n), hc = new Float32Array(n), pc = new Float32Array(n), wc = new Float32Array(n);
+          for (let k = 0; k < n; k++) { const v = P.gains(it, from + k * (to - from) / (n - 1)); gc[k] = v.g; lc[k] = v.low; hc[k] = v.hp; pc[k] = v.lp; wc[k] = v.wet; }
+          g.gain.setValueCurveAtTime(gc, from - a, to - from); low.gain.setValueCurveAtTime(lc, from - a, to - from); hp.frequency.setValueCurveAtTime(hc, from - a, to - from); lp.frequency.setValueCurveAtTime(pc, from - a, to - from);
+          if (wet) wet.gain.setValueCurveAtTime(wc, from - a, to - from);
+          const mk = (when, off, dur) => { const s = oc.createBufferSource(); s.buffer = Q[i].buf; s.playbackRate.value = it.rate; s.connect(low); s.start(when, off, dur); };
+          let mainTo = to; if (banger) mainTo = Math.min(to, fo.t0 - 4 * it.spb); else if (build) mainTo = Math.min(to, fo.t0 - fo.gap);
+          if (mainTo - from > 0.01) mk(from - a, it.srcStart + (from - it.start) * it.rate, (mainTo - from) * it.rate);
+          if (banger) {                                  // loop rolls: the same beat, shorter each time
+            const at = it.srcStart + ((fo.t0 - 4 * it.spb) - it.start) * it.rate, S0 = it.g + Math.round((at - it.g) / it.per) * it.per;
+            [[4, 2], [2, 1], [1, 0.5], [0.5, 0.25]].forEach(([before, len]) => { const t = fo.t0 - before * it.spb, end = fo.t0 - fo.gap; if (t >= from - 1e-6 && t < to && t < end) mk(t - a, S0, Math.min(len * it.per, (end - t) * it.rate)); });
+          }
+          if (build && fo.t0 >= a && fo.t0 < w1) {
+            const Tb = fo.t0 - a, t0r = Math.max(0, Tb - fo.pre);
+            if (Tb - t0r > 0.2) { GVDjFx.riser(oc, master, t0r, Tb - t0r); GVDjFx.snareRoll(oc, master, Math.max(0, Tb - 4 * it.spb), Math.max(0.01, Tb - fo.gap), it.spb); }
+            GVDjFx.impact(oc, master, Tb);
+          }
         });
         const out = await oc.startRendering(), cl = out.getChannelData(0), cr = out.getChannelData(1), off = Math.round(pre * rate), base = Math.round(w0 * rate), n = Math.min(cl.length - off, total - base);
         for (let k = 0; k < n; k++) { const x = Math.max(-1, Math.min(1, cl[off + k])), y = Math.max(-1, Math.min(1, cr[off + k])); L[base + k] = x < 0 ? x * 32768 : x * 32767; R[base + k] = y < 0 ? y * 32768 : y * 32767; }
@@ -85,5 +118,5 @@
   $('mmdlt').onclick = () => { const t = $('mmlist').value; if (!t) return say('Press Render mix first to build the tracklist.'); save(new Blob([t + '\n'], { type: 'text/plain' }), 'GoVibe mix tracklist.txt'); };
   $('mmplanbtn').onclick = () => { if (Q.length < 1) return say('Add tracks to the queue first.'); const p = makePlan(); showPlan(p); say('Plan ready: ' + P.stamp(p.total) + ' in total at ' + p.target.toFixed(1) + ' BPM.'); };
 
-  if (/[?&]gvtest\b/.test(location.search)) window.__mm = { makePlan, render, get result() { return result; }, wavBlob };
+  if (/[?&]gvtest\b/.test(location.search)) window.__mm = { setStyles: (a) => { forced = a; }, makePlan, render, get result() { return result; }, wavBlob };
 })();

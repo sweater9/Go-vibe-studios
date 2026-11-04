@@ -16,16 +16,25 @@
       const meta = document.createElement('span'); meta.className = 'meta'; meta.textContent = (q.bpm ? q.bpm.toFixed(0) + ' BPM' : '— BPM') + (q.key ? ' · ' + q.key : '') + (q.map && q.map.grid && q.map.drop != null ? ' · drop ' + fmt(q.map.drop) : '') + (q.map && q.map.grid ? ' · outro ' + fmt(q.map.outro) : '');
       const rm = document.createElement('button'); rm.className = 'btn'; rm.textContent = '✕'; rm.setAttribute('aria-label', 'Remove ' + q.name);
       rm.onclick = () => { if (S.on) return say('Stop Automix before removing tracks.'); queue.splice(i, 1); paint(); };
-      li.append(nm, meta, rm); ol.appendChild(li);
+      li.append(nm, meta);
+      { const mk = (key, lab, tip) => { const w = document.createElement('label'); w.className = 'ammp'; w.append(lab + ' '); const inp = document.createElement('input'); inp.type = 'text'; inp.size = 5; inp.placeholder = 'auto'; inp.title = tip; inp.setAttribute('aria-label', lab + ' point for ' + q.name + ', minutes and seconds, blank for automatic'); inp.value = q[key] != null ? fmt(q[key]) : '';
+          inp.onchange = () => { const v = GVMixPlan.parseTime(inp.value); q[key] = v; if (inp.value.trim() && v == null) say('Type a time like 1:30, or leave it empty for automatic.'); inp.value = v != null ? fmt(v) : ''; saveMix(q); S.plan = null; }; w.appendChild(inp); return w; };
+        li.append(mk('mixIn', 'Mix in', 'Where this track should start when it is mixed in (leave empty for automatic)'), mk('mixOut', 'Mix out', 'Where the mix out of this track should happen (leave empty for automatic)')); }
+      if (i + 1 < queue.length) { const pv = document.createElement('button'); pv.className = 'btn'; pv.textContent = '▶ Preview mix'; pv.setAttribute('aria-label', 'Preview the mix from ' + q.name + ' into ' + queue[i + 1].name); pv.onclick = () => preview(i); li.append(pv, rm); } else li.append(rm);
+      ol.appendChild(li);
     });
     if (!queue.length) { const li = document.createElement('li'); li.textContent = 'No tracks yet.'; ol.appendChild(li); }
   }
   paint();
 
+  const mixKey = (q) => 'govibe.mix.' + q.name + '|' + Math.round(q.buf ? q.buf.duration : 0);
+  function saveMix(q) { try { const o = {}; if (q.mixIn != null) o.i = q.mixIn; if (q.mixOut != null) o.o = q.mixOut; if (o.i != null || o.o != null) localStorage.setItem(mixKey(q), JSON.stringify(o)); else localStorage.removeItem(mixKey(q)); } catch (_) { /* no storage */ } }
   async function addBuffer(buf, name, pre) {
     if (pre) queue.push({ name, buf, bpm: pre.bpm, key: pre.key, grid: pre.grid ? { ...pre.grid } : null, id: pre.id });
     else { const b0 = detectBPM(buf), grid = b0 ? detectGrid(buf, b0) : null; queue.push({ name, buf, bpm: grid ? grid.bpm : b0, key: detectKey(buf), grid }); }
-    mapOf(queue[queue.length - 1]); paint();
+    const nq = queue[queue.length - 1]; nq.energy = pre && pre.energy != null ? pre.energy : window.GVTrackMap ? GVTrackMap.energy(buf) : undefined;
+    try { const o = JSON.parse(localStorage.getItem(mixKey(nq)) || 'null'); if (o) { if (typeof o.i === 'number') nq.mixIn = o.i; if (typeof o.o === 'number') nq.mixOut = o.o; } } catch (_) { /* no storage */ }
+    mapOf(nq); paint();
   }
   A.queueAdd = (buf, name, pre) => { addBuffer(buf, name, pre); say(queue.length + ' track' + (queue.length === 1 ? '' : 's') + ' in the queue.'); };
   $('amadd').onclick = () => $('amfile').click();
@@ -48,10 +57,10 @@
   $('amauto').onchange = () => { try { localStorage.setItem('govibe.amauto', auto() ? '1' : '0'); } catch (_) { /* ignore */ } };
   async function pickFrom(cur, opt) {
     const recs = A.libRecs ? A.libRecs() : []; queue.forEach((q) => { if (q.id) used.add(q.id); });
-    const sh = GVMixPlan.shape($('amshape') ? $('amshape').value : 'steady', queue.length), o2 = { used, drift: sh.drift, lift: sh.lift, ...opt };
+    const sh = GVMixPlan.shape($('amshape') ? $('amshape').value : 'steady', queue.length), o2 = { used, drift: sh.drift, lift: sh.lift, edrift: sh.edrift, ...opt };
     let i = GVMixPlan.pickNext(cur, recs, o2); if (i < 0 && recs.length > 1) { used.clear(); queue.slice(-1).forEach((q) => { if (q.id) used.add(q.id); }); i = GVMixPlan.pickNext(cur, recs, o2); }
     if (i < 0) return null; const f = await A.libFetch(recs[i]); used.add(f.pre.id);
-    return { name: f.name, buf: f.buf, bpm: f.pre.bpm, key: f.pre.key, grid: f.pre.grid, id: f.pre.id };
+    return { name: f.name, buf: f.buf, bpm: f.pre.bpm, key: f.pre.key, energy: f.pre.energy, grid: f.pre.grid, id: f.pre.id };
   }
   async function autoPick(cur) {
     if (fetching || failed) return; fetching = true;
@@ -81,21 +90,45 @@
     d.el.tempo.value = pct; d.setTempoPct(pct);
     prepDeck(d, q);
   }
-  function start() {
+  function start(idx = 0, pv = false) {
     if (!queue.length) return say('Add some tracks first.');
-    for (let i = queue.length - 1; i >= 0; i--) if (!queue[i].buf) queue.splice(i, 1);
+    if (!pv) for (let i = queue.length - 1; i >= 0; i--) if (!queue[i].buf) queue.splice(i, 1);
     failed = false; used.clear(); if (!queue.length) return say('Add some tracks first.');
-    ctx.resume(); S.on = true; S.idx = 0; S.active = 0; S.tr = null; S.plan = null; S.last = null; S.ramp = null; S.inAt = 0; S.ref = null; S.jumped = -1;
+    S.kl = []; if (!$('amkl') || $('amkl').checked) decks.slice(0, 2).forEach((d) => { if (!d.klock) { S.kl.push(d); d.setKeyLock(true); } });
+    ctx.resume(); S.on = true; S.preview = pv ? {} : null; S.idx = idx; S.active = 0; S.tr = null; S.plan = null; S.last = null; S.ramp = null; S.inAt = 0; S.ref = null; S.jumped = -1;
     decks.forEach((d) => d.pause());
-    load(0, 0, null); xf.value = 0; applyXf(); decks[0].seek(0); decks[0].play();
-    $('amgo').textContent = '■ Stop Automix'; paint(); say('Playing "' + queue[0].name + '".');
+    load(0, idx, null); xf.value = 0; applyXf(); decks[0].seek(0); decks[0].play();
+    if (!pv) noteTrack(queue[0], Date.now()); $('amgo').textContent = '■ Stop Automix'; paint(); say(pv ? 'Preview: finding the mix into "' + queue[idx + 1].name + '"…' : 'Playing "' + queue[0].name + '".');
     clearInterval(S.timer); S.timer = setInterval(tick, 40);
   }
+  function preview(i) {
+    if (!queue[i] || !queue[i + 1]) return;
+    if (!queue[i].buf || !queue[i + 1].buf) return say('Those tracks were already played and cleared from memory. Add them again to preview.');
+    if (S.on) stop();
+    start(i, true);
+  }
   function stop() {
-    clearInterval(S.timer); const was = S.tr; S.on = false; S.tr = null; S.plan = null; $('amgo').textContent = '▶ Start Automix'; killFx(); cancelMove(); if (was && was.vol0) { decks[was.from].el.vol.value = was.vol0[0]; decks[was.from].setVol(); decks[was.to].el.vol.value = was.vol0[1]; decks[was.to].setVol(); } showProg('', 0);
+    clearInterval(S.timer); S.preview = null; const was = S.tr; S.on = false; S.tr = null; S.plan = null; $('amgo').textContent = '▶ Start Automix'; killFx(); cancelMove(); endRec(); (S.kl || []).forEach((d) => d.setKeyLock(false)); S.kl = []; if (was && was.vol0) { decks[was.from].el.vol.value = was.vol0[0]; decks[was.from].setVol(); decks[was.to].el.vol.value = was.vol0[1]; decks[was.to].setVol(); } showProg('', 0);
     decks.forEach((d) => { d.low.gain.value = 0; d.el.low.value = 0; if (was) { d.pre.gain.cancelScheduledValues(0); d.pre.gain.value = 1; if (d.loop) { d.loop = null; d.eachSrc((x) => (x.loop = false)); } } }); paint();
   }
-  $('amgo').onclick = async () => { if (S.on) { stop(); return say('Automix stopped. The decks keep their current state.'); } if (!queue.length && auto() && !(await seedFromLibrary())) return; start(); };
+  /* record the set: Automix starts the mix recorder, notes when each track enters, and builds a tracklist when it stops */
+  const recBtn = () => $('rec'), recOn = () => !!recBtn() && recBtn().classList.contains('rec-on'), stamp = (s) => GVMixPlan.stamp(s);
+  function startRec() {
+    if (!$('amrec') || !$('amrec').checked || !recBtn() || recOn()) return Promise.resolve();
+    return new Promise((res) => { const h = (e) => { if (e.detail.state !== 'start') return; window.removeEventListener('gv-rec', h); S.rec = { t0: e.detail.t, items: [] }; S.recOwn = true; res(); }; window.addEventListener('gv-rec', h); recBtn().click(); setTimeout(() => { window.removeEventListener('gv-rec', h); res(); }, 4000); });
+  }
+  function noteTrack(q, at) { if (S.rec) S.rec.items.push({ t: (at || Date.now()) - S.rec.t0, name: q.name, bpm: q.bpm, key: q.key }); }
+  function endRec() {
+    if (!S.recOwn) return; S.recOwn = false; const rec = S.rec; S.rec = null;
+    const onStop = (e) => { if (e.detail.state !== 'stop') return; window.removeEventListener('gv-rec', onStop); showRecList(rec); };
+    window.addEventListener('gv-rec', onStop); if (recOn()) recBtn().click(); else window.removeEventListener('gv-rec', onStop);
+  }
+  function showRecList(rec) {
+    if (!rec || !rec.items.length) return; const txt = rec.items.map((it, i) => stamp(i === 0 ? 0 : it.t / 1000) + '  ' + GVMixPlan.cleanName(it.name) + (it.bpm ? '  (' + Math.round(it.bpm) + ' BPM' + (it.key ? ', ' + it.key : '') + ')' : it.key ? '  (' + it.key + ')' : '')).join('\n');
+    $('amreclist').value = txt; $('amrecbox').classList.remove('hidden'); say('Set recorded. Download it from Record mix at the top, and copy the tracklist below.');
+  }
+  if ($('amreccopy')) $('amreccopy').onclick = async () => { try { await navigator.clipboard.writeText($('amreclist').value); say('Tracklist copied.'); } catch (_) { $('amreclist').select(); say('Select the text and copy it.'); } };
+  $('amgo').onclick = async () => { if (S.on) { stop(); return say('Automix stopped. The decks keep their current state.'); } if (!queue.length && auto() && !(await seedFromLibrary())) return; await startRec(); start(); };
 
   /* ---------- smart transitions: track maps, a style for each pair, builds and drops ---------- */
   const smart = () => !!$('amsmart') && $('amsmart').checked, style = () => ($('amstyle') ? $('amstyle').value : 'blend'), intensity = () => ($('amint') ? $('amint').value : 'club');
@@ -113,34 +146,9 @@
   };
   const curve = (st, p) => (st === 'cut' ? smooth(p, 0.45, 0.55) : st === 'echo' ? smooth(p, 0.25, 0.6) : p);
 
-  /* synthesised risers and impacts (nothing is loaded from anywhere) */
-  const nodes = new Set();
-  function riser(t, dur) {
-    const n = A.noise(dur + 0.3), f = ctx.createBiquadFilter(), g = ctx.createGain(), o = ctx.createOscillator(), og = ctx.createGain();
-    f.type = 'bandpass'; f.Q.value = 2.2; f.frequency.setValueAtTime(250, t); f.frequency.exponentialRampToValueAtTime(9000, t + dur);
-    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.32, t + dur * 0.96); g.gain.linearRampToValueAtTime(0.0001, t + dur + 0.05);
-    o.type = 'sawtooth'; o.frequency.setValueAtTime(110, t); o.frequency.exponentialRampToValueAtTime(1760, t + dur); og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(0.08, t + dur * 0.96); og.gain.linearRampToValueAtTime(0.0001, t + dur + 0.05);
-    n.connect(f); f.connect(g); g.connect(A.master); o.connect(og); og.connect(A.master); n.start(t); n.stop(t + dur + 0.1); o.start(t); o.stop(t + dur + 0.1);
-    [n, o].forEach((x) => { nodes.add(x); x.onended = () => nodes.delete(x); });
-  }
-  function impact(t) {
-    const o = ctx.createOscillator(), g = ctx.createGain(), n = A.noise(0.3), f = ctx.createBiquadFilter(), ng = ctx.createGain();
-    o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(38, t + 0.32); g.gain.setValueAtTime(0.85, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
-    f.type = 'lowpass'; f.frequency.value = 3500; ng.gain.setValueAtTime(0.3, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
-    o.connect(g); g.connect(A.master); n.connect(f); f.connect(ng); ng.connect(A.master); o.start(t); o.stop(t + 0.8); n.start(t); n.stop(t + 0.3); crash(t);
-    [n, o].forEach((x) => { nodes.add(x); x.onended = () => nodes.delete(x); });
-  }
-  function snareRoll(t0, tB, bs) {                    // noise hits getting faster: eighths, then sixteenths, then thirty seconds, louder as they go
-    for (let t = t0, k = 0; t < tB - 0.02; k++) {
-      const left = (tB - t) / bs, step = left > 2 ? bs / 2 : left > 1 ? bs / 4 : bs / 8, amp = 0.1 + 0.3 * (1 - left / ((tB - t0) / bs)), n = A.noise(0.12), f = ctx.createBiquadFilter(), g = ctx.createGain();
-      f.type = 'highpass'; f.frequency.value = 1800; g.gain.setValueAtTime(amp, t); g.gain.exponentialRampToValueAtTime(0.0001, t + Math.min(0.1, step * 0.9));
-      n.connect(f); f.connect(g); g.connect(A.master); n.start(t); n.stop(t + 0.12); nodes.add(n); n.onended = () => nodes.delete(n); t += step;
-    }
-  }
-  function crash(t) {
-    const n = A.noise(2), f = ctx.createBiquadFilter(), g = ctx.createGain(); f.type = 'highpass'; f.frequency.value = 5200; g.gain.setValueAtTime(0.32, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
-    n.connect(f); f.connect(g); g.connect(A.master); n.start(t); n.stop(t + 2); nodes.add(n); n.onended = () => nodes.delete(n);
-  }
+  /* synthesised risers and impacts (js/djfx.js, nothing is loaded from anywhere) */
+  const nodes = new Set(), track = (list) => list.forEach((x) => { nodes.add(x); x.onended = () => nodes.delete(x); });
+  const riser = (t, dur) => track(GVDjFx.riser(ctx, A.master, t, dur)), impact = (t) => track(GVDjFx.impact(ctx, A.master, t)), snareRoll = (t0, tB, bs) => track(GVDjFx.snareRoll(ctx, A.master, t0, tB, bs));
   const killFx = () => { nodes.forEach((x) => { try { x.stop(); } catch (_) { /* done */ } }); nodes.clear(); };
 
   /* work out how the next transition will go: which style, where to leave the outgoing track, where to come in on the next one */
@@ -159,10 +167,10 @@
       len = Math.max(2, Math.min(want, (dur - pos) / rate - 0.5, nq.buf.duration * 0.5)); if (st === 'cut') len = Math.min(len, Math.max(1, 2 * bs));
     }
     const base = S.inAt || 0, pf = $('amplay') ? $('amplay').value : 'auto', outro = om ? om.outro : dur - 30;
-    let tgt = pf === 'outro' ? outro : pf === 'auto' ? Math.min(outro, base + 0.68 * (dur - base)) : base + (+pf);
+    let tgt = oq.mixOut != null && oq.mixOut > base && oq.mixOut < dur - 1 ? oq.mixOut : pf === 'outro' ? outro : pf === 'auto' ? Math.min(outro, base + 0.68 * (dur - base)) : base + (+pf);
     if (mode === 'auto' && tgt > dur - 1) tgt = null;
     const plan = { for: S.idx, tgt, next: nq, st, pre, preSec, len, bs, B: null, free: false, now: mode === 'now', skip: mode === 'skip', inStart: 0 };
-    if (BUILD[st] && im) plan.inStart = im.drop != null ? im.drop : im.t0;
+    if (BUILD[st] && im) plan.inStart = nq.mixIn != null && nq.mixIn < nq.buf.duration - 2 ? nq.mixIn : im.drop != null ? im.drop : im.t0;
     if (mode !== 'skip' && grids && smart()) {
       const per = out.grid.period, ph = 16 * per, t0 = out.grid.t0, tail = BUILD[st] ? 3 * per : len * rate + 0.7;
       const minB = pos + preSec * rate + (mode === 'now' ? 0.4 : -0.05), kLo = Math.max(1, Math.ceil((minB - t0) / ph)), kHi = Math.floor((dur - tail - 0.3 - t0) / ph);
@@ -190,6 +198,8 @@
   }
 
   /* ---------- live moves while a track plays: echo throws, filter sweeps, bass drops, gates and loop rolls, on the beat ---------- */
+  try { if (localStorage.getItem('govibe.amkl') === '0' && $('amkl')) $('amkl').checked = false; } catch (_) { /* no storage */ }
+  if ($('amkl')) $('amkl').onchange = () => { try { localStorage.setItem('govibe.amkl', $('amkl').checked ? '1' : '0'); } catch (_) { /* ignore */ } };
   const liveOn = () => !$('amlive') || $('amlive').checked;
   const MOVES = {
     echo: { beats: 4, name: 'an echo throw', step: (d, p) => { const e = Math.round(75 * (p < 0.5 ? 1 : 1 - (p - 0.5) * 2)); d.el.echo.value = e; d.echoWet.gain.value = Math.pow(e / 100, 1.3) * 0.9; } },
@@ -261,7 +271,7 @@
       if (st === 'brake') T.brake = Math.min(toB, 1.6 * plan.bs);
       T.ev.sort((a, b) => a.at - b.at);
     } else {
-      let s0 = 0; if (out.grid && inc.grid) s0 = inc.grid.t0 + out.beatFrac() * inc.grid.period;   // start on the same point in the beat
+      let s0 = queue[ni].mixIn != null && queue[ni].mixIn < inc.buf.duration - 2 ? queue[ni].mixIn : 0; if (out.grid && inc.grid) s0 = (queue[ni].mixIn != null ? inc.grid.t0 + Math.round((s0 - inc.grid.t0) / inc.grid.period) * inc.grid.period : inc.grid.t0) + out.beatFrac() * inc.grid.period;   // start on the same point in the beat
       inc.seek(s0); inc.play(); T.inAt = s0;
       if (st === 'gate') {                                                // a volume gate chopping the outgoing track, getting deeper
         const g = out.pre.gain, step = plan.bs / 2, N = Math.floor(T.len / step); g.cancelScheduledValues(now);
@@ -270,6 +280,7 @@
       }
     }
     T.vol0 = [+out.el.vol.value, +inc.el.vol.value];
+    noteTrack(queue[ni], Date.now() + (BUILD[st] ? (T.tB - now) * 1000 : 0));
     S.tr = T; S.last = st; S.plan = null; S.ramp = null;
     say('Mixing into "' + queue[ni].name + '" with ' + NAMES[st] + (BUILD[st] ? ' (dropping on its ' + (plan.inStart > 1 ? 'drop' : 'first beat') + ')' : '') + '…');
   }
@@ -279,6 +290,7 @@
     if (T.vol0) { out.el.vol.value = T.vol0[0]; out.setVol(); inc.el.vol.value = T.vol0[1]; inc.setVol(); }
     [out, inc].forEach((d) => { d.low.gain.value = 0; d.el.low.value = 0; d.mid.gain.value = 0; d.el.mid.value = 0; d.high.gain.value = 0; d.el.high.value = 0; });
     const pct = +inc.el.tempo.value; S.ramp = Math.abs(pct) > 0.3 && T.bs ? { deck: inc, from: pct, t0: ctx.currentTime, dur: Math.max(4, 16 * T.bs) } : null;   // ease the new track back to its own tempo
+    if (S.preview) S.preview.endAt = ctx.currentTime + 6;
     S.active = T.to; S.idx = T.ni; S.tr = null; S.inAt = T.inAt || 0; paint(); say('Playing "' + queue[S.idx].name + '".');
   }
   function stepBuild(T, now, out, inc) {
@@ -317,15 +329,21 @@
   function showProg(txt, pct) { const el = $('amcount'), pr = $('amprog'); if (el && txt !== lastTxt) { el.textContent = txt; lastTxt = txt; } if (pr) pr.value = pct; }
   function tick() {
     if (!S.on) return showProg('', 0);
+    if (S.preview && S.preview.endAt && ctx.currentTime >= S.preview.endAt) { stop(); return say('Preview finished. Press it again to hear another take.'); }
     if (S.tr) { const T = S.tr, now = ctx.currentTime, tot = (T.build ? T.preSec : 0) + T.len, el = now - (T.build ? T.tB - T.preSec : T.t0); showProg('Mixing into "' + queue[T.ni].name + '" · ' + NAMES[T.st] + ' · ' + Math.max(0, Math.min(100, Math.round(100 * el / tot))) + '%', Math.max(0, Math.min(100, 100 * el / tot))); return stepTransition(); }
     if (S.ramp) { const R = S.ramp, p = Math.min(1, (ctx.currentTime - R.t0) / R.dur), v = +(R.from * (1 - smooth(p, 0, 1))).toFixed(2); R.deck.el.tempo.value = v; R.deck.setTempoPct(v); if (p >= 1) { S.ramp = null; S.plan = null; } }
     const d = decks[S.active], rem = d.buf.duration - d.position() * 1;
     const remReal = rem / d.rate;
-    if (S.idx + 1 >= queue.length && auto() && !failed) { autoPick(queue[queue.length - 1]); return; }
+    if (S.idx + 1 >= queue.length && auto() && !failed && !S.preview) { autoPick(queue[queue.length - 1]); return; }
     if (S.idx + 1 >= queue.length) { if (!d.playing && d.position() < 0.1) { stop(); say('Automix finished.'); } return; }
     let plan = S.plan; if (!plan || plan.for !== S.idx || plan.next !== queue[S.idx + 1]) { plan = S.plan = makePlan('auto'); if (plan) say('Next: ' + NAMES[plan.st] + ' into "' + queue[S.idx + 1].name + '".'); }
     if (!plan) return;
-    liveStep(d, plan);
+    if (S.preview && !S.preview.seeked && d.playing) {   // jump to a few bars before the mix so the preview is short
+      S.preview.seeked = true; const r = d.rate || 1;
+      const to = Math.max(0, plan.B != null ? plan.B - (plan.preSec + 8) * r : plan.tgt != null ? plan.tgt - 8 * r : d.buf.duration - (plan.len + 8) * r);
+      d.seek(to); say('Preview: ' + NAMES[plan.st] + ' into "' + queue[S.idx + 1].name + '".'); return;
+    }
+    if (!S.preview) liveStep(d, plan);
     { const pos0 = d.position(), left = plan.B != null ? (plan.B - plan.preSec * (d.rate || 1) - pos0) / (d.rate || 1) : plan.tgt != null ? (plan.tgt - pos0) / (d.rate || 1) : remReal - plan.len; showProg('Now playing "' + queue[S.idx].name + '" · next mix in ' + fmt(Math.max(0, left)) + ' (' + NAMES[plan.st] + ')', 0); }
     if (plan.B != null && d.playing && d.grid) {
       const at = plan.B - plan.preSec * (d.rate || 1), pos = d.position();

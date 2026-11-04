@@ -20,6 +20,7 @@ window.GVMixPlan = (() => {
       if (used.has(c.id)) return; let cost = -0.4 * (c.rating || 0) + rand() * variety;
       if (cur) { const gap = tempoGap(cur.bpm, c.bpm), rel = cur.bpm && c.bpm ? gap / Math.min(cur.bpm, c.bpm) : 0; cost += keyCost(cur.key, c.key) + 0.35 * gap + (rel > 0.08 ? 6 : 0);
         if (o.drift && cur.bpm && c.bpm) cost += 0.35 * (Math.abs(c.bpm - cur.bpm - o.drift) - Math.abs(c.bpm - cur.bpm));
+        if (o.edrift && cur.energy != null && c.energy != null) cost += 3 * Math.abs(c.energy - cur.energy - o.edrift);
         if (o.lift && cur.key && c.key && cur.key.slice(-1) === c.key.slice(-1) && (+c.key.slice(0, -1) - +cur.key.slice(0, -1) + 12) % 12 === 1) cost -= 1.5; }
       if (cost < bc) { bc = cost; best = i; }
     });
@@ -28,10 +29,12 @@ window.GVMixPlan = (() => {
   /* choose a transition style for one pair of tracks. o: { grids (both have beat grids), gap (relative tempo gap, 0.05 is 5 percent), kc (Camelot key cost), outE, inE (0..1 energy at the exit and the entry),
      hasDrop, dropE, intensity 'smooth' | 'club' | 'banger', last (the previous style), rand }. Returns one of blend, sweep, echo, cut, wash, gate, riser, banger, brake. */
   /* the shape of a set: how much faster (or slower) each next track should be, and whether to prefer a key that lifts the mood one step on the Camelot wheel */
+  /* '1:30' or '90' or '1:02.5' to seconds; null when empty or not a time */
+  function parseTime(s) { const m = /^\s*(?:(\d+):)?(\d+(?:\.\d+)?)\s*$/.exec(String(s)); return m ? (m[1] ? +m[1] * 60 : 0) + +m[2] : null; }
   function shape(name, n) {
-    if (name === 'build') return { drift: 2, lift: true }; if (name === 'cool') return { drift: -2, lift: false };
-    if (name === 'wave') return (n % 8) < 4 ? { drift: 2, lift: true } : { drift: -2, lift: false };
-    return { drift: 0, lift: false };
+    if (name === 'build') return { drift: 2, lift: true, edrift: 0.08 }; if (name === 'cool') return { drift: -2, lift: false, edrift: -0.08 };
+    if (name === 'wave') return (n % 8) < 4 ? { drift: 2, lift: true, edrift: 0.08 } : { drift: -2, lift: false, edrift: -0.08 };
+    return { drift: 0, lift: false, edrift: 0 };
   }
   function chooseStyle(o) {
     const rand = o.rand || Math.random;
@@ -76,6 +79,7 @@ window.GVMixPlan = (() => {
   }
   /* tracks: [{ name, duration, bpm, grid:{t0,period}|null, key }]
      opts: { target: number | 'avg' | 'first', beats: 8|16|32, tail: seconds kept at the end of a track before it is fully out } */
+  const BUILD = { riser: 8, banger: 8 };
   function plan(tracks, opts = {}) {
     if (!tracks.length) return null;
     const known = tracks.filter((t) => t.bpm), sorted = known.map((t) => t.bpm).sort((a, b) => a - b), med = sorted.length ? sorted[sorted.length >> 1] : 120;
@@ -86,34 +90,55 @@ window.GVMixPlan = (() => {
     const items = tracks.map((t) => {
       const synced = !!(t.bpm && t.grid), c = synced ? effBpm(t.bpm, target) : target, per = 60 / c, r = target / c;
       let g = synced ? ((t.grid.t0 % per) + per) % per : 0;
-      return { name: t.name, key: t.key, bpm: t.bpm, played: c, rate: r, per, g, dur: t.duration, synced, srcStart: g, start: 0, end: 0, fadeIn: null, fadeOut: null };
+      return { spb, name: t.name, key: t.key, bpm: t.bpm, played: c, rate: r, per, g, dur: t.duration, synced, srcStart: g, start: 0, end: 0, fadeIn: null, fadeOut: null };
     });
     items[0].start = 0;
     for (let j = 0; j < items.length - 1; j++) {
       const a = items[j], b = items[j + 1];
-      let F = beats * spb;
+      let st = (opts.styles && opts.styles[j]) || 'blend', pre = 0;
+      if (BUILD[st]) {                                  // riser and banger: a build on the outgoing track, then the next one lands on its drop
+        const m = tracks[j + 1].map, drop = b.synced ? (m && m.drop != null ? m.drop : m && m.t0 != null ? m.t0 : b.g) : null;
+        if (drop == null || !a.synced || b.dur - drop < 40) st = 'blend'; else { pre = BUILD[st] * spb; b.srcStart = drop; }
+      }
+      let F = st === 'cut' ? 2 * spb : st === 'echo' ? Math.min(beats, 8) * spb : BUILD[st] ? 3 * spb : beats * spb;
       F = Math.min(F, 0.35 * (b.dur - b.srcStart) / b.rate, 0.6 * (a.dur - a.srcStart) / a.rate);
       F = Math.max(1, F);
       // latest beat (a whole bar from where this track began) where the fade can start and still end before the tail
       const room = a.dur - tail - F * a.rate - a.srcStart; let k = Math.max(0, Math.floor(room / a.per));
       const bar = k - (k % 4); if (bar >= 4 && a.synced) k = bar;
-      const kmin = a.fadeIn ? Math.ceil((a.fadeIn.t1 - a.fadeIn.t0) * a.rate / a.per) : 0; k = Math.max(kmin, k); // this track must be fully in before it starts to fade out
+      const kmin = (a.fadeIn ? Math.ceil((a.fadeIn.t1 - a.fadeIn.t0) * a.rate / a.per) : 0) + (pre ? Math.ceil(pre * a.rate / a.per) : 0); k = Math.max(kmin, k); // this track must be fully in before it starts to fade out
       const p = a.srcStart + k * a.per, Tb = a.start + (p - a.srcStart) / a.rate;
       F = Math.max(0.5, Math.min(F, (a.dur - p) / a.rate));
-      a.fadeOut = { t0: Tb, t1: Tb + F }; a.end = Tb + F; b.start = Tb; b.fadeIn = { t0: Tb, t1: Tb + F };
+      a.fadeOut = { t0: Tb, t1: Tb + F, style: st, pre, gap: 0.35 * spb }; a.end = Tb + F; b.start = Tb; b.fadeIn = { t0: Tb, t1: BUILD[st] ? Tb + 0.02 : Tb + F, style: st, hard: !!BUILD[st] };
     }
     const last = items[items.length - 1]; last.end = last.start + (last.dur - last.srcStart) / last.rate; const lf = Math.min(3, (last.end - last.start) * 0.2); last.fadeOut = { t0: last.end - lf, t1: last.end, final: true };
     return { target, items, total: last.end, beats, spb };
   }
   /* gain curves for one item at output time t */
   function gains(it, t) {
-    let g = 1, low = 0;
-    if (it.fadeIn) { const x = Math.min(1, Math.max(0, (t - it.fadeIn.t0) / (it.fadeIn.t1 - it.fadeIn.t0))); g *= Math.sin(x * Math.PI / 2); low = -26 * (1 - smooth(x, 0.1, 0.5)); }
-    if (it.fadeOut) { const x = Math.min(1, Math.max(0, (t - it.fadeOut.t0) / (it.fadeOut.t1 - it.fadeOut.t0))); g *= it.fadeOut.final ? 1 - x : Math.cos(x * Math.PI / 2); if (!it.fadeOut.final) low = Math.min(low, -26 * smooth(x, 0.35, 0.7)); }
-    return { g, low };
+    let g = 1, low = 0, hp = 20, lp = 20000, wet = 0;
+    const fi = it.fadeIn, fo = it.fadeOut;
+    if (fi) {
+      const x = Math.min(1, Math.max(0, (t - fi.t0) / (fi.t1 - fi.t0))), y = fi.style === 'cut' ? smooth(x, 0.45, 0.55) : fi.style === 'echo' ? smooth(x, 0.25, 0.6) : x;
+      g *= fi.hard ? 1 : Math.sin(y * Math.PI / 2); low = fi.hard ? 0 : -26 * (1 - smooth(x, 0.1, 0.5));
+      if (fi.style === 'sweep') lp = 20000 * Math.pow(200 / 20000, 1 - smooth(x, 0, 0.7));
+    }
+    if (fo) {
+      const x = Math.min(1, Math.max(0, (t - fo.t0) / (fo.t1 - fo.t0)));
+      if (fo.pre) {                                    // the build: a rising high pass, a growing echo, the bass cut, then a breath of silence before the drop
+        const xb = Math.min(1, Math.max(0, (t - (fo.t0 - fo.pre)) / fo.pre));
+        g *= t < fo.t0 - fo.gap ? 1 : 0; low = Math.min(low, -26 * smooth(xb, 0.55, 0.8)); hp = 20 * Math.pow(8000 / 20, 0.65 * smooth(xb, 0, 1)); wet = t < fo.t0 ? 0.7 * smooth(xb, 0.45, 1) : 0.7 * (1 - smooth(x, 0, 0.9));
+      } else {
+        const y = fo.style === 'cut' ? smooth(x, 0.45, 0.55) : fo.style === 'echo' ? smooth(x, 0.25, 0.6) : x;
+        g *= fo.final ? 1 - x : Math.cos(y * Math.PI / 2); if (!fo.final) low = Math.min(low, -26 * smooth(x, 0.35, 0.7));
+        if (fo.style === 'sweep') hp = 20 * Math.pow(8000 / 20, smooth(x, 0.1, 0.9));
+        if (fo.style === 'echo') wet = 0.85 * smooth(x, 0.05, 0.3) * (1 - smooth(x, 0.6, 1));
+      }
+    }
+    return { g, low, hp, lp, wet };
   }
   const stamp = (s) => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : String(m).padStart(2, '0')) + ':' + String(x).padStart(2, '0'); };
   const cleanName = (n) => n.replace(/\.[a-z0-9]{2,4}$/i, '').replace(/_/g, ' ').trim();
   function tracklist(p) { return p.items.map((it, i) => stamp(i === 0 ? 0 : it.start) + '  ' + cleanName(it.name) + (it.bpm ? '  (' + Math.round(it.bpm) + ' BPM' + (it.key ? ', ' + it.key : '') + ')' : it.key ? '  (' + it.key + ')' : '')).join('\n'); }
-  return { pickNext, chooseStyle, shape, keyCost, tempoGap, order, pathCost, plan, gains, effBpm, stamp, tracklist, cleanName };
+  return { pickNext, chooseStyle, shape, parseTime, keyCost, tempoGap, order, pathCost, plan, gains, effBpm, stamp, tracklist, cleanName };
 })();
