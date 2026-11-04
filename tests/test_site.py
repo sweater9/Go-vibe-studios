@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "tuner", "tomidi", "practice", "vocals", "synth", "reference", "repair", "rhythm", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "mono", "tone", "video-to-audio", "audio", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-tune-guitar", "blog-audio-to-midi", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
+PAGES = ["index", "tuner", "tomidi", "practice", "vocals", "synth", "reference", "repair", "rhythm", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "djedit", "mono", "tone", "video-to-audio", "audio", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-tune-guitar", "blog-audio-to-midi", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms"]
 FAILS, PASSES = [], 0
 
 
@@ -3692,6 +3692,41 @@ def test_mixpoints(browser, base):
     ctx.close()
 
 
+def test_djedit(browser, base):
+    print("dj edit maker: longer and shorter edits on the bar")
+    import io, math, struct, wave, random
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "djedit.html?gvtest")
+    sr, bars = 22050, 48; random.seed(3); buf = io.BytesIO(); w = wave.open(buf, "wb"); w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr)
+    amp = lambda b: 0.18 if b < 8 else 0.25 if (b >= 24 and b < 32) else 0.2 if b >= 34 else 0.9
+    data = bytearray()
+    for i in range(int(sr * bars * 2)):
+        t = i / sr; b = int(t // 2); ph = t % 0.5; a = amp(b); v = (math.sin(2 * math.pi * 55 * ph) * math.exp(-ph * 14) * a * 0.9) + (math.sin(2 * math.pi * 55 * t) * 0.25 * a if b >= 8 else 0) + (random.random() - 0.5) * 0.05 * a
+        data += struct.pack("<h", int(max(-1, min(1, v)) * 32000))
+    w.writeframes(bytes(data)); w.close()
+    pg.set_input_files("#file", {"name": "Club Track.wav", "mimeType": "audio/wav", "buffer": buf.getvalue()})
+    pg.wait_for_function("() => !document.getElementById('main2').classList.contains('hidden')", timeout=60000)
+    orig = pg.evaluate("() => __edit.map.dur")
+    check("the track is analysed and its beat found", pg.evaluate("() => __edit.map.grid === true") and "BPM" in pg.inner_text("#sinfo"), pg.inner_text("#sinfo"))
+    r = pg.evaluate("() => ({ len: __edit.plan.len, n: __edit.plan.segs.length, out: __edit.out[0].length / __edit.rate, notes: __edit.plan.notes.length })")
+    check("the longer edit is longer, and the audio matches the plan", r["len"] > orig + 20 and abs(r["out"] - r["len"]) < 0.05 and r["n"] >= 3, str((orig, r)))
+    check("the changes are listed in plain words", r["notes"] >= 2 and "becomes" in pg.inner_text("#enotes"), pg.inner_text("#enotes"))
+    check("a preview player has the edit", pg.evaluate("() => !!document.getElementById('eplay').src"))
+    pg.select_option("#emode", "shorten"); pg.select_option("#smax", "0"); pg.select_option("#kintro", "4"); pg.select_option("#koutro", "4")
+    s = pg.evaluate("() => ({ len: __edit.plan.len, fade: __edit.plan.fadeOut })")
+    check("the shorter edit trims intro and outro", s["len"] < orig - 4 and s["fade"] > 0, str((orig, s)))
+    pg.evaluate("() => { const o = new Option('1:00', '60'); document.getElementById('smax').add(o); }"); pg.select_option("#smax", "60"); s2 = pg.evaluate("() => __edit.plan.len")
+    check("a time limit removes quiet sections too", s2 < s["len"] - 5, str((s, s2)))
+    pg.evaluate("() => { const b = __edit.plan.segs; window.__ok = b.every((x) => x.b > x.a); }")
+    check("every range is valid and in order", pg.evaluate("() => window.__ok"))
+    pg.select_option("#ofmt", "wav")
+    with pg.expect_download() as d: pg.click("#save")
+    check("it saves under a name that says what it is", d.value.suggested_filename == "Club Track (radio edit).wav", d.value.suggested_filename)
+    check("dj edit maker: no console errors", not errs, str(errs[:3]))
+    ctx.close()
+
+
 def test_reference(browser, base):
     print("reference mix analyzer: measures, advice, A/B")
     errs = []
@@ -3880,7 +3915,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DJ edit maker — GoVibe Mix</title>
+<meta name="description" content="Make a longer DJ edit or a shorter radio edit of a track. Loops the intro, repeats the drop, trims the outro, always on the bar. Free, private, nothing is uploaded.">
+<link rel="canonical" href="https://govibemix.com/djedit.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibe Mix">
+<meta property="og:title" content="DJ edit maker — GoVibe Mix">
+<meta property="og:description" content="Make a longer DJ edit or a shorter radio edit of a track. Loops the intro, repeats the drop, trims the outro, always on the bar. Free, private, nothing is uploaded.">
+<meta property="og:url" content="https://govibemix.com/djedit.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body data-tool="djedit">
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span> Mix</a>
+  <a class="link" href="studio.html">Studio</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+  <a class="link" href="index.html#tools">All tools</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>DJ edit maker</h1>
+  <p class="lead">Make a longer DJ edit with a bigger intro, a repeated drop and a longer outro, or a shorter radio edit with the quiet parts cut. The tool finds the beat, the intro, the drop and the outro, and every cut lands on a bar so the track stays in time. Nothing is uploaded.</p>
+  <div class="panel">
+    <div class="drop" id="drop" data-input="file" role="button" tabindex="0"><strong>Drop a track here</strong> or press to choose one<p class="status">MP3, WAV, OGG, M4A and more. Works best on tracks with a steady beat.</p></div>
+    <input type="file" id="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.flac,.caf,.aif,.aiff,.3gp,.amr,video/mp4" hidden aria-label="Track to edit">
+    <div id="main2" class="hidden">
+      <p class="status" id="sinfo"></p>
+      <div class="row"><label class="ctl" style="min-width:0">Make it<select id="emode"><option value="extend">Longer (DJ edit)</option><option value="shorten">Shorter (radio edit)</option></select></label></div>
+      <div class="row" id="xopts" style="align-items:flex-end">
+        <label class="ctl" style="min-width:0">Longer intro<select id="xintro"><option value="0">No change</option><option value="8">+8 bars</option><option value="16" selected>+16 bars</option><option value="32">+32 bars</option></select></label>
+        <label class="ctl" style="min-width:0">Repeat the drop<select id="xdrop"><option value="0">No</option><option value="1" selected>Once more</option><option value="2">Twice more</option></select></label>
+        <label class="ctl" style="min-width:0">Longer outro<select id="xoutro"><option value="0">No change</option><option value="8">+8 bars</option><option value="16" selected>+16 bars</option><option value="32">+32 bars</option></select></label>
+      </div>
+      <div class="row hidden" id="sopts" style="align-items:flex-end">
+        <label class="ctl" style="min-width:0">Keep of the intro<select id="kintro"><option value="4">4 bars</option><option value="8" selected>8 bars</option><option value="16">16 bars</option></select></label>
+        <label class="ctl" style="min-width:0">Keep of the outro<select id="koutro"><option value="4">4 bars</option><option value="8" selected>8 bars</option><option value="16">16 bars</option></select></label>
+        <label class="ctl" style="min-width:0">No longer than<select id="smax"><option value="0">No limit</option><option value="180">3:00</option><option value="210" selected>3:30</option><option value="240">4:00</option><option value="300">5:00</option></select></label>
+      </div>
+      <ul id="enotes" class="status" aria-live="polite"></ul>
+      <canvas id="ewave" width="900" height="90" role="img" aria-label="Waveform of the edit" style="width:100%;height:90px;border-radius:10px;background:#0b0b14"></canvas>
+      <div class="row" style="align-items:center"><audio id="eplay" controls style="flex:1;min-width:200px" aria-label="Preview of the edit"></audio></div>
+      <div class="row" style="align-items:flex-end"><label class="ctl" style="min-width:0">Format<select id="ofmt"><option value="mp3">MP3</option><option value="wav">WAV</option></select></label><button class="btn primary" id="save">Save the edit</button><button class="btn mini" id="again">Choose another track</button></div>
+    </div>
+    <p class="status" id="status" role="status"></p>
+  </div>
+</main>
+<footer>GoVibe Mix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="https://github.com/sweater9/go-vibe-studios/issues">Contact</a></nav></footer>
+<script src="js/analyze.js"></script>
+<script src="js/trackmap.js"></script>
+<script src="js/editplan.js"></script>
+<script src="js/quick.js"></script>
+<script src="js/djedit.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>
