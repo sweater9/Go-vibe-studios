@@ -3752,6 +3752,25 @@ def test_libexport(browser, base):
     ctx.close()
 
 
+def test_setmap(browser, base):
+    print("dj: set map of the queue")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "dj.html?gvtest"); pg.wait_for_function("() => window.__am && window.__dj", timeout=10000); pg.click("#tab-am")
+    check("the map is hidden until there are two tracks", not pg.is_visible("#ammap"))
+    pg.evaluate("""async () => { const { ctx } = __dj; const mk = () => { const b = ctx.createBuffer(1, 22050 * 40, 22050), d = b.getChannelData(0); for (let i = 0; i < d.length; i += 11025) for (let k = 0; k < 400; k++) d[i + k] = Math.sin(k / 6) * Math.exp(-k / 80); return b; };
+      __am.queue.length = 0; const ks = ['8A', '9A', '2B'], g = () => ({ t0: 0, period: 0.5, bpm: 120 }); for (let i = 0; i < 3; i++) await __am.addBuffer(mk(), 't' + i + '.wav', { bpm: 120, key: ks[i], grid: g() }); }""")
+    check("the map shows once two tracks are queued", pg.is_visible("#ammap"))
+    lab = pg.get_attribute("#ammap", "aria-label")
+    check("its text version lists each track's key and tempo", "8A" in lab and "9A" in lab and "2B" in lab and "120 BPM" in lab, lab)
+    txt = pg.inner_text("#ammaptxt")
+    check("it points out the key clash between tracks 2 and 3 but not 1 and 2", "2 to 3" in txt and "1 to 2" not in txt, txt)
+    px = pg.evaluate("() => { const c = document.getElementById('ammap'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] + d[i + 1] + d[i + 2] > 150) n++; return n; }")
+    check("something is drawn", px > 500, str(px))
+    check("set map: no console errors", not errs, str(errs[:3]))
+    ctx.close()
+
+
 def test_reference(browser, base):
     print("reference mix analyzer: measures, advice, A/B")
     errs = []
@@ -3940,7 +3959,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_setmap, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

@@ -24,6 +24,28 @@
       ol.appendChild(li);
     });
     if (!queue.length) { const li = document.createElement('li'); li.textContent = 'No tracks yet.'; ol.appendChild(li); }
+    drawMap();
+  }
+  /* the set map: one block per track, as wide as the track is long, filled with its energy through the track and coloured by its place on the Camelot wheel */
+  function drawMap() {
+    const cv = $('ammap'); if (!cv) return; cv.classList.toggle('hidden', queue.length < 2); $('ammaptxt').textContent = '';
+    if (queue.length < 2) return;
+    const g = cv.getContext('2d'), W = cv.width, H = cv.height, tot = queue.reduce((s, q) => s + (q.buf ? q.buf.duration : q.map ? q.map.dur : 200), 0) || 1; let x = 0; g.clearRect(0, 0, W, H); g.fillStyle = '#0b0b14'; g.fillRect(0, 0, W, H);
+    const parts = [];
+    queue.forEach((q, i) => {
+      const dur = q.buf ? q.buf.duration : q.map ? q.map.dur : 200, w = Math.max(6, Math.round(W * dur / tot)), m = q.map || {}, num = q.key ? parseInt(q.key, 10) : NaN, hue = isNaN(num) ? 220 : num * 30, minor = q.key && /A$/.test(q.key);
+      const bars = m.bars && m.bars.length ? m.bars : null;
+      for (let px = 0; px < w - 2; px++) {
+        const e = bars ? bars[Math.min(bars.length - 1, Math.floor(px / (w - 2) * bars.length))] : (m.inE != null ? m.inE + (m.outE - m.inE) * px / (w - 2) : q.energy != null ? q.energy : 0.5), h = Math.max(3, e * (H - 30));
+        g.fillStyle = 'hsl(' + hue + ',' + (isNaN(num) ? 10 : minor ? 60 : 78) + '%,' + (S.on && i === S.idx ? 62 : 48) + '%)'; g.fillRect(x + px, H - 16 - h, 1, h);
+      }
+      g.fillStyle = '#ecebff'; g.font = '11px sans-serif'; g.fillText((i + 1) + (q.key ? ' ' + q.key : '') + (q.bpm ? ' · ' + Math.round(q.bpm) : ''), x + 3, H - 3);
+      if (i > 0) { g.fillStyle = '#22d3ee'; g.fillRect(x - 1, 4, 2, H - 20); }
+      parts.push((i + 1) + ': ' + (q.key || 'no key') + ', ' + (q.bpm ? Math.round(q.bpm) + ' BPM' : 'no tempo')); x += w;
+    });
+    const clash = []; for (let i = 1; i < queue.length; i++) { const k = GVMixPlan.keyCost(queue[i - 1].key, queue[i].key); if (k >= 5) clash.push(i + ' to ' + (i + 1)); }
+    cv.setAttribute('aria-label', 'Set map. ' + parts.join('; ') + '.');
+    $('ammaptxt').textContent = 'Set map: block width is track length, height is energy, colour is the key. ' + (clash.length ? 'Keys clash between tracks ' + clash.join(', ') + '; the Mix maker\'s "Order for the best flow" can fix that.' : 'The keys flow well from track to track.');
   }
   paint();
 
