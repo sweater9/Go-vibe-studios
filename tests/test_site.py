@@ -3771,6 +3771,27 @@ def test_setmap(browser, base):
     ctx.close()
 
 
+def test_demotracks(browser, base):
+    print("dj: demo tracks made by the site")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "dj.html?gvtest"); pg.wait_for_function("() => window.__am && window.GVDemo", timeout=10000); pg.click("#tab-am")
+    check("the demo button is there", pg.is_visible("#amdemo"))
+    pg.click("#amdemo")
+    pg.wait_for_function("() => __am.queue.length === 3", timeout=90000)
+    r = pg.evaluate("""() => __am.queue.map((q) => { const m = q.map || {}; return { name: q.name, bpm: q.bpm, key: q.key, dur: q.buf.duration, intro: m.introBars, drop: m.drop, outro: m.outro, grid: m.grid }; })""")
+    check("three tracks with tempo and key are queued", [x["key"] for x in r] == ["8A", "9A", "8A"] and [x["bpm"] for x in r] == [124, 126, 122], str(r))
+    check("each is about a minute long", all(55 < x["dur"] < 70 for x in r), str([x["dur"] for x in r]))
+    spb = [60 / 124, 60 / 126, 60 / 122]
+    check("the analysis finds the drop at bar 8", all(x["grid"] and x["drop"] is not None and abs(x["drop"] - 32 * s) < 4 * 4 * s for x, s in zip(r, spb)), str(r))
+    check("and the outro near bar 24", all(x["outro"] is not None and abs(x["outro"] - 96 * s) < 4 * 4 * s for x, s in zip(r, spb)), str([(x["outro"], 96 * s) for x, s in zip(r, spb)]))
+    check("the status tells you what to do next", "Start Automix" in pg.inner_text("#amstatus"), pg.inner_text("#amstatus"))
+    peak = pg.evaluate("() => { const d = __am.queue[0].buf.getChannelData(0); let p = 0; for (let i = 0; i < d.length; i += 7) p = Math.max(p, Math.abs(d[i])); return p; }")
+    check("the audio is loud enough and not clipped", 0.3 < peak <= 1.0, str(peak))
+    check("demo tracks: no console errors", not errs, str(errs[:3]))
+    ctx.close()
+
+
 def test_reference(browser, base):
     print("reference mix analyzer: measures, advice, A/B")
     errs = []
@@ -3959,7 +3980,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_setmap, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_setmap, test_demotracks, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip
