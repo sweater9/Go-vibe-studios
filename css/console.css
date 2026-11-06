@@ -161,14 +161,14 @@ html.perf .waves { margin-top: 6px; }
 html.perf .ctop { padding: 6px 10px; }
 
 /* light chassis (screens, knobs and buttons stay dark like real hardware) */
-html[data-theme=light] { --bg: #e6e9f1; --panel: #ffffff; --panel-2: #eef0f6; --line: #c3c8d8; --text: #14161f; --muted: #454b61; --accent: #6d4de0; --accent-2: #0e7490; color-scheme: light; }
+html[data-theme=light] { --bg: #f6f0e4; --panel: #fffcf5; --panel-2: #efe6d3; --line: #d8cbb0; --text: #2a2118; --muted: #5f5446; --accent: #c2410c; --accent-2: #0f766e; color-scheme: light; }
 html[data-theme=light] body { background: var(--bg); }
-html[data-theme=light] .nav { background: #ffffffe6; }
-html[data-theme=light] .console { --metal: #f1f3f8; --metal-2: #dde1ec; --edge: #b5bbce; --lab: #454b61; --a: #c2410c; --b: #0369a1; }
+html[data-theme=light] .nav { background: #fffcf5e6; }
+html[data-theme=light] .console { --metal: #f7f1e3; --metal-2: #e6dcc6; --edge: #c9bb9d; --lab: #5f5446; --a: #c2410c; --b: #0369a1; }
 html[data-theme=light] .wbadge, html[data-theme=light] .dbadge { color: #fff; }
-html[data-theme=light] .strip, html[data-theme=light] .fxrow, html[data-theme=light] .xfwrap { background: #e4e7f0; border-color: var(--edge); }
-html[data-theme=light] .recbox, html[data-theme=light] .libwrap { background: #f6f7fb; border-color: var(--edge); }
-html[data-theme=light] .libtbl th { background: #e4e7f0; }
+html[data-theme=light] .strip, html[data-theme=light] .fxrow, html[data-theme=light] .xfwrap { background: #ece3cf; border-color: var(--edge); }
+html[data-theme=light] .recbox, html[data-theme=light] .libwrap { background: #fbf7ec; border-color: var(--edge); }
+html[data-theme=light] .libtbl th { background: #ece3cf; }
 html[data-theme=light] .libtbl td { border-top-color: #d3d7e4; }
 html[data-theme=light] .recbtn { color: #b91c1c; }
 html[data-theme=light] .keychip:not(:empty) { background: #fff; border-color: var(--edge); color: var(--text); }
@@ -196,7 +196,7 @@ html[data-theme=light] .strip.a .sname { color: #9a3412; } html[data-theme=light
 .libtag { padding: 4px 6px; }
 @media (max-width: 700px) { .libtbl th:nth-child(6), .libtbl td:nth-child(6) { display: table-cell; } .libtbl th:nth-child(7), .libtbl td:nth-child(7) { display: none; } }
 .hbreak { background: #151720; color: var(--lab); font-size: 12px; letter-spacing: .6px; font-weight: 600; }
-html[data-theme=light] .hbreak { background: #e4e7f0; }
+html[data-theme=light] .hbreak { background: #ece3cf; }
 
 /* decks C and D, loop rolls, effect unit, crossfader assign, eight hot cues */
 .cgrid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; align-items: start; }
@@ -209,5 +209,5 @@ html[data-theme=light] .hbreak { background: #e4e7f0; }
 .rollrow .rollpad { flex: 1; min-height: 38px; font-weight: 700; touch-action: none; user-select: none; }
 .rollrow .rollpad.on, .btn.on[data-r=hotdel] { background: var(--c); color: #0b0b0e; border-color: var(--c); }
 .fxunit { margin-top: 10px; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 10px; background: #0f1015; border: 1px solid #22252e; }
-html[data-theme=light] .fxunit { background: #e4e7f0; border-color: var(--edge); }
+html[data-theme=light] .fxunit { background: #ece3cf; border-color: var(--edge); }
 .xfas { max-width: 92px; }

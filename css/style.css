@@ -262,27 +262,6 @@ textarea { background: var(--bg); color: var(--text); border: 1px solid var(--li
 /* ---- themes: Dark neon is the default above. Light and High contrast switch on html[data-theme]. ---- */
 .nav button.link { font: inherit; font-size: 14px; font-weight: 500; padding: 8px 14px; border-radius: 999px; color: var(--muted); background: transparent; border: 1px solid transparent; cursor: pointer; margin-left: auto; }
 .nav button.link:hover { color: var(--text); background: var(--panel); }
-html[data-theme=light] { --bg: #f4f3fa; --panel: #ffffff; --panel-2: #ecebf6; --line: #cfcde4; --text: #17172b; --muted: #514e72; --accent: #6d4de0; --accent-2: #0e7490; --good: #047857; --warn: #92400e; color-scheme: light; }
-html[data-theme=light] body { background: radial-gradient(1200px 600px at 80% -10%, #d9ccff66, transparent), radial-gradient(900px 500px at -10% 10%, #bfe8f566, transparent), var(--bg); }
-html[data-theme=light] .nav { background: rgba(255, 255, 255, .82); border-bottom-color: var(--line); }
-html[data-theme=light] footer { border-top-color: var(--line); }
-html[data-theme=light] .panel, html[data-theme=light] .card { box-shadow: 0 1px 2px rgba(23, 23, 43, .06); }
-html[data-theme=light] .drop.over, html[data-theme=light] .drop:hover { background: #6d4de016; }
-html[data-theme=light] .tbl td.bad { color: #be123c; }
-html[data-theme=light] .home { --line2: rgba(23, 23, 43, .14); --amber: #f59e0b; }
-html[data-theme=light] .hero::before { background: radial-gradient(closest-side, rgba(245, 158, 11, .2), transparent); }
-html[data-theme=light] .cta.ghost { border-color: rgba(23, 23, 43, .35); color: var(--text); }
-html[data-theme=light] .cta.ghost:hover { border-color: var(--text); background: rgba(23, 23, 43, .06); }
-html[data-theme=light] .cta:focus-visible, html[data-theme=light] a.tool:focus-visible { outline-color: var(--text); }
-html[data-theme=light] .deck { background: #ffffffcc; box-shadow: 0 20px 50px -30px rgba(23, 23, 43, .35); }
-html[data-theme=light] .playbtn { background: var(--text); color: #fff; }
-html[data-theme=light] .st { background: rgba(23, 23, 43, .06); }
-html[data-theme=light] .st.b { background: rgba(23, 23, 43, .12); }
-html[data-theme=light] .st.now { border-color: var(--text); }
-html[data-theme=light] .st:hover { border-color: rgba(23, 23, 43, .5); }
-html[data-theme=light] .facts p { background: #ffffffaa; }
-html[data-theme=light] .chips a:hover { background: rgba(23, 23, 43, .06); }
-html[data-theme=light] .fs { border-color: var(--line); }
 
 html[data-theme=contrast] { --bg: #000000; --panel: #000000; --panel-2: #121212; --line: #ffffff; --text: #ffffff; --muted: #f0f0f0; --accent: #c4b0ff; --accent-2: #67e8f9; --good: #6ee7b7; --warn: #fde047; color-scheme: dark; }
 html[data-theme=contrast] body { background: #000; }
@@ -295,12 +274,39 @@ html[data-theme=contrast] .hero::before { display: none; }
 html[data-theme=contrast] .cta.ghost { border-color: #fff; }
 html[data-theme=contrast] .deck, html[data-theme=contrast] .facts p { background: #000; }
 html[data-theme=contrast] .st { background: #1a1a1a; border-color: #fff; }
-html[data-theme=light] .hero h1 .l2 { color: #6652c4; }
-html[data-theme=light] .hero .lead { color: #3d3a5c; }
-html[data-theme=light] .deckhead select { background: var(--panel-2); color: var(--text); }
-html[data-theme=light] .st[aria-pressed="true"] { box-shadow: 0 2px 6px -2px var(--sc, #8b5cf6); }
 html[data-theme=contrast] .hero .lead { color: #fff; }
 html[data-theme=contrast] .hero h1 .l2 { color: #c4b0ff; }
 html[data-theme=contrast] .deckhead select { background: #000; border-color: #fff; }
-html[data-theme=light] .key.sel, html[data-theme=light] .pad:active { color: #fff; }
+
+/* Light theme: warm paper. Cream surfaces, ink text, burnt orange accent with a teal second colour; waveforms turn into ink on paper. */
+html[data-theme=light] { --bg: #f6f0e4; --panel: #fffcf5; --panel-2: #efe6d3; --line: #d8cbb0; --text: #2a2118; --muted: #5f5446; --accent: #c2410c; --accent-2: #0f766e; --good: #166534; --warn: #92400e; color-scheme: light; }
+html[data-theme=light] body { background: radial-gradient(1200px 600px at 80% -10%, #f6d9b466, transparent), radial-gradient(900px 500px at -10% 10%, #cfe8dd66, transparent), var(--bg); }
+html[data-theme=light] .nav { background: rgba(255, 252, 245, .88); border-bottom-color: var(--line); }
+html[data-theme=light] .nav a.link.active { background: rgba(194, 65, 12, .12); border-color: rgba(194, 65, 12, .4); }
+html[data-theme=light] footer { border-top-color: var(--line); }
+html[data-theme=light] .panel, html[data-theme=light] .card { box-shadow: 0 1px 2px rgba(60, 40, 10, .08); }
+html[data-theme=light] .drop.over, html[data-theme=light] .drop:hover { background: #c2410c14; }
+html[data-theme=light] .tbl td.bad { color: #b91c1c; }
+html[data-theme=light] .btn.primary, html[data-theme=light] .seg .btn[aria-pressed="true"], html[data-theme=light] .ttab[aria-selected="true"], html[data-theme=light] .pcs button[aria-pressed="true"], html[data-theme=light] .key.sel, html[data-theme=light] .pad:active { background: var(--accent); border-color: var(--accent); color: #fff; }
+html[data-theme=light] .tpl:hover, html[data-theme=light] .tpl[aria-pressed="true"] { border-color: var(--accent); }
+html[data-theme=light] .tpl[aria-pressed="true"] { background: rgba(194, 65, 12, .1); }
 html[data-theme=light] .pcs button.blk { color: #ecebff; }
+html[data-theme=light] .fs { border-color: var(--line); }
+html[data-theme=light] canvas.wave, html[data-theme=light] canvas.zoom { filter: invert(1) hue-rotate(180deg) sepia(.35); }   /* dark screen with a cyan wave becomes paper with an ink wave */
+html[data-theme=light] .home { --line2: rgba(42, 33, 24, .16); --amber: #f59e0b; }
+html[data-theme=light] .hero::before { background: radial-gradient(closest-side, rgba(245, 158, 11, .22), transparent); }
+html[data-theme=light] .hero h1 .l2 { color: #c2410c; }
+html[data-theme=light] .hero .lead { color: #4a4036; }
+html[data-theme=light] .cta.ghost { border-color: rgba(42, 33, 24, .4); color: var(--text); }
+html[data-theme=light] .cta.ghost:hover { border-color: var(--text); background: rgba(42, 33, 24, .06); }
+html[data-theme=light] .cta:focus-visible, html[data-theme=light] a.tool:focus-visible { outline-color: var(--text); }
+html[data-theme=light] .deck { background: #fffcf5cc; box-shadow: 0 20px 50px -30px rgba(60, 40, 10, .35); }
+html[data-theme=light] .deckhead select { background: var(--panel-2); color: var(--text); }
+html[data-theme=light] .playbtn { background: var(--text); color: #fff; }
+html[data-theme=light] .st { background: rgba(42, 33, 24, .07); }
+html[data-theme=light] .st.b { background: rgba(42, 33, 24, .14); }
+html[data-theme=light] .st.now { border-color: var(--text); }
+html[data-theme=light] .st:hover { border-color: rgba(42, 33, 24, .5); }
+html[data-theme=light] .st[aria-pressed="true"] { box-shadow: 0 2px 6px -2px var(--sc, #c2410c); }
+html[data-theme=light] .facts p { background: #fffcf5aa; }
+html[data-theme=light] .chips a:hover { background: rgba(42, 33, 24, .07); }
