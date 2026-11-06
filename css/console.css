@@ -173,7 +173,7 @@ html[data-theme=light] .libtbl td { border-top-color: #d3d7e4; }
 html[data-theme=light] .recbtn { color: #b91c1c; }
 html[data-theme=light] .keychip:not(:empty) { background: #fff; border-color: var(--edge); color: var(--text); }
 html[data-theme=light] .dpane .tname, html[data-theme=light] .tv, html[data-theme=light] .tab[aria-selected="true"] { color: var(--text); }
-html[data-theme=light] .jdur { color: #a4a9bd; }
+html[data-theme=light] .jdur { color: #475569; }
 html[data-theme=light] .km.compatible, html[data-theme=light] .km.same\ key { color: #047857; }
 html[data-theme=light] .km.clash { color: #92400e; }
 html[data-theme=light] .btn.danger { color: #be123c; }
