@@ -263,19 +263,20 @@ textarea { background: var(--bg); color: var(--text); border: 1px solid var(--li
 .nav button.link { font: inherit; font-size: 14px; font-weight: 500; padding: 8px 14px; border-radius: 999px; color: var(--muted); background: transparent; border: 1px solid transparent; cursor: pointer; margin-left: auto; }
 .nav button.link:hover { color: var(--text); background: var(--panel); }
 
-html[data-theme=contrast] { --bg: #000000; --panel: #000000; --panel-2: #121212; --line: #ffffff; --text: #ffffff; --muted: #f0f0f0; --accent: #c4b0ff; --accent-2: #67e8f9; --good: #6ee7b7; --warn: #fde047; color-scheme: dark; }
+html[data-theme=contrast] { --bg: #000000; --panel: #000000; --panel-2: #121212; --line: #ffffff; --text: #ffffff; --muted: #f0f0f0; --accent: #ffe14d; --accent-2: #7dd3fc; --good: #6ee7b7; --warn: #fde047; color-scheme: dark; }
 html[data-theme=contrast] body { background: #000; }
 html[data-theme=contrast] .nav { background: #000; border-bottom: 2px solid #fff; }
 html[data-theme=contrast] .panel, html[data-theme=contrast] .card, html[data-theme=contrast] .btn, html[data-theme=contrast] input, html[data-theme=contrast] select, html[data-theme=contrast] textarea { border-color: #fff; }
 html[data-theme=contrast] a { text-decoration: underline; }
 html[data-theme=contrast] .nav a, html[data-theme=contrast] .brand, html[data-theme=contrast] .cta, html[data-theme=contrast] a.card, html[data-theme=contrast] .chips a { text-decoration: none; }
-html[data-theme=contrast] .home { --line2: #ffffff; }
+html[data-theme=contrast] .home { --line2: #ffffff; --amber: #ffe14d; }
+html[data-theme=contrast] .cta { box-shadow: none; } html[data-theme=contrast] .cta:hover { background: #fff; }
 html[data-theme=contrast] .hero::before { display: none; }
 html[data-theme=contrast] .cta.ghost { border-color: #fff; }
 html[data-theme=contrast] .deck, html[data-theme=contrast] .facts p { background: #000; }
 html[data-theme=contrast] .st { background: #1a1a1a; border-color: #fff; }
 html[data-theme=contrast] .hero .lead { color: #fff; }
-html[data-theme=contrast] .hero h1 .l2 { color: #c4b0ff; }
+html[data-theme=contrast] .hero h1 .l2 { color: #ffe14d; }
 html[data-theme=contrast] .deckhead select { background: #000; border-color: #fff; }
 
 /* Light theme: warm paper. Cream surfaces, ink text, burnt orange accent with a teal second colour; waveforms turn into ink on paper. */
