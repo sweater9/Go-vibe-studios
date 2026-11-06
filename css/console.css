@@ -161,7 +161,7 @@ html.perf .waves { margin-top: 6px; }
 html.perf .ctop { padding: 6px 10px; }
 
 /* light chassis (screens, knobs and buttons stay dark like real hardware) */
-html[data-theme=light] { --bg: #f4f6fb; --panel: #ffffff; --panel-2: #e9edf5; --line: #d0d7e5; --text: #0f172a; --muted: #475569; --accent: #4f46e5; --accent-2: #0e7490; color-scheme: light; }
+html[data-theme=light] { --bg: #f4f6fb; --panel: #ffffff; --panel-2: #e9edf5; --line: #d0d7e5; --text: #0f172a; --muted: #475569; --accent: #0f766e; --accent-2: #4f46e5; color-scheme: light; }
 html[data-theme=light] body { background: var(--bg); }
 html[data-theme=light] .nav { background: #ffffffe6; }
 html[data-theme=light] .console { --metal: #f4f6fb; --metal-2: #dfe5f0; --edge: #c3cbdb; --lab: #475569; --a: #c2410c; --b: #0369a1; }
@@ -211,3 +211,11 @@ html[data-theme=light] .hbreak { background: #e6ebf4; }
 .fxunit { margin-top: 10px; align-items: center; justify-content: space-between; padding: 8px 10px; border-radius: 10px; background: #0f1015; border: 1px solid #22252e; }
 html[data-theme=light] .fxunit { background: #e6ebf4; border-color: var(--edge); }
 .xfas { max-width: 92px; }
+/* Light theme: pale decks and strips */
+html[data-theme=light] .wstrip { background: #e6ebf4; border-color: var(--edge); }
+html[data-theme=light] .console canvas.zoom, html[data-theme=light] .console canvas.wave, html[data-theme=light] .mx-top canvas.meter, html[data-theme=light] canvas.vmeter { border-color: var(--edge); }
+html[data-theme=light] .jog { background: radial-gradient(circle at 50% 38%, #ffffff, #dfe5f0 72%); border-color: #c3cbdb; }
+html[data-theme=light] .platter { background: repeating-conic-gradient(from 0deg, #e6ebf4 0 4deg, #f4f6fb 4deg 8deg); border-color: #c3cbdb; }
+html[data-theme=light] .jogcenter { background: #ffffff; border-color: #c3cbdb; }
+html[data-theme=light] input.fader::-webkit-slider-runnable-track, html[data-theme=light] input.xfader::-webkit-slider-runnable-track { background: #c3cbdb; box-shadow: inset 0 0 0 1px #aab4c8; }
+html[data-theme=light] input.fader::-moz-range-track, html[data-theme=light] input.xfader::-moz-range-track { background: #c3cbdb; box-shadow: inset 0 0 0 1px #aab4c8; }
