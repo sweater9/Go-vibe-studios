@@ -3807,6 +3807,35 @@ def test_demolink(browser, base):
     ctx.close()
 
 
+def test_themes(browser, base):
+    print("themes: dark neon default, light, high contrast")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "about.html")
+    check("dark neon is the default and has no theme attribute", pg.evaluate("() => document.documentElement.getAttribute('data-theme')") is None)
+    check("every page has a theme button", pg.locator("#themebtn2").count() == 1 and "Dark neon" in pg.inner_text("#themebtn2"))
+    pg.click("#themebtn2"); check("one press gives Light", pg.evaluate("() => document.documentElement.dataset.theme") == "light" and "Light" in pg.inner_text("#themebtn2"))
+    bg = pg.evaluate("() => getComputedStyle(document.body).backgroundColor"); check("the light page has a light background", bg.startswith("rgb(2") or bg.startswith("rgb(24") , bg)
+    pg.click("#themebtn2"); check("the next press gives High contrast", pg.evaluate("() => document.documentElement.dataset.theme") == "contrast")
+    pg.reload(); check("the choice is remembered after a reload", pg.evaluate("() => document.documentElement.dataset.theme") == "contrast")
+    pg.goto(base + "dj.html"); check("the DJ page follows the saved choice", pg.evaluate("() => document.documentElement.dataset.theme") == "contrast" and pg.locator("#themebtn2").count() == 0)
+    pg.click("#themebtn"); check("the DJ page button switches back to dark", pg.evaluate("() => document.documentElement.getAttribute('data-theme')") is None or pg.evaluate("() => document.documentElement.dataset.theme") == "light")
+    pg.goto(base + "about.html"); pg.evaluate("() => localStorage.setItem('govibe.theme', 'nonsense')"); pg.reload()
+    check("a bad saved value falls back to dark", pg.evaluate("() => document.documentElement.getAttribute('data-theme')") is None)
+    check("themes: no console errors", not errs, str(errs[:3]))
+    ctx.close()
+    axe = os.environ.get("AXE_PATH") or os.path.join(ROOT, "node_modules/axe-core/axe.min.js")
+    if os.path.exists(axe):
+        js = "axe.run(document,{runOnly:['wcag2a','wcag2aa','wcag21a','wcag21aa']}).then(r=>r.violations.map(v=>v.id+' x'+v.nodes.length+' '+v.nodes[0].target.join(' ')))"
+        for th in ("light", "contrast"):
+            c2 = browser.new_context(bypass_csp=True); c2.add_init_script("localStorage.setItem('govibe.theme', '%s')" % th); p2 = c2.new_page()
+            for name in PAGES:
+                p2.goto(base + name + ".html"); p2.add_script_tag(path=axe)
+                if name == "index": p2.wait_for_timeout(1500)   # let the hero fade in finish so contrast is measured on the final colours
+                check(f"{th} theme, {name}: no axe violations", not (v := p2.evaluate(js)), str(v))
+            c2.close()
+
+
 def test_reference(browser, base):
     print("reference mix analyzer: measures, advice, A/B")
     errs = []
@@ -3995,7 +4024,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_setmap, test_demotracks, test_demolink, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_setmap, test_demotracks, test_demolink, test_themes, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip
