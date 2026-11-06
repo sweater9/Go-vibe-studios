@@ -60,13 +60,15 @@
   }
   A.queueAdd = (buf, name, pre) => { addBuffer(buf, name, pre); say(queue.length + ' track' + (queue.length === 1 ? '' : 's') + ' in the queue.'); };
   $('amadd').onclick = () => $('amfile').click();
-  $('amdemo').onclick = async () => {
+  const demoGo = async () => {
     if (S.on) return say('Stop Automix before adding tracks.'); const b = $('amdemo'); b.disabled = true;
     try { for (let i = 0; i < GVDemo.count; i++) { say('Making demo track ' + (i + 1) + ' of ' + GVDemo.count + '…'); const d = await GVDemo.make(i); await addBuffer(d.buf, d.name, d.pre); }
       say('Three demo tracks are in the queue. Press Start Automix and listen to how it mixes them: they are made on your device, not recordings.'); }
     catch (e) { say('Could not make the demo tracks: ' + e.message); }
     b.disabled = false;
   };
+  $('amdemo').onclick = demoGo;
+  if (/[?&]demo\b/.test(location.search)) addEventListener('load', () => { const t = document.getElementById('tab-am'); if (t) t.click(); demoGo(); });
   $('amfile').onchange = async () => {
     const files = [...$('amfile').files]; $('amfile').value = '';
     for (const f of files) {
