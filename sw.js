@@ -1,7 +1,7 @@
 /* GoVibeMix service worker: lets the site open offline after the first visit.
  * Network first (so a new deploy shows up right away), cached copy as the fallback.
  * Only same-origin GET requests are handled; API calls and downloads are never touched. */
-const CACHE = 'govibe-v114';
+const CACHE = 'govibe-v115';
 const PRECACHE = [
   'index.html', 'whatsnew.html', 'editor.html', 'video.html', 'dj.html', 'lessons.html', 'privacy.html', 'contact.html', 'js/contactmail.js', 'convert.html', 'record.html', 'metronome.html', 'icons/icon-180.png', 'images/shot-slowed.webp', 'images/shot-audio.webp', 'images/shot-cutter.webp', 'images/shot-booster.webp', 'images/shot-pitch.webp', 'images/shot-visualizer.webp', 'tuner.html', 'practice.html', 'js/practice.js', 'vocals.html', 'js/vocals.js', 'synth.html', 'reference.html', 'repair.html', 'rhythm.html', 'js/rhythm.js', 'images/shot-rhythm.webp', 'js/repair.js', 'images/shot-repair.webp', 'js/reference.js', 'images/shot-reference.webp', 'js/synthstudio.js', 'images/shot-synth.webp', 'images/shot-vocals.webp', 'images/shot-practice.webp', 'tomidi.html', 'js/pitch-detect.js', 'js/tuner.js', 'js/tomidi.js', 'images/shot-tuner.webp', 'images/shot-tomidi.webp', 'looper.html', 'js/looper.js', 'chords.html', 'js/chords.js', 'js/chordspage.js', 'js/metronome.js', 'js/spectrum.js', 'visualizer.html', 'cutter.html', 'booster.html', 'slowed.html', 'pitch.html', 'js/slowed.js', 'js/pitch.js', 'js/stretch.js', 'silence.html', 'mono.html', 'tone.html', 'video-to-audio.html', 'js/utils.js', 'audio.html', 'js/audio.js', 'js/quick.js', 'js/cutter.js', 'js/boost.js', 'js/visualizer.js', 'studio.html', 'bpm.html', 'about.html', 'inside.html', 'faq.html', 'blog.html', 'blog-beatmatching.html', 'blog-camelot.html', 'blog-record-mix.html', 'blog-slowed-reverb.html', 'blog-change-key.html', 'blog-cut-mp3.html', 'blog-tune-guitar.html', 'blog-audio-to-midi.html', 'blog-louder.html', 'blog-clean-audio.html', 'blog-vertical-video.html', 'terms.html',
   'css/style.css',
@@ -18,6 +18,8 @@ self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
+/* Safari refuses a page the worker answers with a redirected response, so hand back a clean copy */
+const clean = (res) => (res && res.redirected ? res.blob().then((b) => new Response(b, { status: res.status, statusText: res.statusText, headers: res.headers })) : Promise.resolve(res));
 self.addEventListener('fetch', (e) => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== self.location.origin || req.headers.has('range')) return;
@@ -27,7 +29,7 @@ self.addEventListener('fetch', (e) => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
       return res;
     }).catch(() => null);
-    if (hit) { e.waitUntil(net); return hit; }
-    return net.then((res) => res || (req.mode === 'navigate' ? caches.match('index.html') : Response.error()));
+    if (hit) { e.waitUntil(net); return clean(hit); }
+    return net.then((res) => clean(res) .then((r) => r || (req.mode === 'navigate' ? caches.match('index.html').then(clean) : Response.error())));
   }));
 });
