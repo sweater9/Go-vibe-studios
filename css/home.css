@@ -275,3 +275,5 @@ html[data-theme=light] .hdeck .steps .rl { background: #f1f4ff; } html[data-them
 @media (max-width: 1000px) { .hero2 h1 { font-size: clamp(36px, 8vw, 54px); } }
 .hdeck .steps .rl { background: transparent; }
 @media (max-width: 700px) { .hdeck .steps .rl { background: #14142a; } }
+/* keep the hero to one column on tablets and phones (must come last) */
+@media (max-width: 1000px) { .hero2 { grid-template-columns: minmax(0, 1fr); } .hdeck { max-width: 760px; width: 100%; } }
