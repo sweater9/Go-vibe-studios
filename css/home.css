@@ -226,3 +226,12 @@ html[data-theme=light] .tfilter button[aria-pressed="true"] { background: #0f766
 .navcta { margin-left: 6px; padding: 8px 16px; border-radius: 999px; background: #ffb23e; color: #1a1205; font-weight: 700; font-size: 14px; }
 .navcta:hover { background: #ffc062; }
 html[data-theme=light] .navcta { background: #0f766e; color: #fff; } html[data-theme=contrast] .navcta { background: #ffe14d; color: #000; }
+/* signature motif: violet, cyan and amber pads */
+.sigline { margin: 14px 0 0; font-weight: 700; font-size: 15px; letter-spacing: .01em; color: var(--text); }
+.gh h2::before, .finder h2::before { content: ""; display: inline-block; width: 22px; height: 8px; margin-right: 12px; vertical-align: middle; border-radius: 2px; background: linear-gradient(90deg, #8b5cf6 0 30%, transparent 30% 35%, #22d3ee 35% 65%, transparent 65% 70%, #ffb23e 70%); }
+.finder h2::before { width: 18px; height: 6px; margin-right: 10px; }
+.pt:hover svg { background: rgba(255, 178, 62, .2); color: #ffb23e; }
+.hero2 .heroart-wrap { filter: drop-shadow(0 30px 70px rgba(139, 92, 246, .45)); }
+html[data-theme=light] .pt:hover svg { background: #ccfbf1; color: #0f766e; }
+html[data-theme=contrast] .gh h2::before, html[data-theme=contrast] .finder h2::before { background: #ffe14d; width: 18px; }
+html[data-theme=light] .heroart-wrap .heroart { filter: none; }
