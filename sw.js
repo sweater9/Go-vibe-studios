@@ -1,7 +1,7 @@
 /* GoVibeMix service worker: lets the site open offline after the first visit.
  * Network first (so a new deploy shows up right away), cached copy as the fallback.
  * Only same-origin GET requests are handled; API calls and downloads are never touched. */
-const CACHE = 'govibe-v112';
+const CACHE = 'govibe-v113';
 const PRECACHE = [
   'index.html', 'whatsnew.html', 'editor.html', 'video.html', 'dj.html', 'lessons.html', 'privacy.html', 'contact.html', 'js/contactmail.js', 'convert.html', 'record.html', 'metronome.html', 'icons/icon-180.png', 'images/shot-slowed.webp', 'images/shot-audio.webp', 'images/shot-cutter.webp', 'images/shot-booster.webp', 'images/shot-pitch.webp', 'images/shot-visualizer.webp', 'tuner.html', 'practice.html', 'js/practice.js', 'vocals.html', 'js/vocals.js', 'synth.html', 'reference.html', 'repair.html', 'rhythm.html', 'js/rhythm.js', 'images/shot-rhythm.webp', 'js/repair.js', 'images/shot-repair.webp', 'js/reference.js', 'images/shot-reference.webp', 'js/synthstudio.js', 'images/shot-synth.webp', 'images/shot-vocals.webp', 'images/shot-practice.webp', 'tomidi.html', 'js/pitch-detect.js', 'js/tuner.js', 'js/tomidi.js', 'images/shot-tuner.webp', 'images/shot-tomidi.webp', 'looper.html', 'js/looper.js', 'chords.html', 'js/chords.js', 'js/chordspage.js', 'js/metronome.js', 'js/spectrum.js', 'visualizer.html', 'cutter.html', 'booster.html', 'slowed.html', 'pitch.html', 'js/slowed.js', 'js/pitch.js', 'js/stretch.js', 'silence.html', 'mono.html', 'tone.html', 'video-to-audio.html', 'js/utils.js', 'audio.html', 'js/audio.js', 'js/quick.js', 'js/cutter.js', 'js/boost.js', 'js/visualizer.js', 'studio.html', 'bpm.html', 'about.html', 'inside.html', 'faq.html', 'blog.html', 'blog-beatmatching.html', 'blog-camelot.html', 'blog-record-mix.html', 'blog-slowed-reverb.html', 'blog-change-key.html', 'blog-cut-mp3.html', 'blog-tune-guitar.html', 'blog-audio-to-midi.html', 'blog-louder.html', 'blog-clean-audio.html', 'blog-vertical-video.html', 'terms.html',
   'css/style.css',
@@ -21,10 +21,13 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== self.location.origin || req.headers.has('range')) return;
-  e.respondWith(
-    fetch(req).then((res) => {
+  /* answer from the cache straight away so pages open instantly, and refresh the copy in the background for next time */
+  e.respondWith(caches.match(req, { ignoreSearch: true }).then((hit) => {
+    const net = fetch(req).then((res) => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
       return res;
-    }).catch(() => caches.match(req, { ignoreSearch: true }).then((hit) => hit || (req.mode === 'navigate' ? caches.match('index.html') : Response.error())))
-  );
+    }).catch(() => null);
+    if (hit) { e.waitUntil(net); return hit; }
+    return net.then((res) => res || (req.mode === 'navigate' ? caches.match('index.html') : Response.error()));
+  }));
 });
