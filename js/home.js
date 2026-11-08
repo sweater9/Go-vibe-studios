@@ -50,7 +50,7 @@
     const hc = {};
     ROWS.forEach(([n, col]) => { hc[n] = []; for (let i = 0; i < 16; i++) {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'hp' + (i % 4 === 0 ? ' b' : ''); b.style.setProperty('--sc', col);
-      b.setAttribute('aria-label', n + ' step ' + (i + 1)); b.setAttribute('aria-pressed', 'false');
+      b.setAttribute('aria-label', 'Top ' + n.toLowerCase() + ' pad ' + (i + 1)); b.setAttribute('aria-pressed', 'false');
       b.onclick = () => { grid[n][i] = grid[n][i] ? 0 : 1; paint(); if (grid[n][i]) hit(n, 0); stat(); };
       hg.appendChild(b); hc[n].push(b); } });
     const sync = () => ROWS.forEach(([n]) => hc[n].forEach((b, i) => b.setAttribute('aria-pressed', !!grid[n][i])));

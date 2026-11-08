@@ -3874,7 +3874,7 @@ def test_flows(browser, base):
     errs = []
     ctx, pg = new_page(browser, errs)
     pg.goto(base + "index.html")
-    check("four goals are offered", pg.locator(".flow").count() == 4 and "make today" in pg.inner_text("#h-flows"))
+    check("six goals are offered", pg.locator(".flow").count() == 6 and "project" in pg.inner_text("#h-flows"))
     hrefs = pg.evaluate("() => Array.from(document.querySelectorAll('.flow a')).map(a => a.getAttribute('href'))")
     import os
     root = os.path.join(os.path.dirname(__file__), "..")
@@ -3882,6 +3882,24 @@ def test_flows(browser, base):
     check("every step links to a page that exists", len(hrefs) >= 10 and not bad, str(bad))
     check("each goal has three steps", pg.evaluate("() => Array.from(document.querySelectorAll('.flow ol')).every(o => o.children.length === 3)"))
     check("goals: no console errors", not errs, str(errs[:3]))
+    ctx.close()
+
+
+def test_heropads(browser, base):
+    print("home: hero beat pads")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "index.html")
+    check("hero has 64 pads", pg.locator("#hgrid .hp").count() == 64)
+    on = pg.locator("#hgrid [aria-pressed=true]").count()
+    check("hero shows the same pattern as the beat demo", on > 0 and on == pg.locator("#steps [aria-pressed=true]").count())
+    pg.locator("#hgrid .hp").nth(5).click()
+    check("tapping a hero pad updates both views", pg.locator("#hgrid [aria-pressed=true]").count() == on + 1 and pg.locator("#steps [aria-pressed=true]").count() == on + 1)
+    pg.click("#hplay"); pg.wait_for_timeout(500)
+    check("hero play starts the loop", pg.get_attribute("#hplay", "aria-pressed") == "true" and pg.locator("#hgrid .now").count() > 0)
+    pg.click("#hplay")
+    check("hero stop stops it", pg.get_attribute("#hplay", "aria-pressed") == "false")
+    check("hero pads: no console errors", not errs, str(errs[:3]))
     ctx.close()
 
 
@@ -4102,7 +4120,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_setmap, test_demotracks, test_demolink, test_toolsearch, test_favorites, test_flows, test_themes, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_setmap, test_demotracks, test_demolink, test_toolsearch, test_favorites, test_flows, test_heropads, test_themes, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip
