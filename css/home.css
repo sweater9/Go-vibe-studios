@@ -210,3 +210,9 @@ html[data-theme=contrast] .hero2 h1 .grad { background: none; color: #ffe14d; } 
 .hero2 h1 .grad { white-space: nowrap; }
 @media (max-width: 420px) { .hero2 h1 .grad { white-space: normal; } }
 html[data-theme=light] .tfilter button[aria-pressed="true"] { background: #0f766e; border-color: #0f766e; color: #fff; }
+/* compact search panel */
+.finder { padding: 16px 20px; border-radius: 20px; margin-bottom: clamp(24px, 3vw, 36px); }
+.finder h2 { font-size: 18px; margin: 0 0 10px; letter-spacing: -.015em; }
+.finder .tsearch input { font-size: 15px; padding: 10px 14px; border-radius: 12px; }
+.finder .tfilter button { min-height: 40px; padding: 8px 14px; font-size: 13px; }
+.finder .status:empty { display: none; }
