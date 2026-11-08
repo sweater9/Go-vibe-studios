@@ -235,3 +235,22 @@ html[data-theme=light] .navcta { background: #0f766e; color: #fff; } html[data-t
 html[data-theme=light] .pt:hover svg { background: #ccfbf1; color: #0f766e; }
 html[data-theme=contrast] .gh h2::before, html[data-theme=contrast] .finder h2::before { background: #ffe14d; width: 18px; }
 html[data-theme=light] .heroart-wrap .heroart { filter: none; }
+/* playable hero pads */
+.hpanel { padding: 20px; border-radius: 26px; background: #0f1126; border: 1px solid #3a3e80; box-shadow: 0 30px 80px -30px rgba(139, 92, 246, .6); }
+.hgrid { display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 5px; }
+.hp { aspect-ratio: 1; min-width: 0; padding: 0; border-radius: 7px; border: 1px solid #2f3470; background: #1b1d3a; cursor: pointer; transition: background .08s, box-shadow .08s, transform .08s; }
+.hp.b { border-color: #4b4f8f; }
+.hp[aria-pressed="true"] { background: var(--sc); border-color: var(--sc); box-shadow: 0 0 14px -2px var(--sc); }
+.hp.now { outline: 2px solid #fff; outline-offset: 1px; transform: translateY(-2px); }
+.hp:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.hwave { width: 100%; height: auto; display: block; margin: 14px 0 4px; }
+.hbar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.hplay { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 10px 22px; border-radius: 999px; border: 0; background: #ffb23e; color: #1a1205; font: inherit; font-weight: 700; font-size: 15px; cursor: pointer; }
+.hplay:hover { background: #ffc062; } .hplay:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+.hnote { color: #9a98c4; font-size: 13px; flex: 1 1 180px; }
+@media (max-width: 560px) { .hpanel { padding: 14px; } .hgrid { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; } }
+html[data-theme=light] .hpanel { background: #fff; border-color: #c7d2fe; box-shadow: 0 24px 60px -36px rgba(79, 70, 229, .5); }
+html[data-theme=light] .hp { background: #eef2ff; border-color: #c7d2fe; } html[data-theme=light] .hp.now { outline-color: #0f172a; }
+html[data-theme=light] .hplay { background: #0f766e; color: #fff; } html[data-theme=light] .hnote { color: #475569; }
+html[data-theme=contrast] .hpanel { background: #000; border-color: #fff; box-shadow: none; } html[data-theme=contrast] .hp { background: #000; border-color: #fff; }
+html[data-theme=contrast] .hp[aria-pressed="true"] { background: #ffe14d; border-color: #ffe14d; box-shadow: none; } html[data-theme=contrast] .hplay { background: #ffe14d; color: #000; } html[data-theme=contrast] .hnote { color: #fff; }
