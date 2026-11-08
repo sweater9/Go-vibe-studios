@@ -131,3 +131,10 @@ html[data-theme=light] .tfilter button[aria-pressed="true"] { color: #fff; }
 html[data-theme=contrast] .tsearch input { background: #000; border-color: #fff; }
 html[data-theme=contrast] .tfilter button { background: #000; border-color: #fff; }
 html[data-theme=contrast] .tfilter button[aria-pressed="true"] { background: #ffe14d; color: #000; }
+/* Favourites: star on each card (cell wraps the card so the button is not inside the link) */
+.tcell { position: relative; display: grid; } .tcell.wide { grid-column: 1 / -1; } .tcell[hidden] { display: none !important; }
+.tcell .fav { position: absolute; top: 10px; right: 10px; z-index: 3; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line2); background: #0b0c1ccc; color: var(--text); font-size: 22px; line-height: 1; cursor: pointer; }
+.tcell .fav[aria-pressed="true"] { color: #ffd24d; border-color: #ffd24d; }
+.tcell .fav:hover { border-color: var(--accent); } .tcell .fav:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+html[data-theme=light] .tcell .fav { background: #ffffffe6; color: #0f172a; } html[data-theme=light] .tcell .fav[aria-pressed="true"] { color: #b45309; border-color: #b45309; }
+html[data-theme=contrast] .tcell .fav { background: #000; border-color: #fff; } html[data-theme=contrast] .tcell .fav[aria-pressed="true"] { color: #ffe14d; border-color: #ffe14d; }

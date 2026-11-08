@@ -29,7 +29,7 @@
     const secs = new Map();
     items.forEach((it) => {
       const ok = (group === 'all' || it.g === group) && toks.every((t) => it.text.includes(t));
-      it.el.hidden = !ok; if (ok) { shown++; secs.set(it.sec, true); }
+      const cell = it.el.closest('.tcell') || it.el; cell.hidden = !ok; it.el.hidden = !ok; if (ok) { shown++; secs.set(it.sec, true); }
     });
     document.querySelectorAll('section.grp').forEach((s) => { if (/\bg-(make|edit|dj|learn|quick)\b/.test(s.className)) { s.hidden = !secs.has(s); if (!s.hidden) s.classList.add('in'); } });
     const filtering = toks.length || group !== 'all';

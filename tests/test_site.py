@@ -3837,6 +3837,27 @@ def test_toolsearch(browser, base):
     ctx.close()
 
 
+def test_favorites(browser, base):
+    print("home: favourite tools")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "index.html")
+    check("every tool card has a star button", pg.locator("button.fav").count() >= 25 and pg.locator("a.card.tool button").count() == 0)
+    check("no favourites row to begin with", not pg.is_visible("#favrow"))
+    pg.click("button.fav[data-h='dj.html']"); pg.click("button.fav[data-h='tuner.html']")
+    check("starring shows the favourites row", pg.is_visible("#favrow") and pg.locator("#favrow a").count() == 2 and pg.get_attribute("button.fav[data-h='dj.html']", "aria-pressed") == "true")
+    pg.reload()
+    check("favourites are remembered", pg.locator("#favrow a").count() == 2 and pg.evaluate("() => JSON.parse(localStorage.getItem('govibe.favs')).join()") == "dj.html,tuner.html")
+    pg.click("button.fav[data-h='dj.html']")
+    check("unstarring removes it", pg.locator("#favrow a").count() == 1)
+    pg.fill("#tsq", "tuner")
+    check("search still hides non matching cards", pg.locator(".tcell:visible").count() == 1)
+    pg.evaluate("() => localStorage.setItem('govibe.favs', JSON.stringify(['../x', 'dj.html', 5]))"); pg.reload()
+    check("a damaged favourites list is ignored safely", pg.locator("#favrow a").count() == 1)
+    check("favourites: no console errors", not errs, str(errs[:3]))
+    ctx.close()
+
+
 def test_themes(browser, base):
     print("themes: dark neon default, light, high contrast")
     errs = []
@@ -4054,7 +4075,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_setmap, test_demotracks, test_demolink, test_toolsearch, test_themes, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_setmap, test_demotracks, test_demolink, test_toolsearch, test_favorites, test_themes, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip
