@@ -216,3 +216,13 @@ html[data-theme=light] .tfilter button[aria-pressed="true"] { background: #0f766
 .finder .tsearch input { font-size: 15px; padding: 10px 14px; border-radius: 12px; }
 .finder .tfilter button { min-height: 40px; padding: 8px 14px; font-size: 13px; }
 .finder .status:empty { display: none; }
+.cats { margin: 0 0 clamp(36px, 5vw, 64px); }
+.catgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.pt.cat { min-height: 0; flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 14px; row-gap: 2px; }
+.pt.cat svg { margin: 0; grid-row: span 2; flex: none; }
+.pt.cat b { flex: 1 1 calc(100% - 70px); } .pt.cat span { flex: 1 1 100%; padding-left: 0; }
+@media (max-width: 1000px) { .catgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .catgrid { gap: 10px; } .pt.cat { padding: 14px; } .pt.cat span { font-size: 12.5px; } .pt.cat svg { width: 34px; height: 34px; padding: 8px; } }
+.navcta { margin-left: 6px; padding: 8px 16px; border-radius: 999px; background: #ffb23e; color: #1a1205; font-weight: 700; font-size: 14px; }
+.navcta:hover { background: #ffc062; }
+html[data-theme=light] .navcta { background: #0f766e; color: #fff; } html[data-theme=contrast] .navcta { background: #ffe14d; color: #000; }
