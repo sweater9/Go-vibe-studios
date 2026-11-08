@@ -3807,6 +3807,36 @@ def test_demolink(browser, base):
     ctx.close()
 
 
+def test_toolsearch(browser, base):
+    print("home: tool search and category filter")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "index.html")
+    total = pg.locator("section.grp a.card.tool:visible, section.grp ul.quick li:visible").count()
+    check("all tools are shown to begin with", total >= 30, str(total))
+    pg.fill("#tsq", "tempo")
+    vis = lambda: pg.evaluate("() => Array.from(document.querySelectorAll('section.grp a.card.tool, section.grp ul.quick li')).filter(e => !e.hidden && e.offsetParent !== null).map(e => (e.matches('a') ? e : e.querySelector('a')).getAttribute('href'))")
+    v = vis()
+    check("searching tempo finds the BPM finder and the metronome", "bpm.html" in v and "metronome.html" in v and "studio.html" not in v, str(v))
+    check("the result count is announced", "tool" in pg.inner_text("#tcount"))
+    pg.fill("#tsq", "mp3 wav")
+    check("a keyword search finds the converter", "convert.html" in vis())
+    pg.fill("#tsq", "zzzzqq")
+    check("no match shows a friendly message", pg.is_visible("#tnone") and not vis())
+    pg.fill("#tsq", "")
+    pg.click(".tfilter button[data-g='dj']")
+    v = vis()
+    check("the DJ filter shows only DJ tools", "dj.html" in v and "bpm.html" in v and "editor.html" not in v and pg.get_attribute(".tfilter button[data-g='dj']", "aria-pressed") == "true", str(v))
+    pg.click(".tfilter button[data-g='all']")
+    check("All brings every tool back", len(vis()) >= 30)
+    pg.evaluate("() => document.activeElement.blur()"); pg.keyboard.press("/")
+    check("the slash key focuses the search box", pg.evaluate("() => document.activeElement.id") == "tsq")
+    pg.goto(base + "index.html?q=convert")
+    check("a q parameter pre-fills the search", pg.input_value("#tsq") == "convert" and "convert.html" in vis())
+    check("tool search: no console errors", not errs, str(errs[:3]))
+    ctx.close()
+
+
 def test_themes(browser, base):
     print("themes: dark neon default, light, high contrast")
     errs = []
@@ -4024,7 +4054,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_setmap, test_demotracks, test_demolink, test_themes, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_setmap, test_demotracks, test_demolink, test_toolsearch, test_themes, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

@@ -64,6 +64,16 @@
   <div id="tools" tabindex="-1"></div>
   <nav class="chips" aria-label="Popular tools"><span class="chiph">Popular</span><a href="studio.html">Studio</a><a href="editor.html">Audio editor</a><a href="video.html">Video editor</a><a href="dj.html">DJ console</a><a href="slowed.html">Slowed and reverb</a><a href="pitch.html">Pitch and speed</a><a href="cutter.html">Audio cutter</a><a href="booster.html">Volume booster</a><a href="audio.html">Audio cleanup</a><a href="convert.html">Converter</a><a href="visualizer.html">Visualizer</a><a class="chipall" href="#h-g-make">All tools &darr;</a></nav>
 
+  <div class="tsearch" role="search">
+    <label class="sr" for="tsq">Search tools</label>
+    <input id="tsq" type="search" placeholder="Search tools: mix, trim, tempo, convert" autocomplete="off" maxlength="60">
+    <div class="tfilter" role="group" aria-label="Filter by category">
+      <button type="button" data-g="all" aria-pressed="true">All</button><button type="button" data-g="make" aria-pressed="false">Make</button><button type="button" data-g="edit" aria-pressed="false">Edit</button><button type="button" data-g="dj" aria-pressed="false">DJ</button><button type="button" data-g="learn" aria-pressed="false">Learn</button><button type="button" data-g="quick" aria-pressed="false">Quick</button>
+    </div>
+    <p id="tcount" class="status" aria-live="polite"></p>
+  </div>
+  <p id="tnone" class="status tnone" hidden>No tool matches that. Try a simpler word, such as mix, cut, tempo or convert.</p>
+
   <section class="grp ws" id="workspace" aria-label="My workspace" hidden></section>
 
   <section class="grp g-make" aria-labelledby="h-g-make">
@@ -137,6 +147,7 @@
 <script src="js/session.js"></script>
 <script src="js/home.js"></script>
 <script src="js/workspace.js"></script>
+<script src="js/toolsearch.js"></script>
 <script src="js/pwa.js"></script>
 </body>
 </html>
