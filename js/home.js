@@ -23,7 +23,14 @@
   function paint() { ROWS.forEach(([n]) => cells[n].forEach((b, i) => b.setAttribute('aria-pressed', !!grid[n][i]))); }
   function load(name) { const p = PRESETS[name]; ROWS.forEach(([n]) => { grid[n] = Array(16).fill(0); (p[n] || []).forEach((i) => { grid[n][i] = 1; }); }); if (p.bpm) { $('dbpm').value = p.bpm; $('dbpmv').textContent = p.bpm; } paint(); stat(); }
   function stat() { const n = ROWS.reduce((a, [r]) => a + grid[r].reduce((x, y) => x + y, 0), 0); $('dstat').textContent = n ? n + ' hits on the grid at ' + $('dbpm').value + ' BPM.' : 'The grid is empty. Tap a square to add a hit.'; }
-  function audio() { if (!ctx) { ctx = new (window.AudioContext || window.webkitAudioContext)(); bus = ctx.createGain(); bus.gain.value = 0.9; bus.connect(ctx.destination); } ctx.resume(); return ctx; }
+  function audio() { if (!ctx) { ctx = new (window.AudioContext || window.webkitAudioContext)(); bus = ctx.createGain(); bus.gain.value = 0.9; route(); } ctx.resume(); if (el) el.play().catch(() => {}); return ctx; }
+  /* iPhones silence Web Audio when the ring switch is off; sending the sound through an audio element plays it like music instead */
+  let el = null;
+  function route() {
+    const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (ios && ctx.createMediaStreamDestination) { try { const d = ctx.createMediaStreamDestination(); bus.connect(d); el = new Audio(); el.setAttribute('playsinline', ''); el.srcObject = d.stream; el.play().catch(() => {}); return; } catch (e) { el = null; } }
+    bus.connect(ctx.destination);
+  }
   function hit(name, when) { const c = audio(); GVSynth.drum(c, bus, name, c.currentTime + 0.01 + (when || 0), 0.9); }
   function mark(i) { box.querySelectorAll('.now').forEach((b) => b.classList.remove('now')); ROWS.forEach(([n]) => cells[n][i].classList.add('now')); }
   function tick() {
@@ -58,7 +65,7 @@
     const mk = mark; mark = (i) => { mk(i); hg.querySelectorAll('.now').forEach((b) => b.classList.remove('now')); ROWS.forEach(([n]) => hc[n][i].classList.add('now')); };
     const hp = $('hplay');
     hp.onclick = () => $('dplay').click();
-    new MutationObserver(() => { const on = $('dplay').getAttribute('aria-pressed') === 'true'; hp.setAttribute('aria-pressed', on); hp.querySelector('.ps').textContent = on ? 'Stop' : 'Play the beat'; hp.querySelector('.ph').innerHTML = on ? '&#9632;' : '&#9654;'; if (!on) hg.querySelectorAll('.now').forEach((b) => b.classList.remove('now')); }).observe($('dplay'), { attributes: true, attributeFilter: ['aria-pressed'] });
+    new MutationObserver(() => { const on = $('dplay').getAttribute('aria-pressed') === 'true'; hp.setAttribute('aria-pressed', on); hp.querySelector('.ps').textContent = on ? 'Stop' : 'Play the beat'; hp.querySelector('.ph').innerHTML = on ? '&#9632;' : '&#9654;'; const hn = document.querySelector('.hnote'); if (hn) hn.textContent = on ? 'Playing. No sound? Turn up your media volume and switch off silent mode.' : 'Tap the pads to change it. Sound starts when you press play.'; if (!on) hg.querySelectorAll('.now').forEach((b) => b.classList.remove('now')); }).observe($('dplay'), { attributes: true, attributeFilter: ['aria-pressed'] });
     sync();
   }
   load('Boom bap');
