@@ -254,3 +254,5 @@ html[data-theme=light] .hp { background: #eef2ff; border-color: #c7d2fe; } html[
 html[data-theme=light] .hplay { background: #0f766e; color: #fff; } html[data-theme=light] .hnote { color: #475569; }
 html[data-theme=contrast] .hpanel { background: #000; border-color: #fff; box-shadow: none; } html[data-theme=contrast] .hp { background: #000; border-color: #fff; }
 html[data-theme=contrast] .hp[aria-pressed="true"] { background: #ffe14d; border-color: #ffe14d; box-shadow: none; } html[data-theme=contrast] .hplay { background: #ffe14d; color: #000; } html[data-theme=contrast] .hnote { color: #fff; }
+/* the beat deck lives in the hero */
+.hdeck { min-width: 0; } .hdeck .deck { box-shadow: 0 30px 80px -30px rgba(139, 92, 246, .6); border-color: rgba(139, 92, 246, .45); }

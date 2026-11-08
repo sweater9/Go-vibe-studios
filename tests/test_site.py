@@ -3886,20 +3886,20 @@ def test_flows(browser, base):
 
 
 def test_heropads(browser, base):
-    print("home: hero beat pads")
+    print("home: the beat lives in the hero")
     errs = []
     ctx, pg = new_page(browser, errs)
     pg.goto(base + "index.html")
-    check("hero has 64 pads", pg.locator("#hgrid .hp").count() == 64)
-    on = pg.locator("#hgrid [aria-pressed=true]").count()
-    check("hero shows the same pattern as the beat demo", on > 0 and on == pg.locator("#steps [aria-pressed=true]").count())
-    pg.locator("#hgrid .hp").nth(5).click()
-    check("tapping a hero pad updates both views", pg.locator("#hgrid [aria-pressed=true]").count() == on + 1 and pg.locator("#steps [aria-pressed=true]").count() == on + 1)
-    pg.click("#hplay"); pg.wait_for_timeout(500)
-    check("hero play starts the loop", pg.get_attribute("#hplay", "aria-pressed") == "true" and pg.locator("#hgrid .now").count() > 0)
-    pg.click("#hplay")
-    check("hero stop stops it", pg.get_attribute("#hplay", "aria-pressed") == "false")
-    check("hero pads: no console errors", not errs, str(errs[:3]))
+    check("the beat deck is in the hero", pg.locator("header.hero #deck").count() == 1 and pg.locator("#deck").count() == 1)
+    check("no second beat section further down", pg.locator(".beatsec").count() == 0)
+    on = pg.locator("#steps [aria-pressed=true]").count()
+    pg.locator("#steps .st").nth(5).click()
+    check("tapping a pad adds a hit", pg.locator("#steps [aria-pressed=true]").count() == on + 1)
+    pg.click("#dplay"); pg.wait_for_timeout(500)
+    check("play starts the loop", pg.get_attribute("#dplay", "aria-pressed") == "true" and pg.locator("#steps .now").count() > 0)
+    pg.click("#dplay")
+    check("stop stops it", pg.get_attribute("#dplay", "aria-pressed") == "false")
+    check("hero beat: no console errors", not errs, str(errs[:3]))
     ctx.close()
 
 
