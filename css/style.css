@@ -96,7 +96,7 @@ footer { text-align: center; color: var(--muted); font-size: 12px; padding: 30px
 footer a { color: var(--muted); text-decoration: underline; }
 footer a:hover { color: var(--text); }
 .fnav { display: inline; }
-.prose h2 { margin-top: 28px; }
+.prose h2 { margin-top: 28px; } .prose h3 { margin: 22px 0 6px; font-size: 17px; }
 .prose p, .prose li { color: var(--muted); line-height: 1.65; }
 .prose ul { padding-left: 22px; }
 .prose b { color: var(--text); }
