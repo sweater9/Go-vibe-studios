@@ -191,7 +191,7 @@ select { background: var(--bg); border: 1px solid var(--line); color: var(--text
 h1, h2 { letter-spacing: -.02em; }
 footer { border-top: 1px solid rgba(255, 255, 255, .06); margin-top: 20px; padding: 34px 20px; }
 .brand img { margin-right: 9px; }
-.brand span { margin-right: .26em; }
+.brand span { margin-right: 0; }
 #tools { scroll-margin-top: 70px; } html { scroll-behavior: smooth; } @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 
 
