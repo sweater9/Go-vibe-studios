@@ -1,4 +1,4 @@
-/* GoVibe Mix — mix planning: harmonic and tempo ordering of a queue, and a beatmatched timeline with bass swap crossfades. Pure functions, no audio objects, so they can be tested exactly. */
+/* GoVibeMix — mix planning: harmonic and tempo ordering of a queue, and a beatmatched timeline with bass swap crossfades. Pure functions, no audio objects, so they can be tested exactly. */
 window.GVMixPlan = (() => {
   /* ---------- ordering ---------- */
   function keyCost(a, b) { // Camelot wheel distance, 0 is the best match

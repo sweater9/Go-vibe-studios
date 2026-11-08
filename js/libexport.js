@@ -1,4 +1,4 @@
-/* GoVibe Mix — library export for other DJ software: a playlist file (.m3u8), a spreadsheet (.csv) and a Rekordbox style XML with tempo, key, rating, hot cues and playlists.
+/* GoVibeMix — library export for other DJ software: a playlist file (.m3u8), a spreadsheet (.csv) and a Rekordbox style XML with tempo, key, rating, hot cues and playlists.
    Only the track data is exported, never the audio, so the files point at the original file names: put the export next to your music or relink the tracks in the other program.
    Pure functions on library records { id, name, dur, bpm, key, energy, grid, cues, rating, tag, notes } and playlists { name, ids }. */
 window.GVLibExport = (() => {
@@ -22,7 +22,7 @@ window.GVLibExport = (() => {
       + (r.bpm ? '      <TEMPO Inizio="' + (r.grid ? Math.max(0, +r.grid.t0).toFixed(3) : '0.000') + '" Bpm="' + r.bpm.toFixed(2) + '" Metro="4/4" Battito="1"/>\n' : '')
       + (r.cues || []).map((c, n) => (c != null ? '      <POSITION_MARK Name="" Type="0" Start="' + (+c).toFixed(3) + '" Num="' + n + '"/>\n' : '')).join('') + '    </TRACK>').join('\n');
     const nodes = (lists || []).map((l) => { const ids = l.ids.filter((x) => id.has(x)); return '      <NODE Name="' + esc(l.name) + '" Type="1" KeyType="0" Entries="' + ids.length + '">\n' + ids.map((x) => '        <TRACK Key="' + id.get(x) + '"/>').join('\n') + (ids.length ? '\n' : '') + '      </NODE>'; });
-    return '<?xml version="1.0" encoding="UTF-8"?>\n<DJ_PLAYLISTS Version="1.0.0">\n  <PRODUCT Name="GoVibe Mix" Version="1.0" Company="GoVibe Mix"/>\n  <COLLECTION Entries="' + recs.length + '">\n' + tr + '\n  </COLLECTION>\n  <PLAYLISTS>\n    <NODE Type="0" Name="ROOT" Count="' + nodes.length + '">\n' + nodes.join('\n') + '\n    </NODE>\n  </PLAYLISTS>\n</DJ_PLAYLISTS>\n';
+    return '<?xml version="1.0" encoding="UTF-8"?>\n<DJ_PLAYLISTS Version="1.0.0">\n  <PRODUCT Name="GoVibeMix" Version="1.0" Company="GoVibeMix"/>\n  <COLLECTION Entries="' + recs.length + '">\n' + tr + '\n  </COLLECTION>\n  <PLAYLISTS>\n    <NODE Type="0" Name="ROOT" Count="' + nodes.length + '">\n' + nodes.join('\n') + '\n    </NODE>\n  </PLAYLISTS>\n</DJ_PLAYLISTS>\n';
   }
   return { m3u8, csv, rekordbox };
 })();

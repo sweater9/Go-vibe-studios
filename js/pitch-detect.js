@@ -1,4 +1,4 @@
-/* GoVibe Mix: monophonic pitch detection (the YIN method) shared by the Tuner and Audio to MIDI. Runs locally. */
+/* GoVibeMix: monophonic pitch detection (the YIN method) shared by the Tuner and Audio to MIDI. Runs locally. */
 window.GVPitch = (() => {
   const NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
   const toMidi = (hz, a4 = 440) => 69 + 12 * Math.log2(hz / a4), toHz = (m, a4 = 440) => a4 * Math.pow(2, (m - 69) / 12);

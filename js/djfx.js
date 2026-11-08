@@ -1,4 +1,4 @@
-/* GoVibe Mix — DJ sound effects made from scratch (noise and oscillators): risers, impacts, crashes and snare rolls. They take any audio context, so the live Automix and the
+/* GoVibeMix — DJ sound effects made from scratch (noise and oscillators): risers, impacts, crashes and snare rolls. They take any audio context, so the live Automix and the
    Mix maker's offline render use the same sounds. Each function returns the source nodes it started, so a caller can stop them early. Nothing is loaded from anywhere. */
 window.GVDjFx = (() => {
   const noise = (c, len) => { const b = c.createBuffer(1, Math.max(1, Math.floor(c.sampleRate * len)), c.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; const s = c.createBufferSource(); s.buffer = b; return s; };

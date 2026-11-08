@@ -1,4 +1,4 @@
-/* GoVibe Mix: vocal studio. Record several takes against a backing track, build one best take from the good parts (comping),
+/* GoVibeMix: vocal studio. Record several takes against a backing track, build one best take from the good parts (comping),
    correct the pitch note by note, add a vocal effects chain and send the result to the Studio. Everything stays on this device. */
 (() => {
   const $ = (id) => document.getElementById(id), Q = window.GVQuick, P = window.GVPitch, S = window.GVStretch;

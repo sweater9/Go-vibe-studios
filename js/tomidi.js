@@ -1,4 +1,4 @@
-/* GoVibe Mix: audio to MIDI. Finds the notes of a single melodic line (a voice, a whistle, a bass, a lead) and saves them as a MIDI file.
+/* GoVibeMix: audio to MIDI. Finds the notes of a single melodic line (a voice, a whistle, a bass, a lead) and saves them as a MIDI file.
    It follows one note at a time, so chords and full mixes will not come out right. Everything runs in this browser. */
 (() => {
   const $ = (id) => document.getElementById(id), Q = window.GVQuick, P = window.GVPitch;

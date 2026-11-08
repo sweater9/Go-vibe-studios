@@ -1,4 +1,4 @@
-/* GoVibe Mix — jog wheel: drag to scratch (forward and backward), hold Bend buttons to nudge pitch */
+/* GoVibeMix — jog wheel: drag to scratch (forward and backward), hold Bend buttons to nudge pitch */
 (() => {
   const A = window.GVAudio; if (!A) return;
   const { ctx, decks } = A, REV = 1.8;                       // seconds of audio per full turn of the platter (33⅓ rpm)

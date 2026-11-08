@@ -1,4 +1,4 @@
-# GoVibe Mix
+# GoVibeMix
 
 Free browser tools for music lovers, content creators, DJs and music makers. No signup, no payments, no server: everything runs in the user's browser.
 

@@ -1,4 +1,4 @@
-/* GoVibe Mix: instrument tuner. Listens through the microphone, finds the pitch and shows how far it is from the nearest note. Nothing is recorded or sent. */
+/* GoVibeMix: instrument tuner. Listens through the microphone, finds the pitch and shows how far it is from the nearest note. Nothing is recorded or sent. */
 (() => {
   const $ = (id) => document.getElementById(id), P = window.GVPitch;
   const SETS = { chromatic: [], guitar: ['E2', 'A2', 'D3', 'G3', 'B3', 'E4'], bass: ['E1', 'A1', 'D2', 'G2'], ukulele: ['G4', 'C4', 'E4', 'A4'], violin: ['G3', 'D4', 'A4', 'E5'], cello: ['C2', 'G2', 'D3', 'A3'] };

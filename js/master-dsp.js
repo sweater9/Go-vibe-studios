@@ -1,4 +1,4 @@
-/* GoVibe Mix — mastering maths: BS.1770 loudness, true peak, EQ, glue compressor, look ahead limiter. Pure functions, run in a worker. */
+/* GoVibeMix — mastering maths: BS.1770 loudness, true peak, EQ, glue compressor, look ahead limiter. Pure functions, run in a worker. */
 (function (root) {
   const db = (x) => 20 * Math.log10(Math.max(1e-12, x)), lin = (d) => Math.pow(10, d / 20);
 

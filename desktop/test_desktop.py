@@ -14,7 +14,7 @@ try:
     time.sleep(1)
     with sync_playwright() as p:
         b = p.chromium.connect_over_cdp('http://127.0.0.1:9334'); pg = b.contexts[0].pages[0]; errs = []; pg.on('pageerror', lambda e: errs.append(str(e))); pg.wait_for_load_state()
-        check('the app opens the home page from the bundled files', pg.url == 'govibe://app/index.html' and 'GoVibe Mix' in pg.title(), pg.url)
+        check('the app opens the home page from the bundled files', pg.url == 'govibe://app/index.html' and 'GoVibeMix' in pg.title(), pg.url)
         check('home page shows all tool cards', pg.evaluate("document.querySelectorAll('.card').length") >= 12, pg.evaluate("document.querySelectorAll('.card').length"))
         o = pg.evaluate("[location.origin, window.isSecureContext, typeof AudioWorkletNode, typeof Worker]"); check('private origin is a secure context with AudioWorklet and workers', o == ['govibe://app', True, 'function', 'function'], o)
         pg.goto('govibe://app/studio.html?gvtest'); pg.wait_for_function("() => window.__st", timeout=10000); check('the Studio loads', pg.evaluate("__st.P.tracks.length") == 0)

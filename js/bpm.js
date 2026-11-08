@@ -1,4 +1,4 @@
-/* GoVibe Mix — BPM and key finder: analyse files in the browser (tempo, Camelot key), copy or export the results, and a tap tempo counter. */
+/* GoVibeMix — BPM and key finder: analyse files in the browser (tempo, Camelot key), copy or export the results, and a tap tempo counter. */
 (() => {
   const $ = (id) => document.getElementById(id);
   const A = window.GVAnalyze;

@@ -1,4 +1,4 @@
-/* GoVibe Mix: advanced note editing for the Studio piano roll. Adds multiple selection (shift click, drag a box, select all), moving and
+/* GoVibeMix: advanced note editing for the Studio piano roll. Adds multiple selection (shift click, drag a box, select all), moving and
    resizing several notes together, copy, paste and duplicate, quantize with strength, humanize, legato, snap to scale and a velocity lane. */
 window.GVRollPlus = (() => {
   let clip = [];                       // copied notes, relative to the first one

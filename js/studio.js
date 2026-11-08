@@ -1,4 +1,4 @@
-/* GoVibe Mix — Studio: multitrack timeline (audio, keys and drum tracks), mixer, loop, metronome, save and export. */
+/* GoVibeMix — Studio: multitrack timeline (audio, keys and drum tracks), mixer, loop, metronome, save and export. */
 (() => {
   const $ = (id) => document.getElementById(id), Core = GVStudioCore, IO = GVStudioIO;
   const RULER = 28, LANE = 122;

@@ -1,4 +1,4 @@
-/* GoVibe Mix — DJ page view options: light/dark chassis and full performance view.
+/* GoVibeMix — DJ page view options: light/dark chassis and full performance view.
    Loaded in <head> so the saved theme is applied before the first paint. */
 (() => {
   const root = document.documentElement, TK = 'govibe.theme', OLD = 'govibe.djtheme';

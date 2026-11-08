@@ -1,4 +1,4 @@
-/* GoVibe Mix — Studio mixer: one channel strip per track, a reverb and a delay return, and a master strip.
+/* GoVibeMix — Studio mixer: one channel strip per track, a reverb and a delay return, and a master strip.
  * Each strip has an effects chain (EQ, compressor, saturation, chorus, delay, reverb), send levels, pan, fader and meter.
  * The audio itself is built in studio-core.js and fx.js; this file is only the controls. */
 (() => {

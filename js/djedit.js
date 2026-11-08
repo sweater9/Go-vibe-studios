@@ -1,4 +1,4 @@
-/* GoVibe Mix — DJ edit maker page: reads a track's beat grid and structure (js/analyze.js, js/trackmap.js), plans a longer or shorter edit on bar lines (js/editplan.js), previews it and saves it. */
+/* GoVibeMix — DJ edit maker page: reads a track's beat grid and structure (js/analyze.js, js/trackmap.js), plans a longer or shorter edit on bar lines (js/editplan.js), previews it and saves it. */
 (() => {
   const Q = window.GVQuick, A = window.GVAnalyze, TM = window.GVTrackMap, EP = window.GVEditPlan, $ = (id) => document.getElementById(id), say = (t) => { $('status').textContent = t; };
   let buf = null, map = null, name = 'track', cur = null, out = null, url = null;

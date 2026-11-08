@@ -1,4 +1,4 @@
-/* GoVibe Mix: audio repair. Finds and removes clicks and pops, mains hum (50 or 60 Hz and its harmonics), clipped peaks and DC offset.
+/* GoVibeMix: audio repair. Finds and removes clicks and pops, mains hum (50 or 60 Hz and its harmonics), clipped peaks and DC offset.
    Everything runs on this device. The repairs are signal processing, not AI, so a report says what was found before anything changes. */
 (() => {
   const $ = (id) => document.getElementById(id), Q = window.GVQuick, say = (t) => { $('status').textContent = t; };

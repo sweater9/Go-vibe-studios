@@ -1,4 +1,4 @@
-/* GoVibe Mix — set history: logs tracks played for 20 s+, exports set lists and recording tracklists. Stored in this browser only. */
+/* GoVibeMix — set history: logs tracks played for 20 s+, exports set lists and recording tracklists. Stored in this browser only. */
 (() => {
   const A = window.GVAudio; if (!A) return;
   const { decks } = A, $ = (id) => document.getElementById(id), HK = 'govibe.history', RK = 'govibe.lastrec', CAP = 1000;

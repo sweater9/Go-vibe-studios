@@ -1,4 +1,4 @@
-/* GoVibe Mix — mix recorder: lossless WAV (AudioWorklet) or compressed (MediaRecorder) */
+/* GoVibeMix — mix recorder: lossless WAV (AudioWorklet) or compressed (MediaRecorder) */
 (() => {
   const A = window.GVAudio; if (!A) return;
   const { ctx, outBus, recDest, say, fmt } = A, $ = (id) => document.getElementById(id);

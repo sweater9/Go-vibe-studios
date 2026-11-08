@@ -1,4 +1,4 @@
-/* GoVibe Mix — MP3 encoder worker (lamejs, LGPL, loaded from js/vendor/lame.min.js). Receives 16 bit channel data, returns MP3 bytes. */
+/* GoVibeMix — MP3 encoder worker (lamejs, LGPL, loaded from js/vendor/lame.min.js). Receives 16 bit channel data, returns MP3 bytes. */
 importScripts('vendor/lame.min.js');
 self.onmessage = (e) => {
   try {

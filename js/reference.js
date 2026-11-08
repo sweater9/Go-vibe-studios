@@ -1,4 +1,4 @@
-/* GoVibe Mix: reference mix analyzer. Load your mix and a track you like, compare loudness, tone balance, stereo width and dynamics,
+/* GoVibeMix: reference mix analyzer. Load your mix and a track you like, compare loudness, tone balance, stereo width and dynamics,
    read plain advice, and flip between the two at matched loudness. Everything is measured on this device. */
 (() => {
   const $ = (id) => document.getElementById(id), Q = window.GVQuick;

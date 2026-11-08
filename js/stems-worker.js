@@ -1,4 +1,4 @@
-/* GoVibe Mix — stem splitter worker (beta).
+/* GoVibeMix — stem splitter worker (beta).
    Classic signal processing, NOT an AI model: bass by frequency, drums by harmonic/percussive
    median-filter separation, vocals as the centre-panned harmonic part, everything else as "music".
    The four stems add back up to the original. */

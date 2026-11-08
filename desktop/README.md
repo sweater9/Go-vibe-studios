@@ -1,4 +1,4 @@
-# GoVibe Mix desktop app
+# GoVibeMix desktop app
 
 The same tools as the website in a desktop window, built with Electron. It works offline because the site files are bundled inside the app. Audio and video stay on your computer, exactly as on the website.
 

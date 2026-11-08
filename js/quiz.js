@@ -1,4 +1,4 @@
-/* GoVibe Mix — small quiz widget shared by the lesson pages. GVQuiz.init(data, onPass): fills every [data-quiz="id"] box; onPass(id) runs when all answers are right. */
+/* GoVibeMix — small quiz widget shared by the lesson pages. GVQuiz.init(data, onPass): fills every [data-quiz="id"] box; onPass(id) runs when all answers are right. */
 window.GVQuiz = (() => {
   function init(QUIZ, onPass) {
     document.querySelectorAll('[data-quiz]').forEach((box) => {

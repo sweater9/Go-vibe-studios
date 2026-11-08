@@ -1,4 +1,4 @@
-/* GoVibe Mix — loop and sample maker. Builds drum, bass, chord and melody loops from the Studio instruments, renders them offline, and offers WAV, MIDI and Studio hand-off. */
+/* GoVibeMix — loop and sample maker. Builds drum, bass, chord and melody loops from the Studio instruments, renders them offline, and offers WAV, MIDI and Studio hand-off. */
 (() => {
   const $ = (id) => document.getElementById(id), T = window.GVTheory, Core = window.GVStudioCore;
   let ctx = null, playing = null, cat = 'All'; const cache = new Map();

@@ -1,4 +1,4 @@
-/* GoVibe Mix — Standard MIDI File reader and writer for the Studio. No DOM here.
+/* GoVibeMix — Standard MIDI File reader and writer for the Studio. No DOM here.
  * write(project) makes a format 1 file: a tempo track (tempo, time signature, markers) and one track per keys or drum track.
  * read(bytes) understands format 0 and 1 files with running status, tempo, time signature, markers, program changes and drums on channel 10. */
 window.GVMidi = (() => {

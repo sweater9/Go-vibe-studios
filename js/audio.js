@@ -1,4 +1,4 @@
-/* GoVibe Mix — the Audio page: one file, three ways to work. Auto listens to the file on this device and picks the steps. Guided lets you choose a job and the steps. Pro opens the full Audio Editor. Steps run in a fixed order and nothing leaves the device. */
+/* GoVibeMix — the Audio page: one file, three ways to work. Auto listens to the file on this device and picks the steps. Guided lets you choose a job and the steps. Pro opens the full Audio Editor. Steps run in a fixed order and nothing leaves the device. */
 (() => {
   const Q = window.GVQuick, M = window.GVMaster, $ = (id) => document.getElementById(id), say = (t) => { $('status').textContent = t; };
   let buf = null, name = 'audio', file = null, found = null, before = null, src = null; const result = { a: null, g: null };

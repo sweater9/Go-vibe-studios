@@ -1,4 +1,4 @@
-/* GoVibe Mix — background noise removal worker. Runs RNNoise (a small neural network, compiled to WebAssembly) on audio at 48 kHz.
+/* GoVibeMix — background noise removal worker. Runs RNNoise (a small neural network, compiled to WebAssembly) on audio at 48 kHz.
  * Input: { id, chans: Float32Array[] (48 kHz), strength: 0..1 }. Output: the cleaned channels, aligned with the input. Nothing leaves the device. */
 import createRNNWasmModuleSync from './vendor/rnnoise-sync.js';
 const FRAME = 480, DELAY = 960;      // RNNoise works on 10 ms frames and its output trails the input by 960 samples (20 ms)

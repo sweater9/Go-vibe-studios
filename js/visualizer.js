@@ -1,4 +1,4 @@
-/* GoVibe Mix — music visualizer: turns an audio file into a video. The picture is drawn from our own FFT analysis, frame by frame, so the preview and the export match exactly. Fast export uses WebCodecs (MP4 or WebM); older browsers record in real time. Nothing is uploaded. */
+/* GoVibeMix — music visualizer: turns an audio file into a video. The picture is drawn from our own FFT analysis, frame by frame, so the preview and the export match exactly. Fast export uses WebCodecs (MP4 or WebM); older browsers record in real time. Nothing is uploaded. */
 (() => {
   const $ = (id) => document.getElementById(id), FFT = window.GVSpec.fft;
   const say = (t) => { $('xstatus').textContent = t; };

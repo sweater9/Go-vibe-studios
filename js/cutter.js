@@ -1,4 +1,4 @@
-/* GoVibe Mix — audio cutter and joiner. */
+/* GoVibeMix — audio cutter and joiner. */
 (() => {
   const Q = window.GVQuick, $ = (id) => document.getElementById(id), say = (t) => { $('status').textContent = t; };
   let buf = null, pk = null, name = 'audio', src = null, t0 = 0, off = 0, raf = 0, playing = false;

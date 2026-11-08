@@ -1,4 +1,4 @@
-/* GoVibe Mix — audio analysis shared by the DJ console and the BPM and key finder: tempo, beat grid and musical key (Camelot). No dependencies. */
+/* GoVibeMix — audio analysis shared by the DJ console and the BPM and key finder: tempo, beat grid and musical key (Camelot). No dependencies. */
 (() => {
   /* ---------- BPM detection (onset autocorrelation) ---------- */
   function detectBPM(buf) {

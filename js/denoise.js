@@ -1,4 +1,4 @@
-/* GoVibe Mix — background noise removal helper shared by the Audio Editor and the Video Editor.
+/* GoVibeMix — background noise removal helper shared by the Audio Editor and the Video Editor.
  * GVDenoise.run(channels, sampleRate, strength 0..1, onProgress) -> cleaned Float32Array[] at the same sample rate.
  * The work is done by RNNoise in js/rnnoise-worker.js (WebAssembly, on this device). Nothing is uploaded. */
 window.GVDenoise = (() => {

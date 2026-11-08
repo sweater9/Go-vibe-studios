@@ -1,4 +1,4 @@
-/* GoVibe Mix — in-browser video editor.
+/* GoVibeMix — in-browser video editor.
  * Clips are played into a canvas; export records canvas + mixed audio with MediaRecorder.
  * Per clip: trim, speed and speed ramp, colour grade, zoom and pan, green screen, stabilise, fades and transitions.
  * Project: text and subtitle layers (SRT and VTT in, SRT out), a music track with ducking, screen recording. Nothing leaves the device. */

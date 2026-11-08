@@ -1,4 +1,4 @@
-/* GoVibe Mix — small audio utilities: silence remover, stereo and mono tools, tone generator, video to audio. One file, one page each (body data-tool). Everything runs on this device. */
+/* GoVibeMix — small audio utilities: silence remover, stereo and mono tools, tone generator, video to audio. One file, one page each (body data-tool). Everything runs on this device. */
 (() => {
   const Q = window.GVQuick, $ = (id) => document.getElementById(id), say = (t) => { $('status').textContent = t; }, tool = document.body.dataset.tool;
   let buf = null, name = 'audio', src = null;

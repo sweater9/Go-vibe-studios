@@ -1,4 +1,4 @@
-/* GoVibe Mix — Studio storage: projects live in this browser (IndexedDB for the data, localStorage for the list); backups are ZIP files you keep. */
+/* GoVibeMix — Studio storage: projects live in this browser (IndexedDB for the data, localStorage for the list); backups are ZIP files you keep. */
 window.GVStudioIO = (() => {
   const IK = 'govibe.sprojects';
   const readIndex = () => { try { return JSON.parse(localStorage.getItem(IK)) || []; } catch (_) { return []; } };

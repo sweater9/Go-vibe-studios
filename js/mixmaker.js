@@ -1,4 +1,4 @@
-/* GoVibe Mix — queue ordering and mix maker: puts the Automix queue in the best order for key and tempo, then renders it into one continuous, beatmatched mix with a tracklist. Runs on your device. */
+/* GoVibeMix — queue ordering and mix maker: puts the Automix queue in the best order for key and tempo, then renders it into one continuous, beatmatched mix with a tracklist. Runs on your device. */
 (() => {
   const A = window.GVAudio, P = window.GVMixPlan; if (!A || !A.amQueue || !P) return;
   const Q = A.amQueue, $ = (id) => document.getElementById(id), MAX_SECS = 30 * 60;

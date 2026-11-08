@@ -1,4 +1,4 @@
-/* GoVibe Mix — volume booster, bass booster and normalizer. The same filter chain plays the live preview and renders the saved file. */
+/* GoVibeMix — volume booster, bass booster and normalizer. The same filter chain plays the live preview and renders the saved file. */
 (() => {
   const Q = window.GVQuick, $ = (id) => document.getElementById(id), say = (t) => { $('status').textContent = t; };
   let buf = null, name = 'audio', src = null, live = null, t0 = 0, off = 0, playing = false, raf = 0, peakIn = 0;

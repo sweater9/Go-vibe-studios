@@ -1,4 +1,4 @@
-/* GoVibe Mix — slowed and reverb / sped up / nightcore maker. Speed changes pitch together, like a tape or record, then reverb is added. The live preview and the saved file use the same chain. */
+/* GoVibeMix — slowed and reverb / sped up / nightcore maker. Speed changes pitch together, like a tape or record, then reverb is added. The live preview and the saved file use the same chain. */
 (() => {
   const Q = window.GVQuick, $ = (id) => document.getElementById(id), say = (t) => { $('status').textContent = t; };
   let buf = null, name = 'audio', src = null, live = null, playing = false, off = 0, t0 = 0, irCache = {};

@@ -1,4 +1,4 @@
-/* GoVibe Mix — chord and fretboard tools page: chord finder, chord shapes, fretboard map, circle of fifths and chord chart transposer. Sound comes from the built in synth. Nothing leaves the device. */
+/* GoVibeMix — chord and fretboard tools page: chord finder, chord shapes, fretboard map, circle of fifths and chord chart transposer. Sound comes from the built in synth. Nothing leaves the device. */
 (() => {
   const $ = (id) => document.getElementById(id), C = window.GVChords, NS = 'http://www.w3.org/2000/svg';
   let ctx = null;

@@ -1,4 +1,4 @@
-/* GoVibe Mix — shared effects engine. Plain Web Audio node graphs, so the same code runs live and in an OfflineAudioContext.
+/* GoVibeMix — shared effects engine. Plain Web Audio node graphs, so the same code runs live and in an OfflineAudioContext.
  * Used by the Studio mixer today and written to be reused by the DJ decks and the Video editor. Nothing here touches the DOM. */
 window.GVFx = (() => {
   const num = (key, label, min, max, def, unit, step) => ({ key, label, min, max, def, unit: unit || '', step: step || (max - min > 50 ? 1 : 0.01) });

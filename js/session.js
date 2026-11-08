@@ -1,4 +1,4 @@
-/* GoVibe Mix: a small shared "session" (tempo, key and mode) kept in this browser, so the tools can start from the same musical setting.
+/* GoVibeMix: a small shared "session" (tempo, key and mode) kept in this browser, so the tools can start from the same musical setting.
    Nothing is sent anywhere. Pages call GVSession.bind() with the inputs they have. */
 window.GVSession = (() => {
   const K = 'govibe.session', NAMES = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];

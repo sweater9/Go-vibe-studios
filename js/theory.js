@@ -1,4 +1,4 @@
-/* GoVibe Mix — music theory helpers: scales, chords in a key, Camelot codes, compatible keys, scale finder. */
+/* GoVibeMix — music theory helpers: scales, chords in a key, Camelot codes, compatible keys, scale finder. */
 window.GVTheory = (() => {
   const NAMES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
   const SCALES = {

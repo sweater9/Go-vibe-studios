@@ -1,4 +1,4 @@
-/* GoVibe Mix: rhythm trainer. A practice tool, not a game: it plays a click, you tap a rhythm on a key, the screen or a button, and it
+/* GoVibeMix: rhythm trainer. A practice tool, not a game: it plays a click, you tap a rhythm on a key, the screen or a button, and it
    measures how early or late each tap was, how steady you are and whether your tempo drifts. No scores, no levels. Everything stays on this device. */
 (() => {
   const $ = (id) => document.getElementById(id), Q = window.GVQuick, say = (t) => { $('status').textContent = t; };

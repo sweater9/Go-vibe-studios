@@ -1,4 +1,4 @@
-/* GoVibe Mix — shared helpers for the quick audio tools (cutter, booster): decode a file, draw its waveform, encode WAV or MP3, save. Everything stays on this device. */
+/* GoVibeMix — shared helpers for the quick audio tools (cutter, booster): decode a file, draw its waveform, encode WAV or MP3, save. Everything stays on this device. */
 window.GVQuick = (() => {
   let ctx = null; const AC = () => (ctx = ctx || new (window.AudioContext || window.webkitAudioContext)());
   const decode = async (file) => {

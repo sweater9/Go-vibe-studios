@@ -1,4 +1,4 @@
-/* GoVibe Mix — Studio */
+/* GoVibeMix — Studio */
 .studio { max-width: 1500px; }
 .sbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin-top: 12px; }
 .sbar .sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }

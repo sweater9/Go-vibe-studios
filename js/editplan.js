@@ -1,4 +1,4 @@
-/* GoVibe Mix — DJ edit planning: turns a track map (js/trackmap.js) into a list of source ranges to join, so a track can be made longer (loop the opening, repeat the drop, loop the outro)
+/* GoVibeMix — DJ edit planning: turns a track map (js/trackmap.js) into a list of source ranges to join, so a track can be made longer (loop the opening, repeat the drop, loop the outro)
    or shorter (trim a long intro and outro, drop the quietest 8 bar sections). Every cut lands on a bar line so the beat stays in time. Pure functions, no audio. */
 window.GVEditPlan = (() => {
   const barsOf = (m) => (m && m.grid && m.bars && m.bars.length >= 16 ? m.bars.length : 0);

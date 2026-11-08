@@ -1,4 +1,4 @@
-/* GoVibe Mix — in-browser audio editor (Web Audio API, no dependencies) */
+/* GoVibeMix — in-browser audio editor (Web Audio API, no dependencies) */
 (() => {
   const $ = (id) => document.getElementById(id);
   const AC = window.AudioContext || window.webkitAudioContext;

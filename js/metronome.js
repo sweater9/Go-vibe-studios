@@ -1,4 +1,4 @@
-/* GoVibe Mix — metronome: sample accurate lookahead scheduling on the audio clock, synthesised clicks, accents, subdivisions, swing, tap tempo and a tempo trainer. */
+/* GoVibeMix — metronome: sample accurate lookahead scheduling on the audio clock, synthesised clicks, accents, subdivisions, swing, tap tempo and a tempo trainer. */
 (() => {
   const $ = (id) => document.getElementById(id);
   const LOOK = 0.12, EVERY = 25; // seconds scheduled ahead, timer interval in ms

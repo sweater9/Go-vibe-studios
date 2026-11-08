@@ -1,4 +1,4 @@
-/* GoVibe Mix — keyboard shortcuts, MIDI controllers and level meters for the DJ page */
+/* GoVibeMix — keyboard shortcuts, MIDI controllers and level meters for the DJ page */
 (() => {
   const A = window.GVAudio; if (!A) return;
   const { decks } = A, $ = (id) => document.getElementById(id);
@@ -87,7 +87,7 @@
   const MAPKIND = 'govibe-dj-midi-map';
   function mapFile() { return new Blob([JSON.stringify({ app: 'go-vibe-studios', kind: MAPKIND, version: 1, map }, null, 1)], { type: 'application/json' }); }
   function applyMapData(data) {
-    if (!data || data.kind !== MAPKIND || !data.map || typeof data.map !== 'object') throw new Error('This is not a GoVibe Mix MIDI mapping file.');
+    if (!data || data.kind !== MAPKIND || !data.map || typeof data.map !== 'object') throw new Error('This is not a GoVibeMix MIDI mapping file.');
     const next = {}; let n = 0, skipped = 0;
     Object.entries(data.map).forEach(([k, id]) => { if (/^[nc]:\d{1,2}:\d{1,3}$/.test(k) && ACT.some((x) => x.id === id)) { next[k] = id; n++; } else skipped++; });
     map = next; saveMap(); listMap(); return { n, skipped };

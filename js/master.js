@@ -1,4 +1,4 @@
-/* GoVibe Mix — mastering page: loudness meters, streaming targets, limiter, A/B compare, export. Heavy maths runs in a worker (js/master-worker.js). */
+/* GoVibeMix — mastering page: loudness meters, streaming targets, limiter, A/B compare, export. Heavy maths runs in a worker (js/master-worker.js). */
 (() => {
   const $ = (id) => document.getElementById(id);
   const Core = window.GVStudioCore;

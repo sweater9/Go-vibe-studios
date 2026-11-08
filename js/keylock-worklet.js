@@ -1,4 +1,4 @@
-/* GoVibe Mix — key lock: a granular pitch shifter that runs on the audio thread. A deck playing faster or slower changes pitch; shifting by the opposite ratio brings the pitch back,
+/* GoVibeMix — key lock: a granular pitch shifter that runs on the audio thread. A deck playing faster or slower changes pitch; shifting by the opposite ratio brings the pitch back,
    so tempo can change without the key changing. Two read heads move through a short delay line and cross fade with a raised cosine window. It is a simple shifter: fine for the
    small changes of a tempo match (up to about 16 percent), with a slight chorus like roughness on sustained notes. */
 class GvKeyLock extends AudioWorkletProcessor {

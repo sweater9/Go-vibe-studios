@@ -1,4 +1,4 @@
-/* GoVibe Mix: synthesizer and sampler. Two oscillators, a sub oscillator and noise (or your own sample) go through a filter and an
+/* GoVibeMix: synthesizer and sampler. Two oscillators, a sub oscillator and noise (or your own sample) go through a filter and an
    amp, each with an envelope, plus an LFO, echo and reverb. Play it with the keyboard, the mouse, touch or a MIDI keyboard,
    record a riff, then save it as MIDI or audio. The same voice code renders offline, so what you hear is what you save. */
 (() => {

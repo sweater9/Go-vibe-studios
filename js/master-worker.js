@@ -1,4 +1,4 @@
-/* GoVibe Mix — mastering worker. Receives {op, chans, rate, opts}. */
+/* GoVibeMix — mastering worker. Receives {op, chans, rate, opts}. */
 importScripts('master-dsp.js');
 self.onmessage = (e) => {
   try {

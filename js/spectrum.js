@@ -1,4 +1,4 @@
-/* GoVibe Mix — spectrogram engine: our own FFT, colour map, frequency axis and a live scrolling view. Runs on your device. */
+/* GoVibeMix — spectrogram engine: our own FFT, colour map, frequency axis and a live scrolling view. Runs on your device. */
 (() => {
   const FLOOR = -100, CEIL = 0;
 

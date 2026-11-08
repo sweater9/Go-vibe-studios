@@ -1,4 +1,4 @@
-/* GoVibe Mix — Studio recording: arm an audio track, record the microphone while the other tracks play, optional count in and punch in/out.
+/* GoVibeMix — Studio recording: arm an audio track, record the microphone while the other tracks play, optional count in and punch in/out.
  * Capture runs in an AudioWorklet (js/rec-worklet.js) that starts and stops on exact frames of the audio clock. Audio never leaves the device. */
 (() => {
   const S = () => window.GVStudio, $ = (id) => document.getElementById(id), Core = window.GVStudioCore;

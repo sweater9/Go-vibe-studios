@@ -1,4 +1,4 @@
-/* GoVibe Mix home page: search and filter the tool list. Runs only in this browser, no network. */
+/* GoVibeMix home page: search and filter the tool list. Runs only in this browser, no network. */
 (() => {
   const input = document.getElementById('tsq'); if (!input) return;
   const count = document.getElementById('tcount'), empty = document.getElementById('tnone');

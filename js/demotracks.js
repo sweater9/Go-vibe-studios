@@ -1,4 +1,4 @@
-/* GoVibe Mix — demo tracks: three short house style tracks the site synthesises itself (kick, clap, hats, bass and a minor chord), so a visitor can try Automix without any music of their own.
+/* GoVibeMix — demo tracks: three short house style tracks the site synthesises itself (kick, clap, hats, bass and a minor chord), so a visitor can try Automix without any music of their own.
    Each is 32 bars: 8 bars of intro, 16 bars of full groove, 8 bars of outro. They are made on the device from code, nothing is downloaded and there is no recording or sample involved. */
 window.GVDemo = (() => {
   const SONGS = [

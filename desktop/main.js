@@ -1,4 +1,4 @@
-/* GoVibe Mix desktop shell. Serves the bundled website files from a private govibe:// address (a secure origin, so AudioWorklet, workers, IndexedDB and the microphone work),
+/* GoVibeMix desktop shell. Serves the bundled website files from a private govibe:// address (a secure origin, so AudioWorklet, workers, IndexedDB and the microphone work),
    applies the same Content Security Policy as the website, allows the microphone and camera only for the app itself, and sends every outside link to the normal browser. */
 const { app, BrowserWindow, protocol, net, session, shell, Menu } = require('electron');
 const path = require('path'), fs = require('fs'), { pathToFileURL } = require('url');
@@ -20,7 +20,7 @@ function resolve(urlPath) {
 module.exports = { resolve, SITE };
 
 function createWindow() {
-  const win = new BrowserWindow({ width: 1280, height: 860, minWidth: 380, minHeight: 560, backgroundColor: '#0b0b14', title: 'GoVibe Mix', autoHideMenuBar: true, webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true } });
+  const win = new BrowserWindow({ width: 1280, height: 860, minWidth: 380, minHeight: 560, backgroundColor: '#0b0b14', title: 'GoVibeMix', autoHideMenuBar: true, webPreferences: { contextIsolation: true, sandbox: true, nodeIntegration: false, webSecurity: true } });
   win.loadURL(ORIGIN + '/index.html');
   win.webContents.setWindowOpenHandler(({ url }) => { if (url.startsWith(ORIGIN)) return { action: 'allow' }; if (/^https?:/.test(url)) shell.openExternal(url); return { action: 'deny' }; });
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(ORIGIN)) { e.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url); } });

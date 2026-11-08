@@ -1,4 +1,4 @@
-/* GoVibe Mix — import a DJ library from rekordbox (XML export), Traktor (collection.nml) or Serato (database V2 and crate files). Only the file contains data; it is read on this device. Tracks are matched to your library by file name; the rest wait as entries until you add their audio. */
+/* GoVibeMix — import a DJ library from rekordbox (XML export), Traktor (collection.nml) or Serato (database V2 and crate files). Only the file contains data; it is read on this device. Tracks are matched to your library by file name; the rest wait as entries until you add their audio. */
 window.GVDJImport = (() => {
   const base = (p) => String(p || '').replace(/^file:\/\/localhost/i, '').split(/[\\/]|\/:/).filter(Boolean).pop() || '';
   const clean = (n) => { try { return decodeURIComponent(n); } catch (_) { return n; } };

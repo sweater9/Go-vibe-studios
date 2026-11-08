@@ -1,4 +1,4 @@
-/* GoVibe Mix — audio converter: decode in the browser, optionally resample or mix to mono, write WAV or MP3. Nothing is uploaded. */
+/* GoVibeMix — audio converter: decode in the browser, optionally resample or mix to mono, write WAV or MP3. Nothing is uploaded. */
 (() => {
   const $ = (id) => document.getElementById(id);
   const MP3_RATES = [48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000];

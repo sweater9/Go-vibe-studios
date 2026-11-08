@@ -1,4 +1,4 @@
-/* GoVibe Mix — music and production lessons: progress, quizzes, ear trainer. Progress stays in this browser. */
+/* GoVibeMix — music and production lessons: progress, quizzes, ear trainer. Progress stays in this browser. */
 (() => {
   const $ = (id) => document.getElementById(id), T = window.GVTheory;
   const KEY = 'govibe.learn', EKEY = 'govibe.ear';

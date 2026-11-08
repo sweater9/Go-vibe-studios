@@ -1,4 +1,4 @@
-/* GoVibe Mix — track queue + Automix (tempo match, bass swap, crossfade) */
+/* GoVibeMix — track queue + Automix (tempo match, bass swap, crossfade) */
 (() => {
   const A = window.GVAudio; if (!A) return;
   const { ctx, decks, detectBPM, detectGrid, detectKey, applyXf, fmt } = A, $ = (id) => document.getElementById(id);

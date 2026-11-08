@@ -1,4 +1,4 @@
-/* GoVibe Mix — voice and mic recorder: lossless capture with an AudioWorklet, level meter, countdown, several takes, WAV or MP3 download. Audio never leaves the device. */
+/* GoVibeMix — voice and mic recorder: lossless capture with an AudioWorklet, level meter, countdown, several takes, WAV or MP3 download. Audio never leaves the device. */
 (() => {
   const $ = (id) => document.getElementById(id);
   const MAX_SECS = 30 * 60;

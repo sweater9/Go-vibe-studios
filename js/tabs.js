@@ -1,4 +1,4 @@
-/* GoVibe Mix — minimal accessible tabs (arrow keys, Home/End) */
+/* GoVibeMix — minimal accessible tabs (arrow keys, Home/End) */
 (() => {
   document.querySelectorAll('[role=tablist]').forEach((list) => {
     const tabs = [...list.querySelectorAll('[role=tab]')];

@@ -1,4 +1,4 @@
-/* GoVibe Mix — four deck DJ mixer (Web Audio API, no dependencies). Decks C and D are shown on request. */
+/* GoVibeMix — four deck DJ mixer (Web Audio API, no dependencies). Decks C and D are shown on request. */
 (() => {
   const $ = (id) => document.getElementById(id);
   const AC = window.AudioContext || window.webkitAudioContext;

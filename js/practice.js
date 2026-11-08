@@ -1,4 +1,4 @@
-/* GoVibe Mix: practice player. Slow a song down or change its key without changing the other, loop a section, hear a count-in and a click,
+/* GoVibeMix: practice player. Slow a song down or change its key without changing the other, loop a section, hear a count-in and a click,
    and, if you like, split it into rough stems (vocals, drums, bass, music) to mute or solo. The stems use signal processing, not AI. Everything stays on this device. */
 (() => {
   const $ = (id) => document.getElementById(id), Q = window.GVQuick, S = window.GVStretch, say = (t) => { $('status').textContent = t; }, MAX = 300;

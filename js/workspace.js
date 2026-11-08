@@ -1,4 +1,4 @@
-/* GoVibe Mix home page: "Pick up where you left off". Reads only what this browser already holds: recent tools, Studio projects and the DJ library. */
+/* GoVibeMix home page: "Pick up where you left off". Reads only what this browser already holds: recent tools, Studio projects and the DJ library. */
 (() => {
   const box = document.getElementById('workspace'); if (!box) return;
   const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };

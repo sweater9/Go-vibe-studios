@@ -1,4 +1,4 @@
-/* GoVibe Mix — Studio editors: piano roll for keys clips and a step grid for drum clips. */
+/* GoVibeMix — Studio editors: piano roll for keys clips and a step grid for drum clips. */
 window.GVRoll = (() => {
   const S = () => window.GVStudio, pane = () => document.getElementById('rollpane');
   const LOW = 36, HIGH = 96, ROWH = 16, KEYW = 58, PXB = 52;

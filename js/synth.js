@@ -1,4 +1,4 @@
-/* GoVibe Mix — small built in synthesizer and drum kit for the Studio. Pure Web Audio, works with a live or an offline context. */
+/* GoVibeMix — small built in synthesizer and drum kit for the Studio. Pure Web Audio, works with a live or an offline context. */
 window.GVSynth = (() => {
   const noiseCache = new WeakMap();
   const noiseBuf = (ctx) => { let b = noiseCache.get(ctx); if (!b) { b = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = b.getChannelData(0); let s = 1; for (let i = 0; i < d.length; i++) { s = (s * 16807) % 2147483647; d[i] = s / 1073741823 - 1; } noiseCache.set(ctx, b); } return b; };

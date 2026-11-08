@@ -1,4 +1,4 @@
-/* GoVibe Mix — colour themes for the whole site: Dark neon (the default), Light and High contrast.
+/* GoVibeMix — colour themes for the whole site: Dark neon (the default), Light and High contrast.
    Loaded in <head> so the saved choice is applied before the first paint. The choice is kept in this browser only. The DJ page has its own Light/Dark button (js/view.js) that shares the same saved choice. */
 (() => {
   const root = document.documentElement, KEY = 'govibe.theme', OLD = 'govibe.djtheme', ORDER = ['dark', 'light', 'contrast'], NAMES = { dark: 'Dark neon', light: 'Light', contrast: 'High contrast' };

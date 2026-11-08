@@ -1,4 +1,4 @@
-/* GoVibe Mix — track map: finds the intro, the drop and the outro of a track from its audio and beat grid, so Automix knows where to mix out and where to come in.
+/* GoVibeMix — track map: finds the intro, the drop and the outro of a track from its audio and beat grid, so Automix knows where to mix out and where to come in.
    Pure functions on an AudioBuffer-like object ({ length, sampleRate, duration, numberOfChannels, getChannelData }) and a grid ({ t0, period }).
    Energy is the loudness of each beat (with a bass heavy weighting), averaged per bar and scaled to 0..1 against the track's own loud parts. It is an estimate:
    it works best on dance music with a clear arrangement and can be wrong on live or very quiet recordings. */

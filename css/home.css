@@ -1,4 +1,4 @@
-/* GoVibe Mix home page. The memorable thing is the playable beat pad in the hero; each tool then gets its own drawn picture. Colour marks the four groups of tools. */
+/* GoVibeMix home page. The memorable thing is the playable beat pad in the hero; each tool then gets its own drawn picture. Colour marks the four groups of tools. */
 .home { --line2: rgba(255, 255, 255, .09); --amber: #ffb23e; max-width: 1240px; margin: 0 auto; padding: 0 24px 56px; }
 .hero { padding: clamp(36px, 7vw, 92px) 0 clamp(32px, 5vw, 64px); display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: clamp(28px, 4vw, 56px); align-items: center; position: relative; }
 .hero::before { content: ""; position: absolute; right: -8%; top: 4%; width: 62%; height: 80%; background: radial-gradient(closest-side, rgba(255, 178, 62, .16), transparent); pointer-events: none; z-index: -1; }

@@ -1,4 +1,4 @@
-/* GoVibe Mix — DJ lessons: progress, beatmatching trainer, Camelot key helper */
+/* GoVibeMix — DJ lessons: progress, beatmatching trainer, Camelot key helper */
 (() => {
   const $ = (id) => document.getElementById(id);
 

@@ -1,4 +1,4 @@
-/* GoVibe Mix — looper: a loop station. The first pass sets the loop, later passes layer on top. Recording starts and ends on exact frames of the audio clock, so layers stay in time. Audio never leaves the device. */
+/* GoVibeMix — looper: a loop station. The first pass sets the loop, later passes layer on top. Recording starts and ends on exact frames of the audio clock, so layers stay in time. Audio never leaves the device. */
 (() => {
   const $ = (id) => document.getElementById(id);
   const MAX_LAYERS = 12;

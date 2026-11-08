@@ -1,4 +1,4 @@
-/* GoVibe Mix — time stretch (WSOLA) and pitch shift for the pitch and speed changer. Same method as the Audio Editor. Pure functions on Float32Array channels. */
+/* GoVibeMix — time stretch (WSOLA) and pitch shift for the pitch and speed changer. Same method as the Audio Editor. Pure functions on Float32Array channels. */
 window.GVStretch = (() => {
   function stretchChans(arrs, ratio) {                       // WSOLA: change duration by ratio (out/in) without changing pitch
     const inLen = arrs[0].length, outLen = Math.max(1, Math.round(inLen * ratio)), N = 2048, Hs = N / 2, Ha = Hs / ratio, D = 384;

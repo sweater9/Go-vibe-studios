@@ -1,4 +1,4 @@
-/* GoVibe Mix — pitch and speed changer for practice: change the key or the tempo on their own, loop a section, save the result. */
+/* GoVibeMix — pitch and speed changer for practice: change the key or the tempo on their own, loop a section, save the result. */
 (() => {
   const Q = window.GVQuick, S = window.GVStretch, $ = (id) => document.getElementById(id), say = (t) => { $('status').textContent = t; }, MAX = 12 * 60;
   let buf = null, name = 'audio', out = null, key = '', src = null, playing = false;

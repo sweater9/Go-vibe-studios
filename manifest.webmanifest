@@ -1,6 +1,6 @@
 {
-  "name": "GoVibe Mix",
-  "short_name": "GoVibe Mix",
+  "name": "GoVibeMix",
+  "short_name": "GoVibeMix",
   "description": "Your Sound. Your Studio. No Subscriptions. Free, private music tools in your browser.",
   "start_url": "index.html",
   "scope": "./",

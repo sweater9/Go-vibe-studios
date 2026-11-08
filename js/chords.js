@@ -1,4 +1,4 @@
-/* GoVibe Mix — chord engine: chord dictionary, chord identification, guitar and ukulele voicing search, key aware spelling and a chord chart transposer. Pure functions, no network. */
+/* GoVibeMix — chord engine: chord dictionary, chord identification, guitar and ukulele voicing search, key aware spelling and a chord chart transposer. Pure functions, no network. */
 window.GVChords = (() => {
   const SHARP = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'], FLAT = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A', 'B♭', 'B'];
   const noteName = (pc, flats) => (flats ? FLAT : SHARP)[((pc % 12) + 12) % 12];

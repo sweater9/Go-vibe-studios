@@ -1,4 +1,4 @@
-/* GoVibe Mix home page: favourite tools. A star on each tool card; the list lives only in this browser (localStorage). */
+/* GoVibeMix home page: favourite tools. A star on each tool card; the list lives only in this browser (localStorage). */
 (() => {
   const cards = Array.from(document.querySelectorAll('section.grp a.card.tool')); if (!cards.length) return;
   const KEY = 'govibe.favs';

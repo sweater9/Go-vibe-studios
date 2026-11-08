@@ -1,4 +1,4 @@
-/* GoVibe Mix home page: the playable beat strip and the line that draws above each group of tools. */
+/* GoVibeMix home page: the playable beat strip and the line that draws above each group of tools. */
 (() => {
   const $ = (id) => document.getElementById(id);
   const ROWS = [['Kick', '#b9a3ff'], ['Snare', '#4fe0f5'], ['Hat', '#ffc94d'], ['Clap', '#ff8fc3']];

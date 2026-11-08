@@ -1,4 +1,4 @@
-/* GoVibe Mix — Studio core: project model, scheduling and offline rendering. No DOM here, so the same code plays live and renders to a file. */
+/* GoVibeMix — Studio core: project model, scheduling and offline rendering. No DOM here, so the same code plays live and renders to a file. */
 window.GVStudioCore = (() => {
   const uid = () => Math.random().toString(36).slice(2, 10);
   const COLORS = ['#22d3ee', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#fb7185', '#60a5fa', '#f97316'];

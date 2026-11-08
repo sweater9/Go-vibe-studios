@@ -1,4 +1,4 @@
-/* GoVibe Mix — key and scale helper. */
+/* GoVibeMix — key and scale helper. */
 (() => {
   const $ = (id) => document.getElementById(id), T = window.GVTheory;
   let ctx = null, tries = 0; const picked = new Set(); const LOW = 48, HIGH = 83; /* C3 to B5 */
