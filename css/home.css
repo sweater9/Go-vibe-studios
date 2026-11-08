@@ -256,3 +256,22 @@ html[data-theme=contrast] .hpanel { background: #000; border-color: #fff; box-sh
 html[data-theme=contrast] .hp[aria-pressed="true"] { background: #ffe14d; border-color: #ffe14d; box-shadow: none; } html[data-theme=contrast] .hplay { background: #ffe14d; color: #000; } html[data-theme=contrast] .hnote { color: #fff; }
 /* the beat deck lives in the hero */
 .hdeck { min-width: 0; } .hdeck .deck { box-shadow: 0 30px 80px -30px rgba(139, 92, 246, .6); border-color: rgba(139, 92, 246, .45); }
+/* bigger hero beat */
+.hero2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); }
+.hdeck .deck { padding: clamp(16px, 2vw, 26px); }
+.hdeck .steps { gap: 7px; grid-template-columns: 56px repeat(16, minmax(0, 1fr)); }
+.hdeck .st { aspect-ratio: 1 / 1.25; border-radius: 9px; }
+.hdeck .steps .rl { font-size: 13px; }
+@media (max-width: 1000px) { .hero2 { grid-template-columns: 1fr; } .hdeck { max-width: 760px; } }
+@media (max-width: 700px) {
+  .hdeck .steps { overflow-x: auto; grid-template-columns: 54px repeat(16, 38px); gap: 8px; padding-bottom: 10px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+  .hdeck .st { aspect-ratio: 1 / 1.2; border-radius: 9px; width: 38px; }
+  .hdeck .steps .rl { position: sticky; left: 0; z-index: 1; background: #15152b; padding-right: 6px; }
+  .hdeck .steps::after { content: ""; }
+}
+html[data-theme=light] .hdeck .steps .rl { background: #f1f4ff; } html[data-theme=contrast] .hdeck .steps .rl { background: #000; }
+.hero2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); }
+.hero2 h1 { font-size: clamp(34px, 3.7vw, 54px); }
+@media (max-width: 1000px) { .hero2 h1 { font-size: clamp(36px, 8vw, 54px); } }
+.hdeck .steps .rl { background: transparent; }
+@media (max-width: 700px) { .hdeck .steps .rl { background: #14142a; } }
