@@ -271,3 +271,15 @@ html[data-theme=contrast] .hp[aria-pressed="true"] { background: #ffe14d; border
 @media (max-width: 1000px) { .hero2 { grid-template-columns: minmax(0, 1fr); } .hdeck { max-width: 760px; width: 100%; } }
 /* phones: the compact grid with every step visible, no sideways scrolling */
 @media (max-width: 700px) { .hdeck .steps { grid-template-columns: 44px repeat(16, minmax(0, 1fr)); gap: 3px; overflow: visible; } .hdeck .st { aspect-ratio: 1 / 1.05; border-radius: 5px; width: auto; } .hdeck .steps .rl { position: static; background: transparent; padding: 0; font-size: 12px; } }
+/* popular path: a tidy numbered list on tablets and phones */
+@media (max-width: 900px) {
+  .path { display: block; counter-reset: pstep; padding: 18px 18px 8px; border-style: solid; border-color: var(--line2); border-radius: 20px; background: linear-gradient(180deg, rgba(255, 255, 255, .04), rgba(255, 255, 255, .01)); }
+  .pathh { display: block; margin: 0 0 12px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+  .path .arr { display: none; }
+  .path a { position: relative; flex-direction: column; justify-content: center; min-height: 56px; margin: 0 0 12px; padding: 4px 0 4px 56px; counter-increment: pstep; }
+  .path a::before { content: counter(pstep); position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-weight: 800; font-size: 16px; color: #1a1205; background: linear-gradient(135deg, #ffb23e, #ffc062); }
+  .path a:not(:last-child)::after { content: ""; position: absolute; left: 19px; top: calc(50% + 24px); height: 22px; width: 2px; background: rgba(139, 92, 246, .5); }
+  .path a small { font-size: 13px; margin-top: 2px; }
+}
+html[data-theme=light] .path a::before { background: #0f766e; color: #fff; } html[data-theme=light] .path a:not(:last-child)::after { background: #a5b4fc; }
+html[data-theme=contrast] .path a::before { background: #ffe14d; color: #000; } html[data-theme=contrast] .path a:not(:last-child)::after { background: #fff; }
