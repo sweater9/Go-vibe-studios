@@ -4,6 +4,10 @@
   let ctx = null, playing = null, cat = 'All'; const cache = new Map();
   const say = (t) => { $('status').textContent = t; };
   const getCtx = () => (ctx = ctx || new (window.AudioContext || window.webkitAudioContext)());
+  /* iPhone: the silent switch mutes Web Audio, so play through an audio element instead; the context must be made and resumed inside the tap */
+  const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  let bus = null, el = null;
+  function wake() { const c = getCtx(); try { c.resume(); } catch (_) {} if (!bus) { bus = c.createGain(); if (IOS && c.createMediaStreamDestination) { try { const d = c.createMediaStreamDestination(); bus.connect(d); el = new Audio(); el.setAttribute('playsinline', ''); el.srcObject = d.stream; } catch (_) { el = null; } } if (!el) bus.connect(c.destination); } if (el) el.play().catch(() => {}); return c; }
   const arr = (idx) => { const a = Array(16).fill(0); idx.forEach((i) => { a[i] = 1; }); return a; };
   const DR = (name, desc, bpm, grid, swing) => ({ cat: 'Drums', name, desc, bpm, kind: 'drum', build: () => ({ type: 'drum', name, grid: Object.fromEntries(Object.entries(grid).map(([k, v]) => [k, arr(v)])), swing: swing || 0 }) });
   const EVENS = [0, 2, 4, 6, 8, 10, 12, 14];
@@ -80,8 +84,8 @@
   /* ---------- UI ---------- */
   function stop() { if (playing) { try { playing.src.stop(); } catch (_) {} playing.src.disconnect(); playing.btn.textContent = 'Play'; playing.btn.setAttribute('aria-pressed', 'false'); playing = null; } }
   async function play(item, btn) {
-    if (playing && playing.btn === btn) { stop(); return; } stop(); const p = params(); btn.disabled = true; btn.textContent = 'Making…';
-    try { const r = await render(item, p), c = getCtx(); await c.resume(); const s = c.createBufferSource(); s.buffer = r.buf; s.loop = true; s.connect(c.destination); s.start(); playing = { src: s, btn }; btn.textContent = 'Stop'; btn.setAttribute('aria-pressed', 'true'); say('Playing ' + item.name + ' at ' + p.bpm + ' BPM.'); }
+    if (playing && playing.btn === btn) { stop(); return; } stop(); const p = params(); btn.disabled = true; btn.textContent = 'Making…'; const c0 = wake();
+    try { const r = await render(item, p), c = c0; await Promise.race([c.resume(), new Promise((ok) => setTimeout(ok, 1500))]); if (el) el.play().catch(() => {}); const s = c.createBufferSource(); s.buffer = r.buf; s.loop = true; s.connect(bus); s.start(); playing = { src: s, btn }; btn.textContent = 'Stop'; btn.setAttribute('aria-pressed', 'true'); say('Playing ' + item.name + ' at ' + p.bpm + ' BPM.'); }
     catch (e) { btn.textContent = 'Play'; say('Could not make this loop: ' + (e.message || e)); }
     btn.disabled = false;
   }
