@@ -13,3 +13,24 @@
     paint(); nav.appendChild(b);
   });
 })();
+
+/* Coming back to a page with the Back button returns to the same place. The position is kept for this tab only, and applied once the page has finished building its content. */
+(() => {
+  const K = 'govibe.scroll:' + location.pathname; let t = 0;
+  const save = () => { try { sessionStorage.setItem(K, String(Math.round(window.scrollY))); } catch (_) {} };
+  window.addEventListener('scroll', () => { clearTimeout(t); t = setTimeout(save, 120); }, { passive: true });
+  window.addEventListener('pagehide', save);
+  try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (_) {}
+  let back = false; try { const n = performance.getEntriesByType('navigation')[0]; back = !!n && n.type === 'back_forward'; } catch (_) {}
+  if (!back || location.hash) return;
+  let y = 0; try { y = +sessionStorage.getItem(K) || 0; } catch (_) {}
+  if (!y) return;
+  const root = document.documentElement; let tries = 0;
+  const go = () => {
+    root.style.scrollBehavior = 'auto';
+    const max = Math.max(0, root.scrollHeight - innerHeight);
+    window.scrollTo(0, Math.min(y, max));
+    if (Math.abs(window.scrollY - y) > 2 && ++tries < 30) setTimeout(go, 100); else root.style.scrollBehavior = '';
+  };
+  window.addEventListener('DOMContentLoaded', go); window.addEventListener('load', go);
+})();
