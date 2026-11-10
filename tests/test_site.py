@@ -3829,6 +3829,47 @@ def test_demotracks(browser, base):
     ctx.close()
 
 
+def test_automix_view(browser, base):
+    print("dj: automix track view, loop before the mix, per track style and saved settings")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "dj.html?gvtest"); pg.wait_for_function("() => window.__am && window.GVDemo", timeout=10000); pg.click("#tab-am")
+    pg.click("#amdemo"); pg.wait_for_function("() => __am.queue.length === 3", timeout=90000)
+    check("each track has a track view button", pg.locator("#amlist button:has-text('Track view')").count() == 3)
+    pg.locator("#amlist button:has-text('Track view')").first.click()
+    check("the track view opens", pg.is_visible("#amvc") and "1." in pg.inner_text("#amvname"))
+    pg.evaluate("() => document.getElementById('amvc').scrollIntoView()")
+    box = pg.locator("#amvc").bounding_box()
+    pg.wait_for_timeout(900); box = pg.locator("#amvc").bounding_box(); pg.mouse.click(box["x"] + box["width"] * 0.25, box["y"] + 60)
+    mi = pg.evaluate("() => __am.queue[0].mixIn"); per = 60 / 124
+    check("a click sets the mix in point, snapped to a bar", mi is not None and abs((mi - pg.evaluate("() => __am.queue[0].grid.t0")) / (4 * per) - round((mi - pg.evaluate("() => __am.queue[0].grid.t0")) / (4 * per))) < 0.01, str(mi))
+    pg.click("#amvout"); pg.wait_for_timeout(900); box = pg.locator("#amvc").bounding_box(); pg.mouse.click(box["x"] + box["width"] * 0.7, box["y"] + 60)
+    mo = pg.evaluate("() => __am.queue[0].mixOut")
+    check("and the mix out point", mo is not None and mo > mi, str(mo))
+    check("the list shows both points", pg.evaluate("() => [...document.querySelectorAll('#amlist li')][0].querySelectorAll('.ammp input')[0].value !== ''"))
+    pg.click("#amvclr"); check("clearing removes both", pg.evaluate("() => __am.queue[0].mixIn == null && __am.queue[0].mixOut == null"))
+    pg.click("#amvclose"); check("the view closes", not pg.is_visible("#amvc"))
+    sel = pg.locator("#amlist li").first.locator("select").first
+    sel.select_option("echo"); check("the style for the next mix is kept per track", pg.evaluate("() => __am.queue[0].mixStyle") == "echo")
+    pg.evaluate("() => { __am.S.idx = 0; }")
+    pg.locator("#amlist li").first.locator("select").nth(1).select_option("4"); check("the loop length is kept", pg.evaluate("() => __am.queue[0].hold") == 4)
+    pg.fill("#ampname", "Test set"); pg.select_option("#amint", "banger"); pg.click("#ampsave")
+    pg.select_option("#amint", "smooth"); pg.select_option("#ampre", "Test set")
+    check("saved settings come back", pg.input_value("#amint") == "banger")
+    pg.click("#ampdel"); check("and can be deleted", pg.locator("#ampre option").count() == 1)
+    pg.select_option("#amint", "smooth")
+    pg.click("#amgo"); pg.wait_for_function("() => __am.S.on && __dj.decks[__am.S.active].playing", timeout=20000)
+    pg.evaluate("() => { const S = __am.S, d = __dj.decks[S.active]; S.plan = __am.makePlan('auto'); S.plan.for = S.idx; S.plan.next = __am.queue[S.idx + 1]; d.seek(S.plan.B - 2.5); }")
+    check("the next mix uses the style chosen for that track", pg.evaluate("() => __am.S.plan.st") == "echo")
+    pg.wait_for_function("() => __am.S.hold && __dj.decks[__am.S.active].loop", timeout=15000)
+    check("the last four bars loop before the mix", True)
+    pg.wait_for_function("() => !__am.S.hold && !__dj.decks[__am.S.active].loop || __am.S.tr", timeout=20000)
+    pg.wait_for_function("() => __am.S.tr || __am.S.idx > 0", timeout=20000)
+    check("then the mix goes ahead", True)
+    check("automix view: no console errors", not errs, str(errs[:3]))
+    ctx.close()
+
+
 def test_demolink(browser, base):
     print("home: Hear Automix shortcut and What's new")
     errs = []
@@ -4158,7 +4199,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_tempo, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_setmap, test_demotracks, test_demolink, test_toolsearch, test_favorites, test_flows, test_heropads, test_themes, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_tempo, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_setmap, test_demotracks, test_automix_view, test_demolink, test_toolsearch, test_favorites, test_flows, test_heropads, test_themes, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

@@ -3,11 +3,13 @@
   const A = window.GVAudio; if (!A) return;
   const { ctx, decks, detectBPM, detectGrid, detectKey, applyXf, fmt } = A, $ = (id) => document.getElementById(id);
   const say = (t) => { $('amstatus').textContent = t; };
+  let view = -1, vmode = 'in';
   const queue = [];                       // { name, buf, bpm, key }
   const S = { on: false, idx: -1, active: 0, tr: null, timer: 0 };   // idx = queue index playing on deck S.active
   const smooth = (x, a, b) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   const xf = $('xf');
 
+  const STYLE_OPTS = [['auto', 'Automatic'], ['blend', 'Blend with bass swap'], ['sweep', 'Filter sweep'], ['echo', 'Echo out'], ['cut', 'Quick cut'], ['wash', 'Reverb wash'], ['gate', 'Tremolo gate'], ['riser', 'Riser into the drop'], ['banger', 'Loop build and drop'], ['brake', 'Spin down and drop']];
   function paint() {
     const ol = $('amlist'); ol.innerHTML = '';
     queue.forEach((q, i) => {
@@ -20,11 +22,16 @@
       { const mk = (key, lab, tip) => { const w = document.createElement('label'); w.className = 'ammp'; w.append(lab + ' '); const inp = document.createElement('input'); inp.type = 'text'; inp.size = 5; inp.placeholder = 'auto'; inp.title = tip; inp.setAttribute('aria-label', lab + ' point for ' + q.name + ', minutes and seconds, blank for automatic'); inp.value = q[key] != null ? fmt(q[key]) : '';
           inp.onchange = () => { const v = GVMixPlan.parseTime(inp.value); q[key] = v; if (inp.value.trim() && v == null) say('Type a time like 1:30, or leave it empty for automatic.'); inp.value = v != null ? fmt(v) : ''; saveMix(q); S.plan = null; }; w.appendChild(inp); return w; };
         li.append(mk('mixIn', 'Mix in', 'Where this track should start when it is mixed in (leave empty for automatic)'), mk('mixOut', 'Mix out', 'Where the mix out of this track should happen (leave empty for automatic)')); }
+      { const sel = (lab, key, opts, tip) => { const w = document.createElement('label'); w.className = 'ammp'; w.append(lab + ' '); const x = document.createElement('select'); x.title = tip; x.setAttribute('aria-label', lab + ' for ' + q.name);
+          opts.forEach(([v, t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; x.appendChild(o); }); x.value = String(q[key] == null ? opts[0][0] : q[key]); x.onchange = () => { q[key] = key === 'hold' ? +x.value : x.value; saveMix(q); S.plan = null; }; w.appendChild(x); return w; };
+        if (i + 1 < queue.length) li.append(sel('Mix out with', 'mixStyle', STYLE_OPTS, 'The transition into the next track. Automatic uses the style chosen above.'));
+        li.append(sel('Loop before the mix', 'hold', [[0, 'Off'], [4, '4 bars'], [8, '8 bars'], [16, '16 bars']], 'Repeat the last four bars of this track before the mix starts, to stay longer on it (needs a beat grid)'));
+        const vb = document.createElement('button'); vb.className = 'btn'; vb.textContent = 'Track view'; vb.setAttribute('aria-label', 'Open the track view for ' + q.name); vb.onclick = () => openView(i); li.append(vb); }
       if (i + 1 < queue.length) { const pv = document.createElement('button'); pv.className = 'btn'; pv.textContent = '▶ Preview mix'; pv.setAttribute('aria-label', 'Preview the mix from ' + q.name + ' into ' + queue[i + 1].name); pv.onclick = () => preview(i); li.append(pv, rm); } else li.append(rm);
       ol.appendChild(li);
     });
     if (!queue.length) { const li = document.createElement('li'); li.textContent = 'No tracks yet.'; ol.appendChild(li); }
-    drawMap();
+    drawMap(); if (view >= 0) { if (queue[view]) drawView(); else $('amview').classList.add('hidden'); }
   }
   /* the set map: one block per track, as wide as the track is long, filled with its energy through the track and coloured by its place on the Camelot wheel */
   function drawMap() {
@@ -50,12 +57,12 @@
   paint();
 
   const mixKey = (q) => 'govibe.mix.' + q.name + '|' + Math.round(q.buf ? q.buf.duration : 0);
-  function saveMix(q) { try { const o = {}; if (q.mixIn != null) o.i = q.mixIn; if (q.mixOut != null) o.o = q.mixOut; if (o.i != null || o.o != null) localStorage.setItem(mixKey(q), JSON.stringify(o)); else localStorage.removeItem(mixKey(q)); } catch (_) { /* no storage */ } }
+  function saveMix(q) { try { const o = {}; if (q.mixIn != null) o.i = q.mixIn; if (q.mixOut != null) o.o = q.mixOut; if (q.mixStyle && q.mixStyle !== 'auto') o.s = q.mixStyle; if (q.hold) o.h = q.hold; if (o.i != null || o.o != null || o.s || o.h) localStorage.setItem(mixKey(q), JSON.stringify(o)); else localStorage.removeItem(mixKey(q)); } catch (_) { /* no storage */ } }
   async function addBuffer(buf, name, pre) {
     if (pre) queue.push({ name, buf, bpm: pre.bpm, key: pre.key, grid: pre.grid ? { ...pre.grid } : null, id: pre.id });
     else { const b0 = detectBPM(buf), grid = b0 ? detectGrid(buf, b0) : null; queue.push({ name, buf, bpm: grid ? grid.bpm : b0, key: detectKey(buf), grid }); }
     const nq = queue[queue.length - 1]; nq.energy = pre && pre.energy != null ? pre.energy : window.GVTrackMap ? GVTrackMap.energy(buf) : undefined;
-    try { const o = JSON.parse(localStorage.getItem(mixKey(nq)) || 'null'); if (o) { if (typeof o.i === 'number') nq.mixIn = o.i; if (typeof o.o === 'number') nq.mixOut = o.o; } } catch (_) { /* no storage */ }
+    try { const o = JSON.parse(localStorage.getItem(mixKey(nq)) || 'null'); if (o) { if (typeof o.i === 'number') nq.mixIn = o.i; if (typeof o.o === 'number') nq.mixOut = o.o; if (typeof o.s === 'string') nq.mixStyle = o.s; if (typeof o.h === 'number') nq.hold = o.h; } } catch (_) { /* no storage */ }
     mapOf(nq); paint();
   }
   A.queueAdd = (buf, name, pre) => { addBuffer(buf, name, pre); say(queue.length + ' track' + (queue.length === 1 ? '' : 's') + ' in the queue.'); };
@@ -188,6 +195,7 @@
     const om = oq.grid && out.grid ? mapOf(oq) : null, im = nq.grid ? mapOf(nq) : null, grids = !!(om && im && om.grid && im.grid), lo = Math.min(oq.bpm || 1, nq.bpm || 1);
     let st = style();
     if (st === 'auto') st = GVMixPlan.chooseStyle({ grids, gap: oq.bpm && nq.bpm ? GVMixPlan.tempoGap(oq.bpm, nq.bpm) / lo : 0, kc: GVMixPlan.keyCost(oq.key, nq.key), outE: om ? om.outE : 0.5, inE: im ? im.inE : 0.5, hasDrop: !!(im && im.drop != null), dropE: im ? im.dropE : 0, intensity: intensity(), last: S.last });
+    if (oq.mixStyle && oq.mixStyle !== 'auto') st = oq.mixStyle;
     if (!grids && BUILD[st]) st = 'sweep';
     if (mode === 'skip' && BUILD[st]) st = 'blend';
     const rate = out.rate || 1, bs = grids ? out.grid.period / rate : 0.5, pre = BUILD[st] || 0, preSec = pre * bs, pos = out.position(), dur = out.buf.duration;
@@ -376,8 +384,18 @@
     }
     if (!S.preview) liveStep(d, plan);
     { const pos0 = d.position(), left = plan.B != null ? (plan.B - plan.preSec * (d.rate || 1) - pos0) / (d.rate || 1) : plan.tgt != null ? (plan.tgt - pos0) / (d.rate || 1) : remReal - plan.len; showProg('Now playing "' + queue[S.idx].name + '" · next mix in ' + fmt(Math.max(0, left)) + ' (' + NAMES[plan.st] + ')', 0); }
+    if (S.hold) {                                                                      // looping the last bars before the mix
+      const H = S.hold; if (H.idx !== S.idx || !d.playing) S.hold = null;
+      else if (ctx.currentTime >= H.until) { S.hold = null; d.loop = null; d.eachSrc((x) => (x.loop = false)); d.startPos = d.position(); d.startCtx = ctx.currentTime; say('Loop finished, mixing on.'); }
+      else { showProg('Looping "' + queue[S.idx].name + '" before the mix', 0); return; }
+    }
     if (plan.B != null && d.playing && d.grid) {
       const at = plan.B - plan.preSec * (d.rate || 1), pos = d.position();
+      const q0 = queue[S.idx]; if (q0.hold && !plan.held && !S.preview && pos >= at - 0.05 && pos < at + 1 && at - 16 * d.grid.period > 0) {
+        plan.held = true; const per = d.grid.period, rt = d.rate || 1, st0 = at - 16 * per, passes = Math.max(1, Math.round(q0.hold / 4)), lenS = 16 * per / rt;
+        d.loop = { start: st0, end: at }; d.startPos = st0; d.startCtx = ctx.currentTime; d.play(); S.hold = { idx: S.idx, until: ctx.currentTime + passes * lenS - 0.12 };
+        say('Looping the last four bars ' + passes + (passes === 1 ? ' time' : ' times') + ' before the mix.'); return;
+      }
       if (pos > plan.B + 3 && !plan.now) { S.plan = null; return; }                                  // jumped past it: plan again
       if (pos >= at - 0.05) beginTransition(plan);
       return;
@@ -399,6 +417,41 @@
     say(plan.B != null ? 'Mixing at the next phrase with ' + NAMES[plan.st] + '.' : 'Mixing now with ' + NAMES[plan.st] + '.');
   };
 
+  /* ---------- track view: energy, beats, phrases, intro, drop and outro, with the mix points set by a click ---------- */
+  function drawView() {
+    const cv = $('amvc'), q = queue[view]; if (!cv || !q) return; const g = cv.getContext('2d'), W = cv.width, H = cv.height, m = mapOf(q), dur = q.buf ? q.buf.duration : m.dur || 1; g.clearRect(0, 0, W, H); g.fillStyle = '#0b0b14'; g.fillRect(0, 0, W, H);
+    const X = (t) => Math.max(0, Math.min(W, t / dur * W)), bars = m.bars && m.bars.length ? m.bars : null;
+    for (let px = 0; px < W; px++) { const e = bars ? bars[Math.min(bars.length - 1, Math.floor(px / W * bars.length))] : (q.energy != null ? q.energy : 0.5), h = Math.max(2, e * (H - 34)); g.fillStyle = 'hsl(' + (190 + e * 90) + ',70%,' + (38 + e * 20) + '%)'; g.fillRect(px, H - 18 - h, 1, h); }
+    if (q.grid && q.bpm) { const per = q.grid.period || 60 / q.bpm, t0 = q.grid.t0 || 0; for (let k = 0, t = t0; t < dur && k < 5000; k++, t += per) { if (k % 16 === 0) { g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(X(t), 0, 1, H - 18); } else if (k % 4 === 0 && W / (dur / per) > 1.4) { g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(X(t), H - 30, 1, 12); } } }
+    const mark = (t, col, lab, top) => { if (t == null) return; g.fillStyle = col; g.fillRect(X(t) - 1, 0, 2, H - 18); g.font = '11px sans-serif'; g.fillText(lab, Math.min(W - 60, X(t) + 4), top); };
+    if (m.grid) { mark(m.intro, '#a78bfa', 'intro ends ' + fmt(m.intro), 14); mark(m.drop, '#f472b6', 'drop ' + fmt(m.drop), 30); mark(m.outro, '#fbbf24', 'outro ' + fmt(m.outro), 46); }
+    mark(q.mixIn, '#34d399', 'MIX IN ' + (q.mixIn != null ? fmt(q.mixIn) : ''), 80); mark(q.mixOut, '#22d3ee', 'MIX OUT ' + (q.mixOut != null ? fmt(q.mixOut) : ''), 100);
+    g.fillStyle = '#9ca3c7'; g.fillText('0:00', 3, H - 4); g.fillText(fmt(dur), W - 40, H - 4);
+    cv.setAttribute('aria-label', 'Track view of ' + q.name + '. ' + (m.grid ? 'Intro ends ' + fmt(m.intro) + (m.drop != null ? ', drop at ' + fmt(m.drop) : '') + ', outro at ' + fmt(m.outro) + '. ' : 'No beat grid found. ') + (q.mixIn != null ? 'Mix in ' + fmt(q.mixIn) + '. ' : '') + (q.mixOut != null ? 'Mix out ' + fmt(q.mixOut) + '.' : ''));
+    $('amvtxt').textContent = (q.bpm ? Math.round(q.bpm) + ' BPM' : 'No tempo found') + (q.key ? ', key ' + q.key : '') + '. Click the picture to set the ' + (vmode === 'in' ? 'mix in' : 'mix out') + ' point' + (q.grid ? '; it snaps to the nearest bar.' : '.') + ' Bright lines are phrases of 16 beats.';
+  }
+  function openView(i) { view = i; $('amview').classList.remove('hidden'); $('amvname').textContent = (i + 1) + '. ' + queue[i].name; drawView(); $('amview').scrollIntoView({ block: 'nearest' }); }
+  if ($('amvc')) {
+    const setMode = (m) => { vmode = m; $('amvin').setAttribute('aria-pressed', m === 'in'); $('amvout').setAttribute('aria-pressed', m === 'out'); drawView(); };
+    $('amvin').onclick = () => setMode('in'); $('amvout').onclick = () => setMode('out');
+    $('amvclose').onclick = () => { view = -1; $('amview').classList.add('hidden'); };
+    $('amvclr').onclick = () => { const q = queue[view]; if (!q) return; q.mixIn = null; q.mixOut = null; saveMix(q); S.plan = null; paint(); drawView(); };
+    $('amvc').onclick = (e) => {
+      const q = queue[view]; if (!q) return; if (S.on) return say('Stop Automix before changing mix points.'); const r = $('amvc').getBoundingClientRect(), dur = q.buf.duration; let t = Math.max(0, Math.min(dur - 1, (e.clientX - r.left) / r.width * dur));
+      if (q.grid && q.grid.period) { const per = q.grid.period, t0 = q.grid.t0 || 0; t = Math.max(t0, t0 + Math.round((t - t0) / (4 * per)) * 4 * per); }
+      if (vmode === 'in') q.mixIn = t; else q.mixOut = t; saveMix(q); S.plan = null; paint(); drawView(); say('Mix ' + vmode + ' set to ' + fmt(t) + ' for ' + q.name + '.');
+    };
+  }
+  /* saved settings: the options above, kept in this browser under a name */
+  const PRE_IDS = ['amlen', 'amstart', 'amstyle', 'amint', 'amplay', 'amshape', 'amsmart', 'amkl', 'amlive', 'amauto', 'amrec'], PRE_KEY = 'govibe.ampresets';
+  const preLoad = () => { try { return JSON.parse(localStorage.getItem(PRE_KEY) || '{}') || {}; } catch (_) { return {}; } };
+  function preFill(sel) { const all = preLoad(), s0 = $('ampre'); s0.innerHTML = '<option value="">Choose…</option>'; Object.keys(all).forEach((k) => { const o = document.createElement('option'); o.value = k; o.textContent = k; s0.appendChild(o); }); if (sel) s0.value = sel; }
+  if ($('ampre')) {
+    preFill();
+    $('ampsave').onclick = () => { const name = ($('ampname').value || $('ampre').value || '').trim().slice(0, 40); if (!name) return say('Type a name for these settings first.'); const o = {}; PRE_IDS.forEach((id) => { const e = $(id); if (e) o[id] = e.type === 'checkbox' ? e.checked : e.value; }); const all = preLoad(); all[name] = o; try { localStorage.setItem(PRE_KEY, JSON.stringify(all)); } catch (_) { return say('Could not save here.'); } preFill(name); say('Saved "' + name + '".'); };
+    $('ampre').onchange = () => { const o = preLoad()[$('ampre').value]; if (!o) return; PRE_IDS.forEach((id) => { const e = $(id); if (e && o[id] != null) { if (e.type === 'checkbox') e.checked = !!o[id]; else e.value = o[id]; e.dispatchEvent(new Event('change')); } }); S.plan = null; say('Loaded "' + $('ampre').value + '".'); };
+    $('ampdel').onclick = () => { const k = $('ampre').value; if (!k) return say('Choose saved settings to delete.'); const all = preLoad(); delete all[k]; try { localStorage.setItem(PRE_KEY, JSON.stringify(all)); } catch (_) { /* no storage */ } preFill(); say('Deleted "' + k + '".'); };
+  }
   A.amQueue = queue; A.amPaint = paint; A.amState = S;
-  if (/[?&]gvtest\b/.test(location.search)) window.__am = { queue, S, addBuffer, used, phraseStart, makePlan, mapOf, roll, startMove, MOVES, stepMove, prepDeck };   // test hook
+  if (/[?&]gvtest\b/.test(location.search)) window.__am = { queue, S, addBuffer, used, phraseStart, makePlan, mapOf, roll, startMove, MOVES, stepMove, prepDeck, openView, drawView };   // test hook
 })();

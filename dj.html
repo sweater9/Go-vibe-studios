@@ -177,6 +177,15 @@
     <div class="row" style="align-items:center;margin:6px 0"><label class="row" style="gap:6px"><input type="checkbox" id="amauto"> Pick the next track from my library automatically</label></div>
     <p class="status">With this on, Automix chooses each following track from your library by key, tempo and your ratings, avoids repeats and keeps going on its own. You can start with an empty queue. Needs at least two tracks in the Library tab.</p>
     <ol id="amlist" class="amlist" aria-label="Track queue"></ol>
+    <div id="amview" class="amview hidden">
+      <div class="row" style="align-items:center;gap:8px;margin:8px 0 4px"><strong id="amvname" style="flex:1;min-width:140px"></strong>
+        <button class="btn" id="amvin" aria-pressed="true">Click sets mix in</button><button class="btn" id="amvout" aria-pressed="false">Click sets mix out</button><button class="btn" id="amvclr">Clear both points</button><button class="btn" id="amvclose">Close</button></div>
+      <canvas id="amvc" width="900" height="150" role="img" aria-label="Track view" style="width:100%;height:150px;border-radius:10px;background:#0b0b14;cursor:crosshair;touch-action:manipulation"></canvas>
+      <p class="status" id="amvtxt"></p>
+    </div>
+    <div class="row" style="align-items:flex-end;margin:8px 0;gap:8px"><label class="ctl" style="min-width:0">Saved settings
+      <select id="ampre" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"><option value="">Choose…</option></select></label>
+      <label class="ctl" style="min-width:0">Name<input id="ampname" type="text" maxlength="40" placeholder="My club mix" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:9px;border-radius:10px"></label><button class="btn" id="ampsave">Save these settings</button><button class="btn" id="ampdel">Delete</button></div>
     <canvas id="ammap" width="900" height="110" class="hidden" role="img" aria-label="Set map" style="width:100%;height:110px;border-radius:10px;background:#0b0b14;margin-top:8px"></canvas>
     <p class="status" id="ammaptxt"></p>
     <div class="row" style="align-items:center;gap:10px;margin:6px 0"><progress id="amprog" max="100" value="0" aria-label="Transition progress" style="flex:1;min-width:120px"></progress><span class="status" id="amcount" aria-hidden="true"></span></div>
