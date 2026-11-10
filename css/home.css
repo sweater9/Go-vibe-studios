@@ -283,3 +283,7 @@ html[data-theme=contrast] .hp[aria-pressed="true"] { background: #ffe14d; border
 }
 html[data-theme=light] .path a::before { background: #0f766e; color: #fff; } html[data-theme=light] .path a:not(:last-child)::after { background: #a5b4fc; }
 html[data-theme=contrast] .path a::before { background: #ffe14d; color: #000; } html[data-theme=contrast] .path a:not(:last-child)::after { background: #fff; }
+
+/* search results shown under the search box; the rest of the page steps aside while searching */
+#tres { margin-top: 14px; }
+.searching .cats, .searching .flows, .searching .popular, .searching .why, .searching #workspace, .searching .allh, .searching section.grp, .searching section.learn, .searching .band { display: none !important; }

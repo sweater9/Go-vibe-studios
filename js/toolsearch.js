@@ -72,6 +72,15 @@
     const filtering = all.length || group !== 'all';
     count.textContent = filtering ? (shown + (shown === 1 ? ' tool' : ' tools') + ' found') : '';
     if (empty) empty.hidden = shown > 0;
+    const box = document.getElementById('tres'); if (box) {                         // the matches, shown right under the search box
+      box.innerHTML = ''; box.hidden = !(filtering && shown); document.body.classList.toggle('searching', !!(filtering && shown));
+      if (filtering) items.filter((it) => !it.el.hidden).sort((a, b) => (hits.has(b.href) ? 1 : 0) - (hits.has(a.href) ? 1 : 0)).forEach((it) => {
+        const h = it.el.querySelector('h3'), p = it.el.querySelector('p'), a = document.createElement('a'); a.className = 'pt'; a.href = it.href;
+        const t = (h ? h.textContent : it.el.textContent).replace(/\bNew\b/, '').trim(), d = p ? p.textContent.trim() : ''; const b = document.createElement('b'); b.textContent = t; a.appendChild(b);
+        if (d) { const sp = document.createElement('span'); sp.textContent = d.length > 110 ? d.slice(0, 107) + '…' : d; a.appendChild(sp); }
+        const em = document.createElement('em'); em.innerHTML = 'Open tool <i aria-hidden="true">&rarr;</i>'; a.appendChild(em); box.appendChild(a);
+      });
+    }
     const ws = document.getElementById('workspace'); if (ws && filtering) ws.dataset.dim = '1'; else if (ws) delete ws.dataset.dim;
   }
   input.addEventListener('input', run);
