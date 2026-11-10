@@ -42,7 +42,7 @@ with sync_playwright() as p:
     def video():
         pg = page('video.html', 1360, 850); pg.set_input_files('#clipfile', [D + 'clip1.webm', D + 'clip2.webm']); pg.wait_for_timeout(3000)
         pg.set_input_files('#musicfile', D + 'night-drive.wav'); pg.wait_for_timeout(1500)
-        pg.fill('#ttext', 'Summer 2026'); pg.click('#tadd'); pg.wait_for_timeout(600); pg.evaluate('window.scrollTo(0,0)'); pg.wait_for_timeout(600); shot(pg, 'video')
+        pg.click('#tab-p'); pg.fill('#ttext', 'Summer 2026'); pg.click('#tadd'); pg.wait_for_timeout(600); pg.evaluate('window.scrollTo(0,0)'); pg.wait_for_timeout(600); shot(pg, 'video')
     def master():
         pg = page('master.html', 900, 562); pg.set_input_files('#file', D + 'night-drive.wav'); pg.wait_for_timeout(4000); pg.evaluate('window.scrollTo(0,150)'); pg.wait_for_timeout(300); shot(pg, 'master')
     def convert():
