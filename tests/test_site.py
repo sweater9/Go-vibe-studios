@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "tuner", "tomidi", "practice", "vocals", "synth", "reference", "repair", "rhythm", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "djedit", "whatsnew", "mono", "tone", "video-to-audio", "audio", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-tune-guitar", "blog-audio-to-midi", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms", "contact"]
+PAGES = ["index", "tuner", "tomidi", "practice", "vocals", "synth", "reference", "repair", "rhythm", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "djedit", "whatsnew", "mono", "tone", "tempo", "video-to-audio", "audio", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-tune-guitar", "blog-audio-to-midi", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms", "contact"]
 FAILS, PASSES = [], 0
 
 
@@ -1576,6 +1576,31 @@ def test_studio_rec(browser, base):
         v = p3.evaluate("axe.run(document,{runOnly:['wcag2a','wcag2aa','wcag21a','wcag21aa','best-practice']}).then(r=>r.violations.map(v=>v.id+' x'+v.nodes.length+' '+v.nodes[0].target.join(' ')))")
         check("studio with the recording panel open and arm buttons: no axe violations", not v, str(v))
     ctx3.close(); b2.close()
+
+
+def test_tempo(browser, base):
+    print("tempo converter and iPhone home screen tip")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "tempo.html?gvtest")
+    txt = lambda: pg.inner_text("#rows")
+    check("tempo: 120 BPM gives a 500 ms quarter note", "500" in pg.locator("#rows tr:nth-child(3) td").first.inner_text())
+    check("tempo: dotted eighth and triplet quarter at 120 BPM", pg.locator("#rows tr:nth-child(4) td:nth-child(3)").inner_text() == "375" and pg.locator("#rows tr:nth-child(3) td:nth-child(4)").inner_text() == "333.3", txt())
+    pg.fill("#bpm", "90"); pg.click("#double")
+    check("tempo: Double turns 90 into 180", pg.input_value("#bpm") == "180")
+    pg.click("#half"); check("tempo: Half turns 180 into 90", pg.input_value("#bpm") == "90")
+    check("tempo: no script errors", not errs, str(errs))
+    ctx.close()
+    ctx = browser.new_context(user_agent="Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1", viewport={"width": 390, "height": 844})
+    pg = ctx.new_page(); pg.goto(base + "index.html"); pg.wait_for_timeout(300)
+    check("iPhone: home screen tip shows once", pg.locator("[role=note]:has-text('Add to Home Screen')").count() == 1)
+    pg.click("[role=note] button"); pg.reload(); pg.wait_for_timeout(300)
+    check("iPhone: tip stays dismissed", pg.locator("[role=note]:has-text('Add to Home Screen')").count() == 0)
+    ctx.close()
+    ctx, pg = new_page(browser, [])
+    pg.goto(base + "index.html"); pg.wait_for_timeout(300)
+    check("desktop: no home screen tip", pg.locator("[role=note]:has-text('Add to Home Screen')").count() == 0)
+    ctx.close()
 
 
 def test_master(browser, base):
@@ -4125,7 +4150,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_setmap, test_demotracks, test_demolink, test_toolsearch, test_favorites, test_flows, test_heropads, test_themes, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_tempo, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_setmap, test_demotracks, test_demolink, test_toolsearch, test_favorites, test_flows, test_heropads, test_themes, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

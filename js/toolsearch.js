@@ -12,7 +12,7 @@
     'master.html': 'lufs loudness limiter streaming', 'reference.html': 'compare mix eq', 'repair.html': 'clicks hum clipping noise fix', 'rhythm.html': 'timing taps trainer',
     'convert.html': 'mp3 wav format', 'tomidi.html': 'notes melody hum transcribe', 'dj.html': 'mix automix decks turntable crossfade transitions set', 'bpm.html': 'tempo key camelot detect',
     'lessons.html': 'learn dj beatmatching tutorial', 'learn-music.html': 'learn theory ear training production tutorial', 'djedit.html': 'extend radio edit loop',
-    'silence.html': 'gaps quiet trim', 'mono.html': 'stereo channels mixdown', 'tone.html': 'sine square sweep frequency', 'video-to-audio.html': 'extract mp3 wav sound from video'
+    'silence.html': 'gaps quiet trim', 'mono.html': 'stereo channels mixdown', 'tone.html': 'sine square sweep frequency', 'tempo.html': 'bpm milliseconds ms delay time reverb lfo hz dotted triplet note length converter calculator', 'video-to-audio.html': 'extract mp3 wav sound from video'
   };
   /* Plain words people use for what they want, mapped to tools. Local only, no AI. */
   const INTENTS = [
@@ -23,7 +23,7 @@
     [['beat', 'drums', 'drum', 'loop', 'loops', 'instrumental', 'make music', 'compose', 'song'], ['samples.html', 'studio.html', 'looper.html']],
     [['speed up', 'slow down', 'slower', 'faster', 'nightcore', 'reverb', 'slowed'], ['slowed.html', 'pitch.html', 'practice.html']],
     [['change key', 'transpose', 'pitch', 'higher', 'lower'], ['pitch.html', 'keys.html']],
-    [['bpm', 'tempo', 'what key', 'detect key', 'find key', 'camelot'], ['bpm.html', 'metronome.html']],
+    [['bpm', 'tempo', 'what key', 'detect key', 'find key', 'camelot'], ['bpm.html', 'tempo.html', 'metronome.html']],
     [['convert', 'mp3', 'wav', 'format', 'm4a', 'flac', 'ogg'], ['convert.html']],
     [['cut', 'trim', 'chop', 'shorten', 'ringtone', 'snippet', 'split'], ['cutter.html', 'editor.html']],
     [['video', 'movie', 'clip', 'subtitle', 'subtitles', 'captions', 'tiktok', 'reels', 'shorts', 'vertical', 'screen record'], ['video.html', 'visualizer.html']],

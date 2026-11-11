@@ -1,6 +1,6 @@
 /* Remembers which tools were opened last, only in this browser, so the home page can offer them again. */
 (() => {
-  const T = { 'studio.html': 'Studio', 'editor.html': 'Audio editor', 'video.html': 'Video editor', 'dj.html': 'DJ console', 'slowed.html': 'Slowed and reverb', 'pitch.html': 'Pitch and speed', 'cutter.html': 'Audio cutter', 'booster.html': 'Volume booster', 'audio.html': 'Audio cleanup', 'convert.html': 'Converter', 'visualizer.html': 'Visualizer', 'master.html': 'Mastering', 'looper.html': 'Loop station', 'metronome.html': 'Metronome', 'bpm.html': 'BPM and key', 'record.html': 'Recorder', 'samples.html': 'Samples', 'keys.html': 'Keys', 'chords.html': 'Chords', 'silence.html': 'Silence remover', 'mono.html': 'Stereo to mono', 'tone.html': 'Tone generator', 'video-to-audio.html': 'Video to audio' };
+  const T = { 'studio.html': 'Studio', 'editor.html': 'Audio editor', 'video.html': 'Video editor', 'dj.html': 'DJ console', 'slowed.html': 'Slowed and reverb', 'pitch.html': 'Pitch and speed', 'cutter.html': 'Audio cutter', 'booster.html': 'Volume booster', 'audio.html': 'Audio cleanup', 'convert.html': 'Converter', 'visualizer.html': 'Visualizer', 'master.html': 'Mastering', 'looper.html': 'Loop station', 'metronome.html': 'Metronome', 'bpm.html': 'BPM and key', 'record.html': 'Recorder', 'samples.html': 'Samples', 'keys.html': 'Keys', 'chords.html': 'Chords', 'silence.html': 'Silence remover', 'mono.html': 'Stereo to mono', 'tone.html': 'Tone generator', 'tempo.html': 'Tempo converter', 'video-to-audio.html': 'Video to audio' };
   const f = (location.pathname.split('/').pop() || '').toLowerCase();
   if (!T[f] || /[?&]gvtest\b/.test(location.search)) return;
   try {
@@ -14,4 +14,20 @@
   if (/[?&]gvtest\b/.test(location.search)) return;
   if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') return;
   window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+})();
+/* iPhone and iPad: a one line hint, shown once on the home page, about adding the site to the Home Screen. Local only. */
+(() => {
+  if (/[?&]gvtest\b/.test(location.search)) return;
+  const f = (location.pathname.split('/').pop() || 'index.html').toLowerCase();
+  if (f !== 'index.html' && f !== '') return;
+  const ua = navigator.userAgent || '', ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (!ios || navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches)) return;
+  try { if (localStorage.getItem('govibe.a2hs')) return; } catch (_) { return; }
+  const main = document.getElementById('main'); if (!main) return;
+  const box = document.createElement('div'); box.setAttribute('role', 'note');
+  box.style.cssText = 'display:flex;gap:10px;align-items:center;justify-content:space-between;margin:12px 0;padding:10px 14px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);font-size:14px;color:var(--muted)';
+  const t = document.createElement('span'); t.textContent = 'Tip: tap the Share button in Safari, then Add to Home Screen, to open GoVibeMix like an app. It also works offline after your first visit.';
+  const b = document.createElement('button'); b.className = 'btn'; b.textContent = 'Got it'; b.setAttribute('aria-label', 'Dismiss the Home Screen tip');
+  b.addEventListener('click', () => { try { localStorage.setItem('govibe.a2hs', '1'); } catch (_) {} box.remove(); });
+  box.append(t, b); main.insertBefore(box, main.firstChild);
 })();
