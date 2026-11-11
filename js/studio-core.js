@@ -47,7 +47,9 @@ window.GVStudioCore = (() => {
     out.connect(dest);
     /* tracks sum into mixIn, then the master effects, then the master fader */
     const mixIn = ctx.createGain(), mchain = chain(ctx, p.mfx, p.bpm); mixIn.connect(mchain.in); mchain.out.connect(master);
-    const rev = FX().bus(ctx, 'reverb', p.sends.rev, { bpm: p.bpm }), dly = FX().bus(ctx, 'delay', p.sends.dly, { bpm: p.bpm }); rev.out.connect(mixIn); dly.out.connect(mixIn);
+    /* An offline render with nothing sent to the reverb or delay does not need them (they would add silence). Leaving them out also keeps Safari on iPhone from stopping on them. */
+    const idle = !!opt.offline && !p.tracks.some((t) => (t.sendR || 0) > 0 || (t.sendD || 0) > 0), stub = () => { const g = ctx.createGain(); return { in: g, out: g, set() {}, stop() {} }; };
+    const rev = idle ? stub() : FX().bus(ctx, 'reverb', p.sends.rev, { bpm: p.bpm }), dly = idle ? stub() : FX().bus(ctx, 'delay', p.sends.dly, { bpm: p.bpm }); rev.out.connect(mixIn); dly.out.connect(mixIn);
     const tracks = {};
     p.tracks.forEach((t) => {
       const input = ctx.createGain(), ch = chain(ctx, t.fx, p.bpm), gain = ctx.createGain(), pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null, sR = ctx.createGain(), sD = ctx.createGain();
@@ -148,7 +150,7 @@ window.GVStudioCore = (() => {
     if (!(to > from)) throw new Error('Nothing to render');
     /* The browser's limiter fades in over its first ~100 ms, which would crush a hit on the very first beat. Render a short lead in and cut it off. */
     const lead = p.limiter === false ? 0 : LEAD, skip = Math.round(lead * rate);
-    const oc = new OfflineAudioContext(2, Math.ceil((to - from + tail + lead) * rate), rate), graph = buildGraph(oc, oc.destination, p, { onlyTrack: opt.onlyTrack });
+    const oc = new OfflineAudioContext(2, Math.ceil((to - from + tail + lead) * rate), rate), graph = buildGraph(oc, oc.destination, p, { onlyTrack: opt.onlyTrack, offline: true });
     /* Notes and drum hits are created a few seconds at a time. Every voice that exists keeps costing time on every audio block, even before it
        sounds, so scheduling a whole song up front made long projects render many times slower than they need to. */
     /* Short renders schedule everything at once: pausing and resuming an offline context is fragile in Safari on iPhone. */
