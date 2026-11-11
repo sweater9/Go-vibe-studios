@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Loop maker check — GoVibeMix</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="js/theme.js"></script>
+</head>
+<body>
+<main id="main" class="wrap">
+  <h1>Loop maker check</h1>
+  <p class="lead">This page loads the loop maker one piece at a time. Tap Next step again and again. If the page crashes, open this page again: the log below remembers the last step that was started.</p>
+  <div class="panel">
+    <div class="row"><button class="btn primary" id="next">Next step</button><button class="btn" id="reset">Clear log</button></div>
+    <p class="status" id="now" role="status"></p>
+    <pre id="log" style="white-space:pre-wrap;font-size:13px"></pre>
+  </div>
+  <div hidden>
+    <input id="bpm" value="100"><select id="root"></select><select id="mode"><option value="major">Major</option><option value="minor">Minor</option></select>
+    <select id="bars"><option value="4" selected>4</option></select><select id="prog"></select><input id="seed" value="1"><div id="cats"></div><p id="status"></p><div id="list"></div>
+  </div>
+</main>
+<script src="js/diag-samples.js"></script>
+</body>
+</html>
