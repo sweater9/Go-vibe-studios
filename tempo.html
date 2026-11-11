@@ -47,6 +47,17 @@
     <div class="tblwrap"><table class="tbl" aria-label="Note lengths for the chosen tempo"><thead><tr><th scope="col">Note</th><th scope="col">Straight (ms)</th><th scope="col">Dotted (ms)</th><th scope="col">Triplet (ms)</th><th scope="col">Straight (Hz)</th></tr></thead><tbody id="rows"></tbody></table></div>
     <p class="status">Hz is how many times per second the note repeats, which is the rate to use for an LFO or tremolo. Dotted notes are one and a half times as long, triplets are two thirds as long.</p>
   </div>
+  <div class="panel">
+    <h2>Loop length calculator</h2>
+    <p class="status">Work out how long a loop lasts at the tempo above, or find the tempo of a loop you already know the length of. Beats per bar is 4 for most pop, dance and hip hop.</p>
+    <div class="row" style="align-items:flex-end">
+      <label class="ctl" style="min-width:110px">Bars<input type="number" id="lbars" min="0.25" max="512" step="0.25" value="4" inputmode="decimal"></label>
+      <label class="ctl" style="min-width:110px">Beats per bar<input type="number" id="lbeats" min="1" max="16" step="1" value="4" inputmode="numeric"></label>
+      <label class="ctl" style="min-width:130px">Length (seconds)<input type="number" id="lsecs" min="0.1" max="3600" step="0.01" value="8" inputmode="decimal"></label>
+      <button class="btn" id="lfrom">Tempo from length</button>
+    </div>
+    <p class="status" id="linfo" role="status"></p>
+  </div>
 </main>
 <footer>GoVibeMix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="whatsnew.html">What's new</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="contact.html">Contact</a></nav></footer>
 <script src="js/tempo.js"></script>

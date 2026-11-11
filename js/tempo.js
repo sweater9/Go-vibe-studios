@@ -34,6 +34,17 @@
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(lines.join('\n')).then(done, () => { $('info').textContent = 'Could not copy. Select the table and copy it by hand.'; });
     else $('info').textContent = 'Copying is not available here. Select the table and copy it by hand.';
   });
+  /* loop length calculator */
+  const num = (id, d) => { const v = parseFloat($(id).value); return isFinite(v) && v > 0 ? v : d; };
+  function loopInfo() {
+    const bars = num('lbars', 4), beats = num('lbeats', 4), bpm = bpmNow(), secs = bars * beats * 60 / bpm;
+    $('linfo').textContent = bars + ' bars of ' + beats + ' beats at ' + fmt(bpm) + ' BPM last ' + fmt(secs) + ' seconds (' + fmt(secs * 1000) + ' ms).';
+    return secs;
+  }
+  ['lbars', 'lbeats'].forEach((id) => $(id).addEventListener('input', () => { $('lsecs').value = String(Math.round(loopInfo() * 100) / 100); }));
+  $('lfrom').addEventListener('click', () => { setBpm(num('lbars', 4) * num('lbeats', 4) * 60 / num('lsecs', 8)); $('lsecs').value = String(Math.round(loopInfo() * 100) / 100); });
+  $('bpm').addEventListener('input', () => { $('lsecs').value = String(Math.round(loopInfo() * 100) / 100); });
+  $('lsecs').value = String(Math.round(loopInfo() * 100) / 100);
   window.__tempo = { lengths, fmt };
   render();
 })();

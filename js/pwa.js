@@ -5,6 +5,12 @@
   if (!T[f] || /[?&]gvtest\b/.test(location.search)) return;
   try {
     const a = (JSON.parse(localStorage.getItem('govibe.recent')) || []).filter((x) => x && x.h !== f);
+    const prev = a[0];
+    if (prev && T[prev.h] && !/[?&]gvtest\b/.test(location.search)) window.addEventListener('DOMContentLoaded', () => {
+      const h1 = document.querySelector('main h1'); if (!h1 || !h1.parentNode) return;
+      const l = document.createElement('a'); l.href = prev.h; l.textContent = '\u2190 Back to ' + T[prev.h]; l.style.cssText = 'display:inline-block;margin-bottom:6px;font-size:13px;color:var(--muted)';
+      h1.parentNode.insertBefore(l, h1);
+    });
     a.unshift({ h: f, t: T[f], ts: Date.now() }); localStorage.setItem('govibe.recent', JSON.stringify(a.slice(0, 8)));
   } catch (_) { /* private mode: nothing is remembered */ }
 })();
