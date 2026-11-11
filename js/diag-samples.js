@@ -12,7 +12,7 @@
   const off = async (secs, build, extra) => { const oc = new OfflineAudioContext(2, Math.ceil(secs * 44100), 44100); build(oc, oc.destination); if (extra) await extra(oc); const t = performance.now(), r = await oc.startRendering(); return Math.round(performance.now() - t) + ' ms, ' + r.length + ' samples'; };
   const STEPS = [
     ['load store.js', script('js/store.js')], ['load synth.js', script('js/synth.js')], ['load theory.js', script('js/theory.js')], ['load fx.js', script('js/fx.js')],
-    ['load studio-core.js', script('js/studio-core.js')], ['load session.js', script('js/session.js')], ['load samples.js (builds the page)', script('js/samples.js')],
+    ['load studio-core.js', script('js/studio-core.js')], ['load session.js', script('js/session.js')], ['load samples.js (builds the page)', () => { try { history.replaceState(null, '', location.pathname + '?gvtest'); } catch (_) {} return script('js/samples.js')(); }],
     ['start the audio engine', async () => { const C = window.AudioContext || window.webkitAudioContext; window.__dctx = new C(); await window.__dctx.resume(); return 'state ' + window.__dctx.state + ', ' + window.__dctx.sampleRate + ' Hz'; }],
     ['render 1 second of silence offline', () => off(1, () => {})], 
     ['render a tone offline', () => off(1, (c, d) => { const o = c.createOscillator(), g = c.createGain(); g.gain.value = 0.1; o.connect(g).connect(d); o.start(0); o.stop(0.5); })],
