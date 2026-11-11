@@ -1580,7 +1580,11 @@ def test_studio_rec(browser, base):
 
 def test_master(browser, base):
     print("master: loudness, limiter, A/B, export")
-    import tempfile, numpy as np, scipy.io.wavfile as sw, pyloudnorm as pyln
+    try:
+        import tempfile, numpy as np, scipy.io.wavfile as sw, pyloudnorm as pyln
+    except ImportError as e:
+        print(f"  SKIP  master: needs numpy, scipy and pyloudnorm ({e.name} missing); pip install pyloudnorm to run it")
+        return
     errs = []
     ctx, pg = new_page(browser, errs, viewport={"width": 1300, "height": 1000}, accept_downloads=True)
     sr, secs = 44100, 24; tt = np.arange(sr * secs) / sr; rng = np.random.default_rng(3)
