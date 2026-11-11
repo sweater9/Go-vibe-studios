@@ -151,7 +151,8 @@ window.GVStudioCore = (() => {
     const oc = new OfflineAudioContext(2, Math.ceil((to - from + tail + lead) * rate), rate), graph = buildGraph(oc, oc.destination, p, { onlyTrack: opt.onlyTrack });
     /* Notes and drum hits are created a few seconds at a time. Every voice that exists keeps costing time on every audio block, even before it
        sounds, so scheduling a whole song up front made long projects render many times slower than they need to. */
-    const WIN = 4, notes = p.tracks.some((t) => t.type !== 'audio' && t.clips.length);
+    /* Short renders schedule everything at once: pausing and resuming an offline context is fragile in Safari on iPhone. */
+    const span = to - from, ios = typeof navigator !== 'undefined' && (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)), WIN = span <= 15 || (ios && span <= 60) ? span + 1 : 4, notes = p.tracks.some((t) => t.type !== 'audio' && t.clips.length);
     scheduleSegment(oc, graph, p, buffers, { when: lead, from, to }, { only: 'audio' });
     if (notes) for (let a = from; a < to; a += WIN) {
       const b = Math.min(to, a + WIN), when = lead + (a - from), job = () => { scheduleSegment(oc, graph, p, buffers, { when, from: a, to: b }, { only: 'notes' }); if (opt.onProgress) opt.onProgress(Math.min(1, (a - from) / (to - from))); };

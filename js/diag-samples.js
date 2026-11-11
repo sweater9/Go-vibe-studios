@@ -9,11 +9,18 @@
   if (log.length && /^TRY /.test(log[log.length - 1])) { log.push('THE PAGE STOPPED during: ' + log[log.length - 1].slice(4)); save(log); }
   show();
   const script = (src) => () => new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = () => ok(); s.onerror = () => no(new Error('could not load ' + src)); document.body.appendChild(s); });
+  const off = async (secs, build, extra) => { const oc = new OfflineAudioContext(2, Math.ceil(secs * 44100), 44100); build(oc, oc.destination); if (extra) await extra(oc); const t = performance.now(), r = await oc.startRendering(); return Math.round(performance.now() - t) + ' ms, ' + r.length + ' samples'; };
   const STEPS = [
     ['load store.js', script('js/store.js')], ['load synth.js', script('js/synth.js')], ['load theory.js', script('js/theory.js')], ['load fx.js', script('js/fx.js')],
     ['load studio-core.js', script('js/studio-core.js')], ['load session.js', script('js/session.js')], ['load samples.js (builds the page)', script('js/samples.js')],
     ['start the audio engine', async () => { const C = window.AudioContext || window.webkitAudioContext; window.__dctx = new C(); await window.__dctx.resume(); return 'state ' + window.__dctx.state + ', ' + window.__dctx.sampleRate + ' Hz'; }],
-    ['make one drum loop (offline render)', async () => { const t = performance.now(), it = window.__sm; if (!it) throw new Error('debug hook missing'); const r = await it.render(it.CATALOG[0], it.params()); return Math.round(performance.now() - t) + ' ms, ' + r.buf.length + ' samples'; }],
+    ['render 1 second of silence offline', () => off(1, () => {})], 
+    ['render a tone offline', () => off(1, (c, d) => { const o = c.createOscillator(), g = c.createGain(); g.gain.value = 0.1; o.connect(g).connect(d); o.start(0); o.stop(0.5); })],
+    ['render with a limiter offline', () => off(1, (c, d) => { const l = c.createDynamicsCompressor(); l.threshold.value = -1.5; l.knee.value = 0; l.ratio.value = 20; l.connect(d); const o = c.createOscillator(); o.connect(l); o.start(0); o.stop(0.5); })],
+    ['render noise and a filter offline', () => off(1, (c, d) => { const b = c.createBuffer(1, c.sampleRate, c.sampleRate), a = b.getChannelData(0); for (let k = 0; k < a.length; k++) a[k] = Math.random() * 2 - 1; const sr = c.createBufferSource(); sr.buffer = b; sr.loop = true; const f = c.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 7000; sr.connect(f).connect(d); sr.start(0); sr.stop(0.4); })],
+    ['pause and resume the offline render once', () => off(2, (c, d) => { const o = c.createOscillator(); o.connect(d); o.start(0); o.stop(1.5); }, (c) => { c.suspend(0.5).then(() => c.resume()); })],
+    ['pause and resume three times (10 s render)', () => off(10, (c, d) => { const o = c.createOscillator(); o.connect(d); o.start(0); o.stop(9); }, (c) => { [3.98, 7.98].forEach((t) => c.suspend(t).then(() => c.resume())); })],
+    ['make one drum loop with the loop maker code', async () => { const t = performance.now(), it = window.__sm; if (!it) throw new Error('debug hook missing'); const r = await it.render(it.CATALOG[0], it.params()); return Math.round(performance.now() - t) + ' ms, ' + r.buf.length + ' samples'; }],
     ['play a tone through the audio element', async () => { const c = window.__dctx, d = c.createMediaStreamDestination(), a = new Audio(); a.srcObject = d.stream; const o = c.createOscillator(), g = c.createGain(); g.gain.value = 0.05; o.connect(g); g.connect(d); o.start(); await a.play(); setTimeout(() => { o.stop(); a.pause(); }, 600); return 'playing'; }]
   ];
   let i = 0;
