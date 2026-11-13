@@ -91,7 +91,7 @@ def test_static():
     for f in PAGES:
         p = Refs()
         p.feed(open(f"{ROOT}/{f}.html").read())
-        bad = [r for r in p.refs if not re.match(r"^(https?:|#|mailto:)", r) and not os.path.exists(os.path.join(ROOT, r.split("#")[0].split("?")[0]))]
+        bad = [r for r in p.refs if not re.match(r"^(https?:|#|mailto:)", r) and not os.path.exists(os.path.join(ROOT, r.lstrip("/").split("#")[0].split("?")[0]))]
         check(f"{f}.html has no broken local links", not bad, str(bad))
         for k in ("description", "og:title", "og:description", "og:image", "theme-color"):
             check(f"{f}.html has meta {k}", bool(p.meta.get(k)))
