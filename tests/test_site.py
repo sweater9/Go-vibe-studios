@@ -2238,6 +2238,7 @@ def test_video_pro(browser, base):
     check("the clip starts at normal speed", ev("__ve.clips[0].speed") == 1 and ev("__ve.clips[0].speed2") == 1)
     d = sect(0, "Speed"); d.locator(".sp1").fill("2"); d.locator(".sp1").dispatch_event("change")
     check("2x speed halves the length on the timeline", abs(ev("__ve.state.total") - L0 / 2) < 0.01, f"{ev('__ve.state.total')} vs {L0 / 2}")
+    d = sect(0, "Speed")  # the clip list is rebuilt after each change; reopen the section if it came back closed
     d.locator(".sp2").fill("4"); d.locator(".sp2").dispatch_event("change")
     c0 = ev("() => { const c = __ve.clips[0]; return [c.out - c.in, c.speed, c.speed2]; }"); Lc, a, b = c0
     want_len = Lc * __import__("math").log(b / a) / (b - a)
