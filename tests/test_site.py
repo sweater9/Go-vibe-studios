@@ -3924,13 +3924,29 @@ def test_toolsearch(browser, base):
     ctx.close()
 
 
+def test_share_link(browser, base):
+    print("metronome: share link")
+    errs = []
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "metronome.html#bpm=132&num=3&sub=2")
+    check("share link sets tempo, beats and subdivision", pg.input_value("#bpm") == "132" and pg.input_value("#num") == "3" and pg.input_value("#sub") == "2")
+    pg.goto(base + "metronome.html#bpm=999&num=zz"); pg.reload()
+    check("a bad share link is ignored safely", int(pg.input_value("#bpm")) <= 300 and pg.input_value("#num") == "4")
+    check("share link: no console errors", not errs, str(errs[:3]))
+    ctx.close()
+    ctx, pg = new_page(browser, errs)
+    pg.goto(base + "tuner.html")
+    check("chromatic tuner offers an A4 reference tone", pg.locator("#strings button").count() == 1 and pg.is_visible("#strings"))
+    ctx.close()
+
+
 def test_favorites(browser, base):
     print("home: favourite tools")
     errs = []
     ctx, pg = new_page(browser, errs)
     pg.goto(base + "index.html")
     check("every tool card has a star button", pg.locator("button.fav").count() >= 25 and pg.locator("a.card.tool button").count() == 0)
-    pg.evaluate("() => localStorage.setItem('govibe.recent', JSON.stringify([{h: 'tuner.html', t: 'Tuner', ts: 1}]))"); pg.reload()
+    pg.evaluate("() => localStorage.setItem('govibe.recent', JSON.stringify([{h: 'tuner.html', t: 'Tuner', ts: 1}]))"); pg.reload(); pg.wait_for_selector(".wsclear", timeout=5000)
     check("recent tools can be cleared", pg.is_visible("#workspace") and pg.is_visible(".wsclear"))
     pg.click(".wsclear"); check("clearing removes the recent tools", pg.evaluate("() => localStorage.getItem('govibe.recent')") is None)
     check("no favourites row to begin with", not pg.is_visible("#favrow"))
@@ -4199,7 +4215,7 @@ def main():
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_tempo, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_setmap, test_demotracks, test_automix_view, test_demolink, test_toolsearch, test_favorites, test_flows, test_heropads, test_themes, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
+        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_tempo, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_setmap, test_demotracks, test_automix_view, test_demolink, test_toolsearch, test_share_link, test_favorites, test_flows, test_heropads, test_themes, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip

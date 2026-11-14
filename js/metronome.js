@@ -128,5 +128,14 @@
   window.addEventListener('pagehide', stop);
 
   buildDots(); setBpm(100); frame(); if (window.GVSession) GVSession.bind({ bpm: $('bpm') });
+
+  /* Share link: the settings travel in the part of the address after the # sign, which is never sent anywhere */
+  const SH = ['bpm', 'num', 'sub', 'swing', 'snd'];
+  const fromHash = () => { try { const q = new URLSearchParams(location.hash.slice(1)); SH.forEach((k) => { const v = q.get(k), e = $(k); if (v == null || !e) return; if (k === 'bpm') { if (isFinite(+v)) setBpm(+v); return; } if (!Array.from(e.options).some((o) => o.value === v)) return; e.value = v; e.dispatchEvent(new Event('change')); }); } catch (_) { /* ignore a bad link */ } };
+  if (location.hash.length > 1) fromHash();
+  if ($('sharelink')) $('sharelink').onclick = async () => {
+    const q = new URLSearchParams(); SH.forEach((k) => q.set(k, k === 'bpm' ? String(bpm) : $(k).value)); const url = location.origin + location.pathname + '#' + q.toString();
+    try { await navigator.clipboard.writeText(url); $('status').textContent = 'Link copied. It holds only your tempo and settings.'; } catch (_) { history.replaceState(null, '', '#' + q.toString()); $('status').textContent = 'Copy the address from your browser bar to share these settings.'; }
+  };
   if (/[?&]gvtest\b/.test(location.search)) window.__met = { log, get running() { return running; }, get bpm() { return bpm; }, tempoName, get acc() { return acc; }, get bar() { return bar; } };
 })();

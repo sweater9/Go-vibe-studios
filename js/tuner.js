@@ -5,7 +5,7 @@
   const midiOf = (n) => { const m = /^([A-G])(♯|#|b)?(-?\d)$/.exec(n), base = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[m[1]]; return 12 * (+m[3] + 1) + base + (m[2] === 'b' ? -1 : m[2] ? 1 : 0); };
   let ac = null, stream = null, an = null, buf = null, timer = 0, recent = [], tone = null;
   const a4 = () => Math.max(400, Math.min(480, +$('a4').value || 440));
-  function strings() { const set = SETS[$('inst').value] || [], box = $('strings'); box.replaceChildren(); set.forEach((n) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn mini'; b.textContent = n; b.dataset.m = midiOf(n); b.setAttribute('aria-label', 'Play ' + n + ' as a reference tone'); b.onclick = () => ref(midiOf(n), b); box.appendChild(b); }); box.hidden = !set.length; }
+  function strings() { const set = SETS[$('inst').value] || [], box = $('strings'); if (!set.length) set.push('A4'); box.replaceChildren(); set.forEach((n) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn mini'; b.textContent = n; b.dataset.m = midiOf(n); b.setAttribute('aria-label', 'Play ' + n + ' as a reference tone'); b.onclick = () => ref(midiOf(n), b); box.appendChild(b); }); box.hidden = !set.length; }
   function ref(m, btn) {
     stopTone(); ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume();
     const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.value = P.toHz(m, a4()); g.gain.value = 0; g.gain.linearRampToValueAtTime(0.25, ac.currentTime + 0.05); o.connect(g).connect(ac.destination); o.start(); tone = { o, g, btn };
