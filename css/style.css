@@ -312,3 +312,9 @@ html[data-theme=light] .st:hover { border-color: rgba(15, 23, 42, .5); }
 html[data-theme=light] .st[aria-pressed="true"] { box-shadow: 0 2px 6px -2px var(--sc, #0f766e); }
 html[data-theme=light] .facts p { background: #ffffffaa; }
 html[data-theme=light] .chips a:hover { background: rgba(15, 23, 42, .07); }
+
+/* Phone tap targets: bigger hit areas for footer links, disclosure rows and the home page Studio link (look unchanged) */
+footer a { display: inline-block; padding: 6px 4px; }
+summary { min-height: 24px; padding-top: 4px; padding-bottom: 4px; }
+#dopen { display: inline-block; padding: 6px 0; }
+@media (pointer: coarse) { footer a { padding: 12px 6px; } summary { min-height: 44px; display: list-item; } }

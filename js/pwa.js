@@ -37,3 +37,22 @@
   b.addEventListener('click', () => { try { localStorage.setItem('govibe.a2hs', '1'); } catch (_) {} box.remove(); });
   box.append(t, b); main.insertBefore(box, main.firstChild);
 })();
+/* A small status line in the footer: "Ready offline" once every tool is saved in this browser, and a notice while the connection is down. Local only. */
+(() => {
+  if (!('serviceWorker' in navigator) || !window.caches || /[?&]gvtest\b/.test(location.search)) return;
+  const secure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+  if (!secure) return;
+  const start = () => {
+    const foot = document.querySelector('footer'); if (!foot) return;
+    const s = document.createElement('div'); s.id = 'offlinebadge'; s.setAttribute('role', 'status'); s.style.cssText = 'margin-top:8px;font-size:12px;color:var(--muted)';
+    foot.appendChild(s);
+    let ready = false;
+    const paint = () => { s.textContent = !navigator.onLine ? 'You are offline. Working from the copy saved in this browser.' : ready ? 'Ready offline: every tool is saved in this browser.' : ''; };
+    const probe = () => navigator.serviceWorker.getRegistration().then((r) => (r && r.active ? caches.keys() : [])).then((keys) => {
+      const k = keys.filter((x) => /^govibe-v/.test(x)).pop(); return k ? caches.open(k).then((c) => c.keys()) : [];
+    }).then((reqs) => { ready = reqs.length > 40; paint(); }).catch(() => {});
+    addEventListener('online', paint); addEventListener('offline', paint);
+    probe(); setTimeout(probe, 6000); navigator.serviceWorker.addEventListener('controllerchange', () => setTimeout(probe, 3000));
+  };
+  window.addEventListener('load', start);
+})();

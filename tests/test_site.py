@@ -4208,14 +4208,23 @@ def test_roll_plus(browser, base):
     ctx.close()
 
 
+TESTS = (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_tempo, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_setmap, test_demotracks, test_automix_view, test_demolink, test_toolsearch, test_share_link, test_favorites, test_flows, test_heropads, test_themes, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline)
+
+
 def main():
+    """Run everything, or one slice of it: --shard 2/4 runs every 4th test starting at the 2nd (see tests/run_parallel.py)."""
+    shard, count = 1, 1
+    if "--shard" in sys.argv:
+        shard, count = (int(x) for x in sys.argv[sys.argv.index("--shard") + 1].split("/"))
+    tests = [t for i, t in enumerate(TESTS) if i % count == shard - 1]
     srv, base = start_server()
-    test_static()
+    if shard == 1:
+        test_static()
     global _sp_instance
     with sync_playwright() as p:
         _sp_instance = p
         browser = p.chromium.launch(args=["--autoplay-policy=no-user-gesture-required"])
-        for t in (test_pages, test_a11y, test_editor, test_dj, test_dj_extras, test_dj_four, test_stems, test_grid, test_controls, test_console, test_backup_history, test_tools, test_editor_dsp, test_denoise, test_record, test_studio, test_mixer, test_midi, test_sig_markers, test_studio_rec, test_tempo, test_master, test_keys_samples, test_desktop, test_learn, test_home, test_views, test_lessons, test_video, test_video_pro, test_video_basics, test_video_more, test_spectrogram, test_metronome, test_looper, test_chords, test_visualizer, test_quicktools, test_pitchtools, test_utilities, test_audio, test_videohub, test_workspace, test_session, test_tuner_midi, test_practice, test_vocals, test_synth, test_roll_plus, test_automation, test_autodj, test_transitions, test_automix_pro, test_keylock, test_mixmaker_pro, test_setrecord, test_preview, test_energy, test_mixpoints, test_djedit, test_libexport, test_setmap, test_demotracks, test_automix_view, test_demolink, test_toolsearch, test_share_link, test_favorites, test_flows, test_heropads, test_themes, test_reference, test_repair, test_rhythm, test_export_speed, test_djimport, test_mixmaker, test_offline):
+        for t in tests:
             try:
                 t(browser, base)
             except Exception as e:  # a crashed suite is a failure, not a skip
