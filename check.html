@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audio quality checker — GoVibeMix</title>
+<meta name="description" content="Find out if a file is really high quality. Spots MP3 style cutoffs, clipping, hidden mono, DC offset and silence at the ends. Free, private, nothing uploaded.">
+<link rel="canonical" href="https://govibemix.com/check.html">
+<meta name="theme-color" content="#0b0b14">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="GoVibeMix">
+<meta property="og:title" content="Audio quality checker — GoVibeMix">
+<meta property="og:description" content="Find out if a file is really high quality. Free, private, nothing uploaded.">
+<meta property="og:url" content="https://govibemix.com/check.html">
+<meta property="og:image" content="https://govibemix.com/icons/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="css/style.css">
+<script src="js/theme.js"></script>
+<style>
+.verdict { border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; background: var(--panel-2); margin: 12px 0; }
+.verdict h2 { margin: 0 0 6px; font-size: 20px; }
+.verdict p { margin: 0; color: var(--muted); line-height: 1.5; }
+.verdict.good { border-color: var(--good); }
+.verdict.warn { border-color: var(--warn); }
+.cklist { list-style: none; margin: 12px 0; padding: 0; display: grid; gap: 8px; }
+.cklist li { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--panel); line-height: 1.45; }
+.cklist b { display: block; }
+.cklist .tag { display: inline-block; font-size: 12px; font-weight: 700; margin-right: 6px; }
+.cklist .ok .tag { color: var(--good); }
+.cklist .warn .tag { color: var(--warn); }
+.cklist span.d { color: var(--muted); font-size: 14px; }
+#spec { width: 100%; height: 260px; display: block; border-radius: 10px; background: #000; }
+</style>
+</head>
+<body data-tool="check">
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <a class="brand" href="index.html"><img src="icons/favicon.svg" alt="" width="26" height="26">Go<span>Vibe</span>Mix</a>
+  <a class="link" href="studio.html">Studio</a>
+  <a class="link" href="editor.html">Audio Editor</a>
+  <a class="link" href="video.html">Video</a>
+  <a class="link" href="dj.html">DJ</a>
+  <a class="link" href="lessons.html">Learn</a>
+  <a class="link" href="index.html#tools">All tools</a>
+</nav>
+
+<main id="main" tabindex="-1" class="wrap">
+  <h1>Audio quality checker</h1>
+  <p class="lead">Is that file really what it says? Drop in a track and see where the sound stops at the top, whether it clips, whether it is secretly mono, and more. Your file stays on this device.</p>
+  <div class="panel">
+    <div class="drop" id="drop" data-input="file" role="button" tabindex="0"><strong>Drop a file here</strong> or press to choose one<p class="status">MP3, WAV, OGG, M4A, FLAC and more.</p></div>
+    <input type="file" id="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.flac,.caf,.aif,.aiff,.3gp,.amr,video/mp4" hidden aria-label="File to check">
+    <div id="main2" class="hidden">
+      <div class="verdict" id="verdict" role="status"><h2 id="vhead"></h2><p id="vtext"></p></div>
+      <canvas id="spec" role="img" aria-label="Spectrogram of the file. Time runs left to right, pitch runs bottom to top, brighter means louder."></canvas>
+      <p class="status" id="sinfo"></p>
+      <ul class="cklist" id="list"></ul>
+      <p class="status">Cutoff to bitrate matches are estimates from the shape of the sound, so read them as "likely", not proof. A quiet or very bass heavy track can fool them.</p>
+      <div class="row"><button class="btn" id="again">Check another file</button><a class="btn" href="editor.html">Open the Audio Editor</a></div>
+    </div>
+    <p class="status" id="status" role="status"></p>
+  </div>
+</main>
+<footer>GoVibeMix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="whatsnew.html">What's new</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="contact.html">Contact</a></nav></footer>
+<script src="js/quick.js"></script>
+<script src="js/spectrum.js"></script>
+<script src="js/check.js"></script>
+<script src="js/pwa.js"></script>
+</body>
+</html>

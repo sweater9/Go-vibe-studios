@@ -13,7 +13,7 @@ from html.parser import HTMLParser
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGES = ["index", "tuner", "tomidi", "practice", "vocals", "synth", "reference", "repair", "rhythm", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "djedit", "whatsnew", "mono", "tone", "tempo", "video-to-audio", "audio", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-tune-guitar", "blog-audio-to-midi", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms", "contact"]
+PAGES = ["index", "tuner", "tomidi", "practice", "vocals", "synth", "reference", "repair", "rhythm", "editor", "video", "dj", "lessons", "learn-music", "convert", "bpm", "record", "studio", "master", "keys", "samples", "metronome", "looper", "chords", "visualizer", "cutter", "booster", "slowed", "pitch", "silence", "djedit", "whatsnew", "mono", "check", "tone", "tempo", "video-to-audio", "audio", "about", "inside", "faq", "blog", "blog-beatmatching", "blog-camelot", "blog-record-mix", "blog-slowed-reverb", "blog-change-key", "blog-cut-mp3", "blog-tune-guitar", "blog-audio-to-midi", "blog-louder", "blog-clean-audio", "blog-vertical-video", "privacy", "terms", "contact"]
 FAILS, PASSES = [], 0
 
 
@@ -2608,6 +2608,20 @@ def test_utilities(browser, base):
     with pg.expect_download() as dl:
         pg.click("#go")
     check("saving names the file by mode", dl.value.suggested_filename == "wide swap.wav", dl.value.suggested_filename)
+    pg.goto(base + "check.html?gvtest")
+    mk = """async (o) => { const sr = 44100, n = 1 << 18, ac = new OfflineAudioContext(o.ch, n, sr), b = ac.createBuffer(o.ch, n, sr); let s = 7; for (let c = 0; c < o.ch; c++) { const d = b.getChannelData(c); for (let i = 0; i < n; i++) { s = (s * 1664525 + 1013904223) >>> 0; d[i] = (s / 4294967296 * 2 - 1) * o.gain; } if (o.same && c) b.getChannelData(1).set(b.getChannelData(0)); }
+      if (o.lp) { const N = 1 << 18, cut = Math.round(o.lp / sr * N); for (let c = 0; c < o.ch; c++) { const d = b.getChannelData(c), re = new Float64Array(N), im = new Float64Array(N); re.set(d.subarray(0, N)); GVSpec.fft(re, im); for (let k = 0; k < N; k++) if (k > cut && k < N - cut) { re[k] = 0; im[k] = 0; } for (let k = 0; k < N; k++) im[k] = -im[k]; GVSpec.fft(re, im); for (let k = 0; k < N; k++) d[k] = re[k] / N; } }
+      const src = ac.createBufferSource(); src.buffer = b; src.connect(ac.destination); src.start(); const out = await ac.startRendering(); if (o.clip) for (let c = 0; c < o.ch; c++) { const d = out.getChannelData(c); for (let i = 0; i < d.length; i++) d[i] = Math.max(-1, Math.min(1, d[i] * o.clip)); } window.__buf = out; const r = __util.analyse(out); return { cut: r.cutoff, sharp: r.sharp, kind: r.kind, runs: r.clipRuns, mono: r.mono, bad: r.bad }; }"""
+    full = pg.evaluate(mk, {"ch": 2, "gain": 0.3})
+    check("quality checker: full bandwidth noise reaches the top", full["cut"] > 20500 and full["kind"] == "full", str(full))
+    lp = pg.evaluate(mk, {"ch": 2, "gain": 0.3, "lp": 16000})
+    check("quality checker: a 16 kHz low passed file shows a sharp cut near 16 kHz", 14500 < lp["cut"] < 17500 and lp["sharp"] and lp["kind"] == "low", str(lp))
+    cl = pg.evaluate(mk, {"ch": 2, "gain": 0.9, "clip": 3})
+    check("quality checker: clipped audio is flagged", cl["runs"] > 100 and cl["bad"] >= 1, str(cl))
+    dm = pg.evaluate(mk, {"ch": 2, "gain": 0.3, "same": True})
+    check("quality checker: identical channels are called out", dm["mono"] is True, str(dm))
+    pg.evaluate("async (w) => { const f = eval(w); await __util.open(new File([f([[2, 0.5, 440]], 1)], 'tone.wav')); }", wavjs)
+    check("quality checker: opening a file shows the verdict and a list", pg.locator("#main2").is_visible() and pg.locator("#list li").count() >= 6 and pg.inner_text("#vhead") != "", pg.inner_text("#vhead"))
     pg.goto(base + "tone.html?gvtest")
     pg.evaluate("__util.set(1000, 'sine', 2)")
     r = pg.evaluate("async () => { const o = await __util.render(), d = o.getChannelData(0); let z = 0, pk = 0; for (let i = 1; i < d.length; i++) { if (d[i - 1] < 0 && d[i] >= 0) z++; pk = Math.max(pk, Math.abs(d[i])); } return { dur: o.duration, hz: z / o.duration, pk }; }")
