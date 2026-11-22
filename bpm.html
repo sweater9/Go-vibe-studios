@@ -19,6 +19,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="css/style.css">
 <script src="js/theme.js"></script>
+<style>.gridcv{display:block;width:100%;height:120px;margin-top:10px;background:#05060a;border:1px solid #1b1d25;border-radius:6px}</style>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -63,6 +64,19 @@
     </div>
   </div>
 
+  <div class="panel">
+    <h2>Check your taps against a track</h2>
+    <p class="status">Tap a tempo above, then load a track. Your tapped beat grid is drawn over the waveform so you can see whether it stays on the beats. Everything stays in your browser.</p>
+    <div class="row">
+      <button class="btn" id="gridpick">Choose a track</button>
+      <input id="gridfile" type="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.opus,.flac,.caf,.aif,.aiff,video/mp4" hidden aria-label="Track to check your taps against">
+      <label for="gridpos" style="font-size:13px">Position</label>
+      <input id="gridpos" type="range" min="0" max="1000" value="0" disabled aria-label="Scroll along the track" style="flex:1;min-width:120px">
+    </div>
+    <canvas id="gridcv" class="gridcv" role="img" aria-label="Waveform with your tapped beat grid"></canvas>
+    <p class="status" id="gridinfo" role="status">Tap at least two beats, then choose a track.</p>
+  </div>
+
   <div class="prose">
     <h2>How accurate is it?</h2>
     <p>Tempo is usually right within a fraction of a BPM on clear, steady music. It can be off by half or double on slow or sparse tracks, so a reading of 64 may really be 128. Tracks with live drummers or tempo changes are harder. Key detection is less certain than tempo and works best on music with clear harmony. Treat both as a good first guess and check by ear.</p>
@@ -72,6 +86,7 @@
 <footer>GoVibeMix · <nav aria-label="Footer" class="fnav"><a href="about.html">About</a> · <a href="inside.html">What's inside</a> · <a href="faq.html">FAQ</a> · <a href="whatsnew.html">What's new</a> · <a href="blog.html">Blog</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="contact.html">Contact</a></nav></footer>
 <script src="js/analyze.js"></script>
 <script src="js/session.js"></script>
+<script src="js/bpmgrid.js"></script>
 <script src="js/bpm.js"></script>
 <script src="js/pwa.js"></script>
 </body>

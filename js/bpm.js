@@ -60,9 +60,9 @@
     taps.push(now); if (taps.length > 9) taps.shift();
     if (taps.length < 2) { $('tapbpm').textContent = '—'; return; }
     const bpm = 60000 / ((taps[taps.length - 1] - taps[0]) / (taps.length - 1));
-    $('tapbpm').textContent = bpm.toFixed(1) + ' BPM'; tapped = bpm; $('tapuse').hidden = false;
+    $('tapbpm').textContent = bpm.toFixed(1) + ' BPM'; tapped = bpm; if (window.GVGrid) GVGrid.setBpm(bpm); $('tapuse').hidden = false;
   }
   $('tap').onclick = () => tap();
-  $('tapreset').onclick = () => { taps = []; tapped = 0; $('tapuse').hidden = true; $('tapuse').textContent = 'Use this tempo in my session'; $('tapbpm').textContent = '—'; };
+  $('tapreset').onclick = () => { taps = []; tapped = 0; $('tapuse').hidden = true; $('tapuse').textContent = 'Use this tempo in my session'; $('tapbpm').textContent = '—'; if (window.GVGrid) GVGrid.setBpm(0); };
   if (/[?&]gvtest\b/.test(location.search)) window.__bpm = { add, tap, get rows() { return rows; } };
 })();
