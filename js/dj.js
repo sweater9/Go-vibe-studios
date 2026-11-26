@@ -63,7 +63,7 @@
         <div class="wbadge" aria-hidden="true">${n}</div>
         <div class="wcol">
           <canvas class="zoom" data-r="zoom" role="img" aria-label="Deck ${n} zoomed waveform with beat grid. Click to jump."></canvas>
-          <canvas class="wave" data-r="wave" role="img" aria-label="Deck ${n} full-track overview. Click to move the playhead."></canvas>
+          <canvas class="wave" data-r="wave" role="img" aria-label="Deck ${n} full track overview. Click to move the playhead."></canvas>
         </div>
         <select data-r="zspan" aria-label="Deck ${n} zoom window" class="mini zsel"><option value="4">4 s</option><option value="8" selected>8 s</option><option value="16">16 s</option></select>`;
       this.roots.deck.innerHTML = `
