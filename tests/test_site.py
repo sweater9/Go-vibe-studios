@@ -96,6 +96,8 @@ def test_static():
         for k in ("description", "og:title", "og:description", "og:image", "theme-color"):
             check(f"{f}.html has meta {k}", bool(p.meta.get(k)))
         check(f"{f}.html links manifest and icon", p.links.get("manifest") and p.links.get("icon"))
+        scripts = re.findall(r'<script[^>]*\ssrc="([^"]+)"', open(f"{ROOT}/{f}.html").read())
+        check(f"{f}.html loads each script once", len(scripts) == len(set(scripts)), str(sorted({x for x in scripts if scripts.count(x) > 1})))
     foot = {f: re.findall(r'<a href="([^"]*)"[^>]*>(.*?)</a>', re.search(r"<footer.*?</footer>", open(f"{ROOT}/{f}.html").read(), re.S).group(0)) for f in PAGES}
     odd = [f for f in PAGES if foot[f] != foot["index"]]
     check("every page footer has the same links as the home page", not odd, str(odd))
